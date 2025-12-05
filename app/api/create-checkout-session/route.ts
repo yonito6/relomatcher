@@ -14,7 +14,7 @@ if (stripeSecretKey) {
   stripe = new Stripe(stripeSecretKey);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     // Helpful sanity checks
     if (!stripeSecretKey || !stripe) {
