@@ -441,11 +441,13 @@ function scoreCountryDimensions(
   const lifestyle = c.lifestyleScore;
 
   // --- Extra structural / development scores (0–10) ---
-const healthcareSystem = c.healthcareScore;
-  const publicTransport = c.publicTransportScore;
-  const digitalServices = c.digitalServicesScore;
+  const cAny = c as any;
+
+  const healthcareSystem = cAny.healthcareScore;
+  const publicTransport = cAny.publicTransportScore;
+  const digitalServices = cAny.digitalServicesScore;
   const infrastructureClean =
-    c.infrastructureCleanScore ?? c.infrastructureScore ?? c.cleanlinessScore;
+    cAny.infrastructureCleanScore ?? cAny.infrastructureScore ?? cAny.cleanlinessScore;
 
   // --- Climate match depending on user's preference ---
   let climatePref: "cold" | "warm" | "mild" | undefined;
