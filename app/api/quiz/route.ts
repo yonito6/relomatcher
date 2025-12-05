@@ -5,10 +5,36 @@ import type { QuizData } from "@/lib/types";
 import OpenAI from "openai";
 
 export const runtime = "nodejs";
+// Make sure this route is always dynamic (no static optimizations at build time)
+export const dynamic = "force-dynamic";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+async function getOpenAIClient(): Promise<OpenAI | null> {
+  // If no key in this environment → no AI, just fallback quietly
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn(
+      "[Relomatcher] OPENAI_API_KEY is not set – AI re-ranking disabled."
+    );
+    return null;
+  }
+
+  if (!openaiClient) {
+    try {
+      openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    } catch (err) {
+      console.warn(
+        "[Relomatcher] Failed to initialise OpenAI client – falling back to numeric ranking.",
+        err
+      );
+      openaiClient = null;
+    }
+  }
+
+  return openaiClient;
+}
 
 // Shape expected by app/page.tsx
 type DimensionBreakdown = {
@@ -130,7 +156,7 @@ export async function POST(req: Request) {
     // Start from numeric ranking
     let matches: CountryMatch[] = winners.slice();
 
-    // Try AI re-ranking on top of numeric scores (now allowed to reorder more aggressively)
+    // Try AI re-ranking on top of numeric scores
     try {
       const { ranked } = await aiRerankMatches(body, winners, disqualifiedTop);
       if (ranked && ranked.length > 0) {
@@ -202,8 +228,10 @@ async function aiRerankMatches(
   candidates: CountryMatch[],
   disqualified: DisqualifiedCountry[]
 ): Promise<{ ranked: AIReRanked[]; disqualifiedNotes: AIReRanked[] }> {
-  // No key → do nothing, fall back to numeric
-  if (!process.env.OPENAI_API_KEY) {
+  const client = await getOpenAIClient();
+
+  // No client → do nothing, fall back to numeric
+  if (!client) {
     return {
       ranked: candidates.map((c, idx) => ({
         code: c.code,
@@ -331,7 +359,7 @@ Return ONLY JSON of the form:
 }
 `.trim();
 
-  const completion = await openai.chat.completions.create({
+  const completion = await client.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
       { role: "system", content: systemPrompt },
@@ -797,8 +825,6 @@ function computeTotalScore(
   }
 
   // ---- DEVELOPMENT / INFRASTRUCTURE / HEALTHCARE ----
-  // If user explicitly cares about living in a developed, modern country,
-  // give weight to healthcare, digital services, infrastructure cleanliness.
   if (reasons.has("development_care_yes") || reasons.has("development_care_some")) {
     const devBoost = 1.4;
     weights.healthcareSystem = (weights.healthcareSystem ?? 0) + devBoost;

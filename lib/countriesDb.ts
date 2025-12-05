@@ -55,6 +55,9 @@ export type CountryRecord = {
   /** 0–10 overall healthcare quality + accessibility for residents */
   healthcareScore?: number;
 
+  /** backwards-compat: some code may still reference this */
+  healthcareSystemScore?: number;  // 👈 add this line
+
   /**
    * 0–10, where it sits on “public vs private” axis:
    * 0–3 = heavily private, 4–6 = mixed, 7–10 = strong public system.
