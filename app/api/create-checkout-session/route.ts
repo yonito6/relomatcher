@@ -11,9 +11,7 @@ const cancelUrl = process.env.STRIPE_CANCEL_URL;
 
 let stripe: Stripe | null = null;
 if (stripeSecretKey) {
-  stripe = new Stripe(stripeSecretKey, {
-    apiVersion: "2024-06-20",
-  });
+  stripe = new Stripe(stripeSecretKey);
 }
 
 export async function POST() {
