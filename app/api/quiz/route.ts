@@ -441,7 +441,7 @@ function scoreCountryDimensions(
   const lifestyle = c.lifestyleScore;
 
   // --- Extra structural / development scores (0–10) ---
-  const healthcareSystem = c.healthcareScore ?? c.healthcareSystemScore;
+const healthcareSystem = c.healthcareScore;
   const publicTransport = c.publicTransportScore;
   const digitalServices = c.digitalServicesScore;
   const infrastructureClean =
