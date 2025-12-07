@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
-import type { QuizData } from "@/lib/types";
+import type { QuizData from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 const TOTAL_STEPS = 10;
@@ -134,6 +134,28 @@ export default function QuizPage() {
   const hasScrolledToResultsRef = useRef(false);
 
   /* ---------------------------------------------------------------------- */
+  /*        FORCE-DISABLE HORIZONTAL SCROLL ON HTML/BODY (MOBILE)          */
+  /* ---------------------------------------------------------------------- */
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflowX = html.style.overflowX;
+    const prevBodyOverflowX = body.style.overflowX;
+
+    html.style.overflowX = "hidden";
+    body.style.overflowX = "hidden";
+
+    return () => {
+      html.style.overflowX = prevHtmlOverflowX;
+      body.style.overflowX = prevBodyOverflowX;
+    };
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
   /*                        RESTORE LAST RESULT (SESSION)                   */
   /* ---------------------------------------------------------------------- */
 
@@ -172,7 +194,7 @@ export default function QuizPage() {
       setAiError(parsed.aiError || null);
 
       setCurrentStep(TOTAL_STEPS - 1);
-      setShowQuiz(true); // jump straight into quiz/results on restore
+      setShowQuiz(true);
     } catch (e) {
       console.error("Failed to restore relomatcherLastResult:", e);
     } finally {
@@ -221,6 +243,14 @@ export default function QuizPage() {
   }
 
   function handleBack() {
+    // If on first step → go back to landing page
+    if (currentStep === 0) {
+      setShowQuiz(false);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
     setCurrentStep((s) => Math.max(s - 1, 0));
   }
 
@@ -366,7 +396,7 @@ export default function QuizPage() {
 
   function handleStartQuiz() {
     setShowQuiz(true);
-    // slight delay so the section is in the DOM before scroll
+    setCurrentStep(0);
     setTimeout(() => {
       const el = document.getElementById("quiz-form-section");
       if (el) {
@@ -375,94 +405,75 @@ export default function QuizPage() {
     }, 50);
   }
 
+  function handleRetakeQuiz() {
+    setData(initialData);
+    setSubmittedProfile(null);
+    setResult(null);
+    setAiData(null);
+    setAiError(null);
+    setErrorMsg(null);
+    setLoading(false);
+    setProgress(0);
+    setCurrentStep(0);
+    setShowQuiz(false);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
-      <div className="w-full max-w-6xl">
-        {/* Top hero with logo */}
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-          <div className="flex items-center gap-4">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
+      <div className="w-full max-w-6xl mx-auto">
+        {/* Top bar with logo */}
+        <header className="flex items-center justify-between gap-4 mb-10">
+          <div className="flex items-center gap-3">
             <img
               src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
               alt="Relomatcher logo"
-              className="h-16 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
+              className="h-12 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
-            {/* Text block: visible only on md+ to avoid overflow on mobile */}
-            <div className="hidden md:block">
-              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
-                Find your best country match.
-              </h1>
-              <p className="text-[13px] md:text-sm text-slate-400 mt-1 leading-relaxed max-w-xl">
-                Tell us who you are and what you care about. We&apos;ll match you
-                with countries based on taxes, lifestyle, climate, LGBTQ+ rights
-                and more – built for remote workers and online earners.
-              </p>
-            </div>
           </div>
         </header>
 
-        {/* LANDING VIEW (no form yet) */}
+        {/* LANDING VIEW */}
         {!showQuiz && (
           <section className="space-y-8">
-            {/* Mobile-friendly title & copy */}
-            <div className="md:hidden space-y-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-50 leading-tight">
+            {/* Hero */}
+            <div className="space-y-3 max-w-2xl">
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
                 Find your best country match.
               </h1>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Answer a few smart questions and we&apos;ll match you with
-                countries based on taxes, lifestyle, climate, LGBTQ+ safety and
-                more – tuned for remote workers and online earners.
+              <p className="text-sm md:text-base text-slate-400 leading-relaxed">
+                Our AI-powered relocation engine analyzes your preferences and
+                lifestyle to rank the countries that fit you best — and explains
+                in clear, human-like language why each destination matches your
+                profile.
               </p>
             </div>
 
-            {/* Explainer + bullets */}
-            <div className="space-y-6">
-              <div className="space-y-3 max-w-xl">
-                <h2 className="text-xl md:text-2xl font-semibold text-slate-50 tracking-tight">
-                  Stop scrolling random Reddit threads.
-                </h2>
-                <p className="text-[13px] md:text-sm text-slate-400 leading-relaxed">
-                  Most people research relocation backwards: they start with a
-                  country and then try to see if it fits. Relomatcher flips it –
-                  we start with{" "}
-                  <span className="font-semibold text-amber-300">you</span> and
-                  only then talk about countries.
-                </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Bullet icon="🧠" title="Adaptive questions">
-                  We only go deep on the things you say you care about – if you
-                  don&apos;t care about taxes, we won&apos;t interrogate you about
-                  taxes.
-                </Bullet>
-                <Bullet icon="🏳️‍🌈" title="Identity-aware">
-                  Mark LGBTQ+ safety, language and lifestyle as non-negotiable and
-                  we&apos;ll avoid places that clearly don&apos;t fit.
-                </Bullet>
-                <Bullet icon="🌦️" title="Climate & vibe first">
-                  Prefer cold cities with nightlife, or warm laid-back islands? We
-                  treat vibe as seriously as numbers.
-                </Bullet>
-                <Bullet icon="💸" title="Built for online earners">
-                  Tuned for remote workers, e-com owners and people whose income
-                  isn&apos;t locked to one country.
-                </Bullet>
-              </div>
-
-              <p className="text-[11px] text-slate-500 max-w-lg leading-relaxed">
-                This is still a beta. The engine already ranks countries for you
-                and explains why they fit – and also shows{" "}
-                <span className="font-semibold text-slate-200">
-                  strong options it had to reject
-                </span>{" "}
-                because of your non-negotiables (like LGBT or residency realism).
-                AI then adds a human-style explanation on top of the numbers.
-              </p>
+            {/* Bullets */}
+            <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
+              <Bullet icon="🧠" title="Adaptive questions">
+                We only go deep on the things you say you care about – if you
+                don&apos;t care about taxes, we won&apos;t interrogate you about
+                taxes.
+              </Bullet>
+              <Bullet icon="🏳️‍🌈" title="Identity-aware">
+                You can mark things like safety, culture and lifestyle as
+                non-negotiable and we&apos;ll avoid places that don&apos;t fit.
+              </Bullet>
+              <Bullet icon="🌦️" title="Climate & vibe first">
+                Prefer cold cities with nightlife, or warm laid-back coasts? We
+                treat vibe as seriously as numbers.
+              </Bullet>
+              <Bullet icon="💸" title="Built for online earners">
+                Tuned for remote workers, founders and people whose income
+                isn&apos;t locked to one country.
+              </Bullet>
             </div>
 
-            {/* Big CTA button */}
-            <div className="flex justify-center">
+            {/* CTA */}
+            <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
                 onClick={handleStartQuiz}
@@ -471,16 +482,15 @@ export default function QuizPage() {
                 <span>✨ Start your quiz now</span>
                 <span className="text-lg">→</span>
               </button>
+              <p className="text-[11px] text-slate-500 text-center">
+                ~10 quick steps · built for remote workers, founders and online
+                earners.
+              </p>
             </div>
-
-            <p className="text-[11px] text-slate-500 text-center">
-              ~10 quick steps · built for remote workers, founders and online
-              earners.
-            </p>
           </section>
         )}
 
-        {/* QUIZ VIEW (form + results) */}
+        {/* QUIZ VIEW */}
         {showQuiz && (
           <>
             <section
@@ -541,6 +551,7 @@ export default function QuizPage() {
                     originCurrencyLabel={originCurrencyLabel}
                     aiData={aiData}
                     aiError={aiError}
+                    onRetake={handleRetakeQuiz}
                   />
                 </section>
               )}
@@ -656,12 +667,14 @@ function ResultsPanel({
   originCurrencyLabel,
   aiData,
   aiError,
+  onRetake,
 }: {
   result: QuizApiResponse;
   profile: QuizData | null;
   originCurrencyLabel: string;
   aiData: AIExplainData | null;
   aiError: string | null;
+  onRetake: () => void;
 }) {
   const rawMatches = result.topMatches || [];
   const topMatches = rawMatches.slice(0, 3);
@@ -677,6 +690,10 @@ function ResultsPanel({
   const [activeTab, setActiveTab] = useState<"qualified" | "disqualified">(
     "qualified"
   );
+
+  // NEW: collapsible profile + AI summary
+  const [profileExpanded, setProfileExpanded] = useState(false); // default: collapsed
+  const [aiExpanded, setAiExpanded] = useState(true);
 
   const monthlyIncome = profile?.monthlyIncome
     ? Number(profile.monthlyIncome.toString().replace(/,/g, ""))
@@ -708,7 +725,7 @@ function ResultsPanel({
 
   return (
     <div className="space-y-5 mt-4">
-      {/* Upsell + AI summary */}
+      {/* Top row: Upsell + AI summary (collapsible) */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -725,28 +742,100 @@ function ResultsPanel({
                 <p>{aiError}</p>
               </div>
             </div>
-          ) : aiData?.overallSummary ? (
-            <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 flex gap-3 items-start shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
-              <span className="text-lg mt-0.5">🤖</span>
-              <div className="text-xs">
-                <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-emerald-600 mb-1">
-                  AI summary of your matches
-                </p>
-                <p className="text-slate-800">{aiData.overallSummary}</p>
-              </div>
-            </div>
           ) : (
-            <div className="h-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.25)]">
-              <p className="font-semibold text-[11px] uppercase tracking-[0.14em] mb-1 text-slate-700">
-                AI summary of your matches
-              </p>
-              <p>
-                Your matches are ready. If AI insights fail for some reason, you
-                still have the full numeric breakdown below.
-              </p>
+            <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🤖</span>
+                  <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-emerald-600">
+                    AI summary of your matches
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiExpanded((v) => !v)}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
+                >
+                  <span>{aiExpanded ? "Hide" : "Show"}</span>
+                  <span>{aiExpanded ? "▲" : "▼"}</span>
+                </button>
+              </div>
+              {aiExpanded && (
+                <p className="mt-2 text-xs text-slate-800">
+                  {aiData?.overallSummary
+                    ? aiData.overallSummary
+                    : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
+                </p>
+              )}
             </div>
           )}
         </div>
+      </div>
+
+      {/* NEW: My profile (collapsible, minimized by default) */}
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.25)] text-slate-900">
+        <button
+          type="button"
+          onClick={() => setProfileExpanded((v) => !v)}
+          className="w-full flex items-center justify-between text-sm"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5">
+              My profile
+            </span>
+            <span className="text-[11px] text-slate-500">
+              Tap to {profileExpanded ? "hide" : "view"} your answers
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-700">
+            {profileExpanded ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {profileExpanded && profile && (
+          <div className="mt-3 grid gap-3 text-[11px] text-slate-700 sm:grid-cols-2">
+            <div className="space-y-1">
+              <p className="font-semibold text-slate-900">Basics</p>
+              {profile.ageRange && <p>Age range: {profile.ageRange}</p>}
+              {profile.currentCountry && (
+                <p>Current country: {profile.currentCountry}</p>
+              )}
+              {profile.familyStatus && (
+                <p>Family status: {profile.familyStatus}</p>
+              )}
+              {profile.relocatingWith && (
+                <p>Relocating with: {profile.relocatingWith}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-slate-900">Passports & income</p>
+              {profile.passportCountry && (
+                <p>Passport: {profile.passportCountry}</p>
+              )}
+              {profile.secondPassportCountry && (
+                <p>2nd passport: {profile.secondPassportCountry}</p>
+              )}
+              {profile.monthlyIncome && (
+                <p>
+                  Income: {profile.monthlyIncome} {profile.incomeCurrency}
+                </p>
+              )}
+              {!!(profile.workSituation || []).length && (
+                <p>Work: {profile.workSituation.join(", ")}</p>
+              )}
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <p className="font-semibold text-slate-900">Reasons</p>
+              {profile.reasons && profile.reasons.length > 0 ? (
+                <p>{profile.reasons.join(", ")}</p>
+              ) : (
+                <p className="text-slate-500">
+                  No specific reasons selected in the quiz.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -831,6 +920,18 @@ function ResultsPanel({
               );
             })}
           </div>
+
+          {/* NEW: Retake quiz button under top matches */}
+          <div className="pt-2 border-t border-slate-800/40 mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={onRetake}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-4 py-1.5 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors"
+            >
+              <span>🔁</span>
+              <span>Retake quiz</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -867,7 +968,10 @@ function buildDimensionsForProfile(
     { key: "costOfLiving", label: "Cost of living" },
     { key: "incomeGrowth", label: "Income & growth" },
     { key: "remoteFriendly", label: "Remote-work friendly" },
-    { key: "safety", label: "Safety & stability" },
+    {
+      key: "safety",
+      label: "Safety & stability",
+    },
     {
       key: "lifestyle",
       label: "Lifestyle & culture",
@@ -1229,10 +1333,10 @@ function DisqualifiedPanel({
                     {netPct !== null && (
                       <p className="mt-1 text-[11px] text-slate-800">
                         Financially, you could keep roughly{" "}
-                          <span className="font-semibold text-amber-600">
-                            {netPct}%
-                          </span>{" "}
-                          of your income here
+                        <span className="font-semibold text-amber-600">
+                          {netPct}%
+                        </span>{" "}
+                        of your income here
                         {approxNet && (
                           <>
                             , ≈{" "}
@@ -1384,7 +1488,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
-      // if you ever hit CORS issues, can try: img.referrerPolicy = "no-referrer";
     });
   }
 
@@ -1403,8 +1506,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No 2D context");
 
-      // --- Background: solid dark + subtle top glow ---
-      ctx.fillStyle = "#020617"; // slate-950
+      // Background
+      ctx.fillStyle = "#020617";
       ctx.fillRect(0, 0, width, height);
 
       const gradient = ctx.createRadialGradient(
@@ -1420,14 +1523,12 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
-      // --- Load flags (if available) ---
       const [flag1, flag2, flag3] = await Promise.all([
         loadFlag(first?.code),
         loadFlag(second?.code),
         loadFlag(third?.code),
       ]);
 
-      // Helper for text
       const drawText = (
         text: string,
         x: number,
@@ -1444,14 +1545,12 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
-      // --- Shifted-layout constants (more top margin, CTA higher) ---
-      const topOffset = 200; // push content down a bit
+      const topOffset = 200;
       const titleY = topOffset + 55;
       const subtitleY = titleY + 60;
-      const rowYStart = subtitleY + 110; // first card
+      const rowYStart = subtitleY + 110;
       const rowGap = 150;
 
-      // --- Top label + brand ---
       drawText(
         "YOUR TOP COUNTRY MATCHES",
         80,
@@ -1472,7 +1571,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "600"
       );
 
-      // --- Main title & subtitle ---
       drawText(
         "Find your best country match.",
         80,
@@ -1493,7 +1591,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "500"
       );
 
-      // --- Card rows ---
       const drawRow = (
         idxLabel: string,
         name: string,
@@ -1508,7 +1605,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         const cardH = 120;
         const radius = 32;
 
-        // Card background
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(cardX + radius, cardY);
@@ -1537,11 +1633,10 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.stroke();
         ctx.restore();
 
-        // Index badge
-        ctx.beginPath();
         const badgeX = cardX + 70;
         const badgeY = y - 15;
         const badgeR = 34;
+        ctx.beginPath();
         ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
         ctx.fillStyle = highlight ? "#fbbf24" : "#111827";
         ctx.fill();
@@ -1555,12 +1650,10 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           "700"
         );
 
-        // Flag (vertically aligned around text)
         let textStartX = badgeX + 70;
         if (flagImg) {
           const flagH = 46;
           const flagW = (flagImg.width / flagImg.height) * flagH;
-          // center flag roughly with the country text line
           const textBaselineY = y - 8;
           const flagY = textBaselineY - flagH / 2 + 4;
           const flagX = badgeX + 70;
@@ -1568,7 +1661,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           textStartX = flagX + flagW + 20;
         }
 
-        // Country name
         drawText(
           name,
           textStartX,
@@ -1579,7 +1671,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           "600"
         );
 
-        // Score
         if (score != null && !Number.isNaN(score)) {
           drawText(
             `${score.toFixed(1)}/10`,
@@ -1624,9 +1715,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         );
       }
 
-      // --- Bottom CTA block (moved UP so not hidden by story UI) ---
       const ctaBoxHeight = 230;
-      const ctaBoxY = height - ctaBoxHeight - 260; // was ~ -120, now higher
+      const ctaBoxY = height - ctaBoxHeight - 260;
 
       ctx.fillStyle = "rgba(15,23,42,0.96)";
       ctx.beginPath();
@@ -1695,10 +1785,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "800"
       );
 
-      // --- Export to PNG ---
       const dataUrl = canvas.toDataURL("image/png");
-
-      // Convert to Blob + File for Web Share
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], "relomatcher-story.png", {
@@ -1707,12 +1794,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
 
       const navAny = navigator as any;
 
-      // Try native share with file (mobile browsers that support it)
-      if (
-        navAny.share &&
-        navAny.canShare &&
-        navAny.canShare({ files: [file] })
-      ) {
+      if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
         await navAny.share({
           files: [file],
           title: "My Relomatcher matches",
@@ -1721,7 +1803,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         });
         setSavedOnce(true);
       } else {
-        // Fallback: trigger download
         const link = document.createElement("a");
         link.href = dataUrl;
         link.download = "relomatcher-story.png";
