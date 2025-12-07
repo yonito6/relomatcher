@@ -6,8 +6,9 @@ export const runtime = "nodejs";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const priceId = process.env.STRIPE_PRICE_ID;
-const successUrl = process.env.STRIPE_SUCCESS_URL;
-const cancelUrl = process.env.STRIPE_CANCEL_URL;
+const successUrlEnv = process.env.STRIPE_SUCCESS_URL;
+const cancelUrlEnv = process.env.STRIPE_CANCEL_URL;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://relomatcher.com";
 
 let stripe: Stripe | null = null;
 if (stripeSecretKey) {
@@ -16,7 +17,6 @@ if (stripeSecretKey) {
 
 export async function POST(req: Request) {
   try {
-    // Helpful sanity checks
     if (!stripeSecretKey || !stripe) {
       console.error("Missing STRIPE_SECRET_KEY");
       return NextResponse.json(
@@ -31,13 +31,17 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    if (!successUrl || !cancelUrl) {
-      console.error("Missing STRIPE_SUCCESS_URL or STRIPE_CANCEL_URL");
-      return NextResponse.json(
-        { error: "Server missing success/cancel URL env vars." },
-        { status: 500 }
-      );
-    }
+
+    const successUrl =
+      successUrlEnv && successUrlEnv.trim().length > 0
+        ? successUrlEnv
+        : `${appUrl}/checkout/success`;
+
+    // If STRIPE_CANCEL_URL is set, use it; otherwise default to /?restore=1
+    const cancelUrl =
+      cancelUrlEnv && cancelUrlEnv.trim().length > 0
+        ? cancelUrlEnv
+        : `${appUrl}/?restore=1`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
