@@ -253,6 +253,30 @@ function AdaptiveQuizForm({
     null
   );
 
+  // NEW: collapsible "My profile"
+  const [collapsed, setCollapsed] = React.useState(false);
+
+  // NEW: mobile-friendly custom country suggestion instead of <datalist>
+  const [countryQuery, setCountryQuery] = React.useState(
+    data.currentCountry || ""
+  );
+  const [showCountryDropdown, setShowCountryDropdown] =
+    React.useState<boolean>(false);
+
+  const filteredCountries = React.useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return COUNTRY_OPTIONS.slice(0, 15);
+    return COUNTRY_OPTIONS.filter((c) =>
+      c.toLowerCase().includes(q)
+    ).slice(0, 15);
+  }, [countryQuery]);
+
+  const handleCountrySelect = (country: string) => {
+    setCountryQuery(country);
+    onUpdate({ currentCountry: country });
+    setShowCountryDropdown(false);
+  };
+
   // "knobs" – numeric sliders stored on the profile
   const anyData = data as any;
   const taxImportance =
@@ -459,6 +483,8 @@ function AdaptiveQuizForm({
     setValidationError(null);
 
     if (isLastStep) {
+      // IMPORTANT: collapse the profile tab after clicking "See my matches"
+      setCollapsed(true);
       onSubmit();
     } else {
       onNext();
@@ -479,22 +505,39 @@ function AdaptiveQuizForm({
       >
         <div className="space-y-1">
           <Label>Where are you currently based?</Label>
-          <input
-            list="country-list"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-            placeholder="Start typing your country…"
-            value={data.currentCountry || ""}
-            onChange={(e) =>
-              onUpdate({
-                currentCountry: e.target.value,
-              })
-            }
-          />
-          <datalist id="country-list">
-            {COUNTRY_OPTIONS.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
+          <div className="relative w-full">
+            <input
+              type="text"
+              autoComplete="off"
+              className="w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+              placeholder="Start typing your country…"
+              value={countryQuery}
+              onFocus={() => setShowCountryDropdown(true)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCountryQuery(value);
+                onUpdate({ currentCountry: value });
+                setShowCountryDropdown(true);
+              }}
+            />
+            {showCountryDropdown && filteredCountries.length > 0 && (
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                {filteredCountries.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="block w-full px-3 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-100"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleCountrySelect(c);
+                    }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <p className="text-[11px] text-slate-500">
             We won&apos;t suggest {data.currentCountry || "your current country"} as a
             match.
@@ -812,7 +855,8 @@ function AdaptiveQuizForm({
               onClick={() => {
                 const without = reasons.filter(
                   (r) =>
-                    ![...safetyGroup,
+                    ![
+                      ...safetyGroup,
                       "safety_stability_priority",
                       "personal_safety",
                       "personal_safety_low_priority",
@@ -1320,9 +1364,7 @@ function AdaptiveQuizForm({
     const toggleDevDetail = (key: RelocationReasonId) => {
       const exists = reasons.includes(key);
       const without = reasons.filter((r) => r !== key);
-      const next: RelocationReasonId[] = exists
-        ? without
-        : [...without, key];
+      const next: RelocationReasonId[] = exists ? without : [...without, key];
       onUpdate({ reasons: next });
     };
 
@@ -1564,44 +1606,70 @@ function AdaptiveQuizForm({
   return (
     <form
       onSubmit={handleFormSubmit}
-      className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900"
+      className="w-full max-w-full bg-white border border-slate-200 rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
-      {stepContent}
-
-      {validationError && (
-        <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-          {validationError}
-        </p>
-      )}
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-2 mt-2">
+      {/* Collapsible header for the existing profile form */}
+      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5">
+            My profile
+          </span>
+          <span className="text-[11px] text-slate-500 truncate">
+            Step {currentStep + 1} of {totalSteps} · Tap to{" "}
+            {collapsed ? "expand" : "collapse"}.
+          </span>
+        </div>
         <button
           type="button"
-          onClick={onBack}
-          disabled={currentStep === 0}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-400 hover:bg-slate-50 transition-colors"
+          onClick={() => setCollapsed((v) => !v)}
+          className="ml-2 flex items-center gap-1 text-[11px] text-slate-700 hover:text-slate-900"
         >
-          ← Back
+          <span>{collapsed ? "Show" : "Hide"}</span>
+          <span>{collapsed ? "▼" : "▲"}</span>
         </button>
-        <div className="flex items-center gap-3">
-          <p className="text-[11px] text-slate-500">
-            Step {currentStep + 1} of {totalSteps}
-          </p>
-          <button
-            type="submit"
-            className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
+      </div>
+
+      {/* Only show the actual step content + nav when not collapsed */}
+      {!collapsed && (
+        <>
+          {stepContent}
+
+          {validationError && (
+            <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+              {validationError}
+            </p>
+          )}
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-2 mt-2">
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={currentStep === 0}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-400 hover:bg-slate-50 transition-colors"
+            >
+              ← Back
+            </button>
+            <div className="flex items-center gap-3">
+              <p className="hidden xs:block text-[11px] text-slate-500">
+                Step {currentStep + 1} of {totalSteps}
+              </p>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
                        bg-amber-400 text-slate-950 border border-transparent
                        shadow-[0_10px_25px_rgba(0,0,0,0.25)]
                        transition-all duration-150
                        hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
                        active:translate-y-0 active:scale-[0.97]
                        focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
-          >
-            {isLastStep ? "🔥 See my matches" : "Continue"}
-          </button>
-        </div>
-      </div>
+              >
+                {isLastStep ? "🔥 See my matches" : "Continue"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </form>
   );
 }
@@ -1622,10 +1690,10 @@ function SectionCard({
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <div className="h-8 w-8 flex items-center justify-center rounded-2xl bg-slate-100 border border-slate-200 text-lg">
+        <div className="h-8 w-8 flex items-center justify-center rounded-2xl bg-slate-100 border border-slate-200 text-lg shrink-0">
           {emoji}
         </div>
-        <div>
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-900 tracking-tight">
             {title}
           </h2>
@@ -1660,6 +1728,7 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       className={`group relative flex items-start gap-2 text-left text-[11px] px-3.5 py-2.5 rounded-2xl border
+        w-full
         transition-all duration-150 ease-out font-medium
         ${
           selected
@@ -1668,7 +1737,7 @@ function ChoiceCard({
         }`}
     >
       <div
-        className={`mt-[2px] h-3.5 w-3.5 rounded-full border flex items-center justify-center transition-all duration-150
+        className={`mt-[2px] h-3.5 w-3.5 rounded-full border flex items-center justify-center transition-all duration-150 flex-shrink-0
           ${
             selected
               ? "border-slate-950 bg-slate-50"
@@ -1679,7 +1748,7 @@ function ChoiceCard({
           <span className="block h-2 w-2 rounded-full bg-slate-950" />
         )}
       </div>
-      <span className="leading-snug pr-1">{label}</span>
+      <span className="leading-snug pr-1 break-words">{label}</span>
     </button>
   );
 }
@@ -1699,6 +1768,7 @@ function DoesntMatterCard({
       type="button"
       onClick={onClick}
       className={`group relative flex items-start gap-2 text-left text-[11px] px-3.5 py-2.5 rounded-2xl border
+        w-full
         transition-all duration-150 ease-out
         ${
           selected
@@ -1707,7 +1777,7 @@ function DoesntMatterCard({
         }`}
     >
       <div
-        className={`mt-[2px] h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold transition-all
+        className={`mt-[2px] h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold transition-all flex-shrink-0
           ${
             selected
               ? "bg-slate-50 text-slate-950"
@@ -1717,7 +1787,7 @@ function DoesntMatterCard({
         ×
       </div>
 
-      <div className="leading-snug">
+      <div className="leading-snug break-words">
         <span className="font-semibold mr-1 uppercase tracking-[0.14em] text-[10px]">
           Not a priority:
         </span>
