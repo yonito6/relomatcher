@@ -1315,38 +1315,101 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share "my results" - text + link */
+/* Share "my results" - image + text when possible */
 
 function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   if (!topMatches || topMatches.length === 0) return null;
 
   const names = topMatches.slice(0, 3).map((m) => m.name);
 
-  const text = `My Relomatcher top countries: ${names.join(
+  const baseText = `My Relomatcher top countries: ${names.join(
     ", "
   )}. Take your quiz on www.relomatcher.com and see yours.`;
 
   async function handleShare() {
     try {
-      // Prefer native share if available
-      if (navigator.share) {
+      setSharing(true);
+
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://relomatcher.com";
+
+      // Build the same params we use for the story image
+      const params = new URLSearchParams();
+      const first = topMatches[0];
+      const second = topMatches[1];
+      const third = topMatches[2];
+
+      if (first) {
+        params.set("c1", first.name);
+        params.set("s1", first.totalScore.toFixed(1));
+      }
+      if (second) {
+        params.set("c2", second.name);
+        params.set("s2", second.totalScore.toFixed(1));
+      }
+      if (third) {
+        params.set("c3", third.name);
+        params.set("s3", third.totalScore.toFixed(1));
+      }
+
+      const imageUrl = `${origin}/api/share-story?${params.toString()}`;
+
+      // Try to share as an image file (on supported mobile browsers)
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.share &&
+        "canShare" in navigator &&
+        typeof (navigator as any).canShare === "function"
+      ) {
+        try {
+          const res = await fetch(imageUrl);
+          const blob = await res.blob();
+          const file = new File([blob], "relomatcher-results.png", {
+            type: "image/png",
+          });
+
+          if ((navigator as any).canShare({ files: [file] })) {
+            await navigator.share({
+              title: "My Relomatcher results",
+              text: baseText,
+              files: [file],
+            });
+            setSharing(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Image share failed, falling back to text:", e);
+        }
+      }
+
+      // Fallbacks: text + link
+      const fullText = `${baseText}  (Story image: ${imageUrl})`;
+
+      if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({
           title: "My Relomatcher results",
-          text, // ONLY text, no "url" field
+          text: fullText,
         });
-      } else if (navigator.clipboard) {
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(text);
+      } else if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        navigator.clipboard.writeText
+      ) {
+        await navigator.clipboard.writeText(fullText);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
-        // Last fallback
-        alert("Share this text:\n\n" + text);
+        alert("Share this text:\n\n" + fullText);
       }
     } catch (e) {
       console.error("Share failed", e);
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -1355,118 +1418,18 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
       <button
         type="button"
         onClick={handleShare}
-        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 transition-colors"
+        disabled={sharing}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
-        <span>📤</span>
-        <span>Share my results</span>
+        <span>{sharing ? "⏳" : "📤"}</span>
+        <span>{sharing ? "Preparing image…" : "Share my results"}</span>
       </button>
       {copied && (
         <span className="text-[10px] text-emerald-300">
-          Text copied! Paste to share.
+          Text + link copied! Paste to share.
         </span>
       )}
     </div>
   );
 }
-
-/* Share story image (vertical 1080x1920) */
-
-function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
-  const [status, setStatus] = useState<"idle" | "downloading" | "error">(
-    "idle"
-  );
-
-  if (!topMatches || topMatches.length === 0) return null;
-
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://relomatcher.com";
-
-  const params = new URLSearchParams();
-  const first = topMatches[0];
-  const second = topMatches[1];
-  const third = topMatches[2];
-
-  if (first) {
-    params.set("c1", first.name);
-    params.set("s1", first.totalScore.toFixed(1));
-  }
-  if (second) {
-    params.set("c2", second.name);
-    params.set("s2", second.totalScore.toFixed(1));
-  }
-  if (third) {
-    params.set("c3", third.name);
-    params.set("s3", third.totalScore.toFixed(1));
-  }
-
-  const imageUrl = `${origin}/api/share-story?${params.toString()}`;
-
-  async function handleShareStory() {
-    try {
-      setStatus("downloading");
-
-      // 1) Download the generated image
-      const res = await fetch(imageUrl);
-      const blob = await res.blob();
-
-      const file = new File([blob], "relomatcher-story.png", {
-        type: "image/png",
-      });
-
-      const navAny = navigator as any;
-
-      // 2) If browser supports sharing files → use native share
-      if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
-        await navAny.share({
-          files: [file],
-          title: "My Relomatcher top 3 countries",
-          text: "Take your quiz on www.relomatcher.com to see your own top 3.",
-        });
-      } else if (navAny.share) {
-        // Can share, but not files: share the link instead
-        await navAny.share({
-          title: "My Relomatcher top 3 countries",
-          text: "Take your quiz on www.relomatcher.com to see your own top 3.",
-          url: imageUrl,
-        });
-      } else {
-        // 3) Fallback: just open the image in a new tab
-        window.open(imageUrl, "_blank");
-      }
-
-      setStatus("idle");
-    } catch (e) {
-      console.error("Story share failed", e);
-      setStatus("error");
-      // Fallback: open in new tab
-      window.open(imageUrl, "_blank");
-      setTimeout(() => setStatus("idle"), 2000);
-    }
-  }
-
-  const label =
-    status === "downloading"
-      ? "Preparing image..."
-      : status === "error"
-      ? "Tap again to retry"
-      : "Share story image";
-
-  return (
-    <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
-      <button
-        type="button"
-        onClick={handleShareStory}
-        className="inline-flex items-center gap-1 rounded-full border border-slate-500 px-3 py-1.5 hover:bg-slate-900 hover:text-slate-50 transition-colors"
-      >
-        <span>📱</span>
-        <span>{label}</span>
-      </button>
-      <span>
-        On supported phones this shares the actual image. Otherwise it opens it
-        in a new tab so you can save / screenshot it.
-      </span>
-    </div>
-  );
 }
