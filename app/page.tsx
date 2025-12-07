@@ -361,7 +361,7 @@ export default function QuizPage() {
   }, [loading, result]);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
+    <main className="min-h-screen w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
       <div className="w-full max-w-6xl">
         {/* Top hero with logo */}
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
@@ -371,7 +371,8 @@ export default function QuizPage() {
               alt="Relomatcher logo"
               className="h-16 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
-            <div>
+            {/* Text block: visible only on md+ to avoid overflow on mobile */}
+            <div className="hidden md:block">
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
                 Find your best country match.
               </h1>
@@ -382,14 +383,7 @@ export default function QuizPage() {
               </p>
             </div>
           </div>
-          <div className="self-start md:self-auto flex flex-col items-end gap-2">
-            <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900 border border-slate-700 text-slate-200 uppercase tracking-[0.18em]">
-              Relomatcher · Beta
-            </span>
-            <span className="text-[11px] text-slate-500">
-              v0.1 · Matching engine + AI explainer
-            </span>
-          </div>
+          {/* Removed beta/version badge block for cleaner header */}
         </header>
 
         {/* Main layout: left explainer, right form */}
@@ -1509,7 +1503,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         let textStartX = badgeX + 70;
         if (flagImg) {
           const flagH = 46;
-          const flagW = (flagImg.width / flagImg.height) * flagH;
+          const flagW = (flagImg.width /flagImg.height) * flagH;
           // center flag roughly with the country text line
           const textBaselineY = y - 8;
           const flagY = textBaselineY - flagH / 2 + 4;
