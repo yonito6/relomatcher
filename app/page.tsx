@@ -7,6 +7,7 @@ import type { QuizData } from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 const TOTAL_STEPS = 10;
+const SESSION_STORAGE_KEY = "relomatcherLastResult";
 
 const initialData: QuizData = {
   ageRange: "",
@@ -136,8 +137,19 @@ export default function QuizPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const stored = window.sessionStorage.getItem("relomatcherLastResult");
-    if (!stored) return;
+    const url = new URL(window.location.href);
+    const fromStripe = url.searchParams.get("restore") === "1";
+
+    const stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) {
+      // If we came from Stripe but for some reason there's nothing to restore,
+      // still clean up the URL param.
+      if (fromStripe) {
+        url.searchParams.delete("restore");
+        window.history.replaceState({}, "", url.toString());
+      }
+      return;
+    }
 
     try {
       const parsed = JSON.parse(stored) as {
@@ -163,6 +175,12 @@ export default function QuizPage() {
       setCurrentStep(TOTAL_STEPS - 1);
     } catch (e) {
       console.error("Failed to restore relomatcherLastResult:", e);
+    } finally {
+      // Clean the restore param if present
+      if (fromStripe) {
+        url.searchParams.delete("restore");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
   }, []);
 
@@ -273,7 +291,7 @@ export default function QuizPage() {
       // 💾 3) Persist everything so user can come back to this state
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
-          "relomatcherLastResult",
+          SESSION_STORAGE_KEY,
           JSON.stringify({
             profile: data,
             result: json,
