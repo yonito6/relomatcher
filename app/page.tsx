@@ -142,8 +142,6 @@ export default function QuizPage() {
 
     const stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!stored) {
-      // If we came from Stripe but for some reason there's nothing to restore,
-      // still clean up the URL param.
       if (fromStripe) {
         url.searchParams.delete("restore");
         window.history.replaceState({}, "", url.toString());
@@ -159,7 +157,6 @@ export default function QuizPage() {
         aiError: string | null;
       };
 
-      // restore quiz data (so form is filled with last answers)
       if (parsed.result?.receivedData) {
         setData(parsed.result.receivedData);
       } else {
@@ -171,12 +168,10 @@ export default function QuizPage() {
       setAiData(parsed.aiData || null);
       setAiError(parsed.aiError || null);
 
-      // put the user at the last step of the form (so they feel "finished")
       setCurrentStep(TOTAL_STEPS - 1);
     } catch (e) {
       console.error("Failed to restore relomatcherLastResult:", e);
     } finally {
-      // Clean the restore param if present
       if (fromStripe) {
         url.searchParams.delete("restore");
         window.history.replaceState({}, "", url.toString());
@@ -236,7 +231,6 @@ export default function QuizPage() {
     hasScrolledToResultsRef.current = false;
 
     try {
-      // 1) Call the matcher API
       const res = await fetch("/api/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,7 +244,6 @@ export default function QuizPage() {
 
       const json = (await res.json()) as QuizApiResponse;
 
-      // 2) Call AI explanation BEFORE we stop loading
       let localAiData: AIExplainData | null = null;
       let localAiError: string | null = null;
 
@@ -288,7 +281,6 @@ export default function QuizPage() {
         }
       }
 
-      // 💾 3) Persist everything so user can come back to this state
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
           SESSION_STORAGE_KEY,
@@ -301,7 +293,6 @@ export default function QuizPage() {
         );
       }
 
-      // 4) Now commit everything to state
       setResult(json);
       setAiData(localAiData);
       setAiError(localAiError);
@@ -318,7 +309,6 @@ export default function QuizPage() {
     }
   }
 
-  // Step progress (for the top step indicator)
   const stepProgress = ((currentStep + 1) / TOTAL_STEPS) * 100;
 
   // Progress animation for the loading bar
@@ -343,7 +333,6 @@ export default function QuizPage() {
     return () => clearInterval(id);
   }, [loading]);
 
-  // Scroll to loading when it starts
   useEffect(() => {
     if (loading && loadingRef.current) {
       loadingRef.current.scrollIntoView({
@@ -353,7 +342,6 @@ export default function QuizPage() {
     }
   }, [loading]);
 
-  // Scroll to results once we first get matches
   useEffect(() => {
     if (
       !loading &&
@@ -385,15 +373,12 @@ export default function QuizPage() {
             />
             <div>
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
-                The{" "}
-                <span className="text-amber-300 font-bold">dating app</span> for
-                your next country.
+                Find your best country match.
               </h1>
               <p className="text-[13px] md:text-sm text-slate-400 mt-1 leading-relaxed max-w-xl">
                 Tell us who you are and what you care about. We&apos;ll match you
-                with countries like it&apos;s Tinder for relocation – built for
-                remote workers, e-com owners and people whose income isn&apos;t
-                locked to one country.
+                with countries based on taxes, lifestyle, climate, LGBTQ+ rights
+                and more – built for remote workers and online earners.
               </p>
             </div>
           </div>
@@ -751,6 +736,10 @@ function ResultsPanel({
           <p className="text-[11px] font-semibold text-slate-400">
             Your top matches (tap like or pass, then open the breakdown)
           </p>
+
+          {/* Share buttons */}
+          <ShareResultsButton topMatches={topMatches} />
+          <ShareStoryImageLink topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -1322,6 +1311,111 @@ function LoadingScreen({ progress }: { progress: number }) {
         letting AI re-rank the top ones. It takes a few seconds – but it&apos;s
         worth it to find a place that really fits you.
       </p>
+    </div>
+  );
+}
+
+/* Share "my results" - text + link */
+
+function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!topMatches || topMatches.length === 0) return null;
+
+  const names = topMatches.slice(0, 3).map((m) => m.name);
+  const url =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://relomatcher.com";
+
+  const text = `My Relomatcher top countries: ${names.join(
+    ", "
+  )}. Take your quiz on www.relomatcher.com and see yours.`;
+
+  async function handleShare() {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "My Relomatcher results",
+          text,
+          url,
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        alert("Share text:\n\n" + text);
+      }
+    } catch (e) {
+      console.error("Share failed", e);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handleShare}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 transition-colors"
+      >
+        <span>📤</span>
+        <span>Share my results</span>
+      </button>
+      {copied && (
+        <span className="text-[10px] text-emerald-300">
+          Text copied! Paste to share.
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* Share story image link (vertical 1080x1920) */
+
+function ShareStoryImageLink({ topMatches }: { topMatches: CountryMatch[] }) {
+  if (!topMatches || topMatches.length === 0) return null;
+
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://relomatcher.com";
+
+  const params = new URLSearchParams();
+  const first = topMatches[0];
+  const second = topMatches[1];
+  const third = topMatches[2];
+
+  if (first) {
+    params.set("c1", first.name);
+    params.set("s1", first.totalScore.toFixed(1));
+  }
+  if (second) {
+    params.set("c2", second.name);
+    params.set("s2", second.totalScore.toFixed(1));
+  }
+  if (third) {
+    params.set("c3", third.name);
+    params.set("s3", third.totalScore.toFixed(1));
+  }
+
+  const imageUrl = `${origin}/api/share-story?${params.toString()}`;
+
+  return (
+    <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
+      <a
+        href={imageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 rounded-full border border-slate-500 px-3 py-1.5 hover:bg-slate-900 hover:text-slate-50 transition-colors"
+      >
+        <span>📱</span>
+        <span>Open story share image</span>
+      </a>
+      <span>
+        Open it, screenshot / save, and share it as an Instagram or TikTok
+        story.
+      </span>
     </div>
   );
 }
