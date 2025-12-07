@@ -125,6 +125,9 @@ export default function QuizPage() {
   const [aiData, setAiData] = useState<AIExplainData | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Landing vs quiz
+  const [showQuiz, setShowQuiz] = useState(false);
+
   // For auto-scroll to loading and results
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -169,6 +172,7 @@ export default function QuizPage() {
       setAiError(parsed.aiError || null);
 
       setCurrentStep(TOTAL_STEPS - 1);
+      setShowQuiz(true); // jump straight into quiz/results on restore
     } catch (e) {
       console.error("Failed to restore relomatcherLastResult:", e);
     } finally {
@@ -360,6 +364,17 @@ export default function QuizPage() {
     }
   }, [loading, result]);
 
+  function handleStartQuiz() {
+    setShowQuiz(true);
+    // slight delay so the section is in the DOM before scroll
+    setTimeout(() => {
+      const el = document.getElementById("quiz-form-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
+  }
+
   return (
     <main className="min-h-screen w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
       <div className="w-full max-w-6xl">
@@ -383,114 +398,154 @@ export default function QuizPage() {
               </p>
             </div>
           </div>
-          {/* Removed beta/version badge block for cleaner header */}
         </header>
 
-        {/* Main layout: left explainer, right form */}
-        <div className="grid gap-10 lg:grid-cols-[1.1fr_1.2fr] items-start">
-          {/* Left side explainer */}
-          <section className="space-y-6">
-            <div className="space-y-3">
-              <h2 className="text-xl md:text-2xl font-semibold text-slate-50 tracking-tight">
-                Stop scrolling random Reddit threads.
-              </h2>
-              <p className="text-[13px] md:text-sm text-slate-400 leading-relaxed max-w-md">
-                Most people research relocation backwards: they start with a
-                country and then try to see if it fits. Relomatcher flips it – we
-                start with{" "}
-                <span className="font-semibold text-amber-300">you</span> and
-                only then talk about countries.
+        {/* LANDING VIEW (no form yet) */}
+        {!showQuiz && (
+          <section className="space-y-8">
+            {/* Mobile-friendly title & copy */}
+            <div className="md:hidden space-y-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-50 leading-tight">
+                Find your best country match.
+              </h1>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Answer a few smart questions and we&apos;ll match you with
+                countries based on taxes, lifestyle, climate, LGBTQ+ safety and
+                more – tuned for remote workers and online earners.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Bullet icon="🧠" title="Adaptive questions">
-                We only go deep on the things you say you care about – if you
-                don&apos;t care about taxes, we won&apos;t interrogate you about
-                taxes.
-              </Bullet>
-              <Bullet icon="🏳️‍🌈" title="Identity-aware">
-                Mark LGBTQ+ safety, language and lifestyle as non-negotiable and
-                we&apos;ll avoid places that clearly don&apos;t fit.
-              </Bullet>
-              <Bullet icon="🌦️" title="Climate & vibe first">
-                Prefer cold cities with nightlife, or warm laid-back islands? We
-                treat vibe as seriously as numbers.
-              </Bullet>
-              <Bullet icon="💸" title="Built for online earners">
-                Tuned for remote workers, e-com owners and people whose income
-                isn&apos;t locked to one country.
-              </Bullet>
+            {/* Explainer + bullets */}
+            <div className="space-y-6">
+              <div className="space-y-3 max-w-xl">
+                <h2 className="text-xl md:text-2xl font-semibold text-slate-50 tracking-tight">
+                  Stop scrolling random Reddit threads.
+                </h2>
+                <p className="text-[13px] md:text-sm text-slate-400 leading-relaxed">
+                  Most people research relocation backwards: they start with a
+                  country and then try to see if it fits. Relomatcher flips it –
+                  we start with{" "}
+                  <span className="font-semibold text-amber-300">you</span> and
+                  only then talk about countries.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Bullet icon="🧠" title="Adaptive questions">
+                  We only go deep on the things you say you care about – if you
+                  don&apos;t care about taxes, we won&apos;t interrogate you about
+                  taxes.
+                </Bullet>
+                <Bullet icon="🏳️‍🌈" title="Identity-aware">
+                  Mark LGBTQ+ safety, language and lifestyle as non-negotiable and
+                  we&apos;ll avoid places that clearly don&apos;t fit.
+                </Bullet>
+                <Bullet icon="🌦️" title="Climate & vibe first">
+                  Prefer cold cities with nightlife, or warm laid-back islands? We
+                  treat vibe as seriously as numbers.
+                </Bullet>
+                <Bullet icon="💸" title="Built for online earners">
+                  Tuned for remote workers, e-com owners and people whose income
+                  isn&apos;t locked to one country.
+                </Bullet>
+              </div>
+
+              <p className="text-[11px] text-slate-500 max-w-lg leading-relaxed">
+                This is still a beta. The engine already ranks countries for you
+                and explains why they fit – and also shows{" "}
+                <span className="font-semibold text-slate-200">
+                  strong options it had to reject
+                </span>{" "}
+                because of your non-negotiables (like LGBT or residency realism).
+                AI then adds a human-style explanation on top of the numbers.
+              </p>
             </div>
 
-            <p className="text-[11px] text-slate-500 max-w-lg leading-relaxed">
-              This is still a beta. The engine already ranks countries for you and
-              explains why they fit – and also shows{" "}
-              <span className="font-semibold text-slate-200">
-                strong options it had to reject
-              </span>{" "}
-              because of your non-negotiables (like LGBT or residency realism).
-              AI then adds a human-style explanation on top of the numbers.
+            {/* Big CTA button */}
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleStartQuiz}
+                className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-950 text-sm font-semibold px-7 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.6)] hover:bg-amber-300 transition-colors"
+              >
+                <span>✨ Start your quiz now</span>
+                <span className="text-lg">→</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-500 text-center">
+              ~10 quick steps · built for remote workers, founders and online
+              earners.
             </p>
           </section>
+        )}
 
-          {/* Right side: step indicator + form + loading + errors */}
-          <section className="space-y-4">
-            {/* Step indicator */}
-            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.3)] text-slate-900">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
-                Step {currentStep + 1} of {TOTAL_STEPS}
-              </p>
-              <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden mt-2">
-                <div
-                  className="h-full rounded-full bg-amber-500 transition-all duration-300"
-                  style={{ width: `${stepProgress}%` }}
+        {/* QUIZ VIEW (form + results) */}
+        {showQuiz && (
+          <>
+            <section
+              id="quiz-form-section"
+              className="space-y-4 mt-4 max-w-3xl mx-auto"
+            >
+              {/* Step indicator */}
+              <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.3)] text-slate-900">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
+                  Step {currentStep + 1} of {TOTAL_STEPS}
+                </p>
+                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden mt-2">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                    style={{ width: `${stepProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Form card */}
+              <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 shadow-[0_18px_40px_rgba(15,23,42,0.45)] text-slate-900">
+                <AdaptiveQuizForm
+                  currentStep={currentStep}
+                  totalSteps={TOTAL_STEPS}
+                  data={data}
+                  originCurrencyLabel={originCurrencyLabel}
+                  onUpdate={handleUpdate}
+                  onNext={handleNext}
+                  onBack={handleBack}
+                  onSubmit={handleSubmit}
                 />
               </div>
-            </div>
 
-            {/* Form card */}
-            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 shadow-[0_18px_40px_rgba(15,23,42,0.45)] text-slate-900">
-              <AdaptiveQuizForm
-                currentStep={currentStep}
-                totalSteps={TOTAL_STEPS}
-                data={data}
-                originCurrencyLabel={originCurrencyLabel}
-                onUpdate={handleUpdate}
-                onNext={handleNext}
-                onBack={handleBack}
-                onSubmit={handleSubmit}
-              />
-            </div>
+              {/* Loading */}
+              {loading && (
+                <div ref={loadingRef}>
+                  <LoadingScreen progress={progress} />
+                </div>
+              )}
 
-            {/* Loading */}
-            {loading && (
-              <div ref={loadingRef}>
-                <LoadingScreen progress={progress} />
-              </div>
-            )}
-
-            {errorMsg && (
-              <div className="mt-2 text-[11px] text-rose-300">{errorMsg}</div>
-            )}
-          </section>
-        </div>
-
-        {/* Results under both columns */}
-        {!loading &&
-          result &&
-          result.topMatches &&
-          result.topMatches.length > 0 && (
-            <section ref={resultsRef} className="mt-8">
-              <ResultsPanel
-                result={result}
-                profile={submittedProfile}
-                originCurrencyLabel={originCurrencyLabel}
-                aiData={aiData}
-                aiError={aiError}
-              />
+              {errorMsg && (
+                <div className="mt-2 text-[11px] text-rose-300">{errorMsg}</div>
+              )}
             </section>
-          )}
+
+            {/* Results under quiz */}
+            {!loading &&
+              result &&
+              result.topMatches &&
+              result.topMatches.length > 0 && (
+                <section
+                  ref={resultsRef}
+                  className="mt-8 max-w-5xl mx-auto px-0"
+                >
+                  <ResultsPanel
+                    result={result}
+                    profile={submittedProfile}
+                    originCurrencyLabel={originCurrencyLabel}
+                    aiData={aiData}
+                    aiError={aiError}
+                  />
+                </section>
+              )}
+          </>
+        )}
       </div>
     </main>
   );
@@ -881,7 +936,8 @@ function buildDimensionsForProfile(
     selectedKeys.add("everydayServices");
   }
 
-  const dimsFromReasons: { key: keyof DimensionBreakdown; label: string }[] = [];
+  const dimsFromReasons: { key: keyof DimensionBreakdown; label: string }[] =
+    [];
   for (const dim of [...baseDims, ...optionalDims]) {
     if (selectedKeys.has(dim.key)) dimsFromReasons.push(dim);
   }
@@ -1173,10 +1229,10 @@ function DisqualifiedPanel({
                     {netPct !== null && (
                       <p className="mt-1 text-[11px] text-slate-800">
                         Financially, you could keep roughly{" "}
-                        <span className="font-semibold text-amber-600">
-                          {netPct}%
-                        </span>{" "}
-                        of your income here
+                          <span className="font-semibold text-amber-600">
+                            {netPct}%
+                          </span>{" "}
+                          of your income here
                         {approxNet && (
                           <>
                             , ≈{" "}
@@ -1503,7 +1559,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         let textStartX = badgeX + 70;
         if (flagImg) {
           const flagH = 46;
-          const flagW = (flagImg.width /flagImg.height) * flagH;
+          const flagW = (flagImg.width / flagImg.height) * flagH;
           // center flag roughly with the country text line
           const textBaselineY = y - 8;
           const flagY = textBaselineY - flagH / 2 + 4;
