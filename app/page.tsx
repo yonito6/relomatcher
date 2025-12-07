@@ -739,7 +739,7 @@ function ResultsPanel({
 
           {/* Share buttons */}
           <ShareResultsButton topMatches={topMatches} />
-          <ShareStoryImageLink topMatches={topMatches} />
+          <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -1334,7 +1334,7 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
       if (navigator.share) {
         await navigator.share({
           title: "My Relomatcher results",
-          text, // 👈 ONLY text, no "url" field
+          text, // ONLY text, no "url" field
         });
       } else if (navigator.clipboard) {
         // Fallback: copy to clipboard
@@ -1369,9 +1369,13 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
   );
 }
 
-/* Share story image link (vertical 1080x1920) */
+/* Share story image (vertical 1080x1920) */
 
-function ShareStoryImageLink({ topMatches }: { topMatches: CountryMatch[] }) {
+function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
+  const [status, setStatus] = useState<"idle" | "downloading" | "error">(
+    "idle"
+  );
+
   if (!topMatches || topMatches.length === 0) return null;
 
   const origin =
@@ -1399,20 +1403,69 @@ function ShareStoryImageLink({ topMatches }: { topMatches: CountryMatch[] }) {
 
   const imageUrl = `${origin}/api/share-story?${params.toString()}`;
 
+  async function handleShareStory() {
+    try {
+      setStatus("downloading");
+
+      // 1) Download the generated image
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+
+      const file = new File([blob], "relomatcher-story.png", {
+        type: "image/png",
+      });
+
+      const navAny = navigator as any;
+
+      // 2) If browser supports sharing files → use native share
+      if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({
+          files: [file],
+          title: "My Relomatcher top 3 countries",
+          text: "Take your quiz on www.relomatcher.com to see your own top 3.",
+        });
+      } else if (navAny.share) {
+        // Can share, but not files: share the link instead
+        await navAny.share({
+          title: "My Relomatcher top 3 countries",
+          text: "Take your quiz on www.relomatcher.com to see your own top 3.",
+          url: imageUrl,
+        });
+      } else {
+        // 3) Fallback: just open the image in a new tab
+        window.open(imageUrl, "_blank");
+      }
+
+      setStatus("idle");
+    } catch (e) {
+      console.error("Story share failed", e);
+      setStatus("error");
+      // Fallback: open in new tab
+      window.open(imageUrl, "_blank");
+      setTimeout(() => setStatus("idle"), 2000);
+    }
+  }
+
+  const label =
+    status === "downloading"
+      ? "Preparing image..."
+      : status === "error"
+      ? "Tap again to retry"
+      : "Share story image";
+
   return (
     <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
-      <a
-        href={imageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        onClick={handleShareStory}
         className="inline-flex items-center gap-1 rounded-full border border-slate-500 px-3 py-1.5 hover:bg-slate-900 hover:text-slate-50 transition-colors"
       >
         <span>📱</span>
-        <span>Open story share image</span>
-      </a>
+        <span>{label}</span>
+      </button>
       <span>
-        Open it, screenshot / save, and share it as an Instagram or TikTok
-        story.
+        On supported phones this shares the actual image. Otherwise it opens it
+        in a new tab so you can save / screenshot it.
       </span>
     </div>
   );
