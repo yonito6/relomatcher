@@ -737,9 +737,8 @@ function ResultsPanel({
             Your top matches (tap like or pass, then open the breakdown)
           </p>
 
-          {/* Share buttons */}
-          <ShareResultsButton topMatches={topMatches} />
-          <ShareStoryImageLink topMatches={topMatches} />
+          {/* Share story image only (no text share) */}
+          <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -1180,7 +1179,7 @@ function DisqualifiedPanel({
                     {netPct !== null && (
                       <p className="mt-1 text-[11px] text-slate-800">
                         Financially, you could keep roughly{" "}
-                          <span className="font-semibold text-amber-600">
+                        <span className="font-semibold text-amber-600">
                           {netPct}%
                         </span>{" "}
                         of your income here
@@ -1315,178 +1314,256 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share "my results" – try image first, then fall back */
+/* Share story image via canvas (no text share) */
 
-function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
-  const [copied, setCopied] = useState(false);
-  const [sharing, setSharing] = useState(false);
+function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
+  const [saving, setSaving] = useState(false);
+  const [savedOnce, setSavedOnce] = useState(false);
 
   if (!topMatches || topMatches.length === 0) return null;
 
-  const names = topMatches.slice(0, 3).map((m) => m.name);
-
-  const baseText = `My Relomatcher top countries: ${names.join(
-    ", "
-  )}. Take your quiz on www.relomatcher.com and see yours.`;
-
-  async function handleShare() {
-    try {
-      setSharing(true);
-
-      const origin =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://relomatcher.com";
-
-      // Build the same params we use for the story image
-      const params = new URLSearchParams();
-      const first = topMatches[0];
-      const second = topMatches[1];
-      const third = topMatches[2];
-
-      if (first) {
-        params.set("c1", first.name);
-        params.set("s1", first.totalScore.toFixed(1));
-      }
-      if (second) {
-        params.set("c2", second.name);
-        params.set("s2", second.totalScore.toFixed(1));
-      }
-      if (third) {
-        params.set("c3", third.name);
-        params.set("s3", third.totalScore.toFixed(1));
-      }
-
-      const imageUrl = `${origin}/api/share-story?${params.toString()}`;
-
-      // ---------- 1) Best case: share as IMAGE file (mobile with Web Share Lv2) ----------
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.share &&
-        "canShare" in navigator &&
-        typeof (navigator as any).canShare === "function"
-      ) {
-        try {
-          const res = await fetch(imageUrl);
-          const blob = await res.blob();
-          const file = new File([blob], "relomatcher-results.png", {
-            type: "image/png",
-          });
-
-          if ((navigator as any).canShare({ files: [file] })) {
-            await navigator.share({
-              title: "My Relomatcher results",
-              text: baseText,
-              files: [file],
-            });
-            setSharing(false);
-            return; // ✅ shared as real image
-          }
-        } catch (e) {
-          console.error("Image share failed, falling back:", e);
-        }
-      }
-
-      // ---------- 2) Second best: share URL + text (still via share sheet) ----------
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({
-          title: "My Relomatcher results",
-          text: baseText,
-          url: imageUrl,
-        });
-        setSharing(false);
-        return;
-      }
-
-      // ---------- 3) Last fallback: open image + copy text ----------
-      if (typeof window !== "undefined") {
-        window.open(imageUrl, "_blank");
-      }
-
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.clipboard &&
-        navigator.clipboard.writeText
-      ) {
-        await navigator.clipboard.writeText(baseText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        alert(
-          "We opened your share image in a new tab.\n\nCaption:\n\n" + baseText
-        );
-      }
-    } catch (e) {
-      console.error("Share failed", e);
-    } finally {
-      setSharing(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={handleShare}
-        disabled={sharing}
-        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-      >
-        <span>{sharing ? "⏳" : "📤"}</span>
-        <span>{sharing ? "Preparing image…" : "Share my results"}</span>
-      </button>
-      {copied && (
-        <span className="text-[10px] text-emerald-300">
-          Caption copied! Paste it with your image.
-        </span>
-      )}
-    </div>
-  );
-}
-
-/* Share story image link (vertical 1080x1920) */
-
-function ShareStoryImageLink({ topMatches }: { topMatches: CountryMatch[] }) {
-  if (!topMatches || topMatches.length === 0) return null;
-
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://relomatcher.com";
-
-  const params = new URLSearchParams();
   const first = topMatches[0];
   const second = topMatches[1];
   const third = topMatches[2];
 
-  if (first) {
-    params.set("c1", first.name);
-    params.set("s1", first.totalScore.toFixed(1));
-  }
-  if (second) {
-    params.set("c2", second.name);
-    params.set("s2", second.totalScore.toFixed(1));
-  }
-  if (third) {
-    params.set("c3", third.name);
-    params.set("s3", third.totalScore.toFixed(1));
-  }
+  async function handleSave() {
+    if (typeof document === "undefined") return;
 
-  const imageUrl = `${origin}/api/share-story?${params.toString()}`;
+    try {
+      setSaving(true);
+
+      const canvas = document.createElement("canvas");
+      const width = 1080;
+      const height = 1920;
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No 2D context");
+
+      // Background
+      ctx.fillStyle = "#020617"; // slate-950
+      ctx.fillRect(0, 0, width, height);
+
+      // Radial glow
+      const gradient = ctx.createRadialGradient(
+        width / 2,
+        0,
+        0,
+        width / 2,
+        0,
+        width
+      );
+      gradient.addColorStop(0, "rgba(251,191,36,0.3)");
+      gradient.addColorStop(1, "rgba(2,6,23,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Helper for text
+      const drawText = (
+        text: string,
+        x: number,
+        y: number,
+        size: number,
+        color = "#e5e7eb",
+        align: CanvasTextAlign = "left",
+        weight = "400"
+      ) => {
+        ctx.fillStyle = color;
+        ctx.font = `${weight} ${size}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = align;
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(text, x, y);
+      };
+
+      // Top label
+      drawText(
+        "YOUR TOP COUNTRY MATCHES",
+        80,
+        150,
+        40,
+        "#e5e7eb",
+        "left",
+        "600"
+      );
+
+      // Logo text
+      drawText("Relomatcher", width - 80, 150, 36, "#9ca3af", "right", "500");
+
+      // Big title
+      drawText(
+        "Find your best country match.",
+        80,
+        260,
+        56,
+        "#f9fafb",
+        "left",
+        "700"
+      );
+
+      // Subtitle
+      drawText(
+        "My top 3 matches:",
+        80,
+        330,
+        34,
+        "#e5e7eb",
+        "left",
+        "500"
+      );
+
+      // Card rows
+      const rowYStart = 430;
+      const rowGap = 140;
+
+      const drawRow = (
+        idxLabel: string,
+        name: string,
+        score: number | null,
+        y: number,
+        highlight: boolean
+      ) => {
+        // Card background
+        ctx.save();
+        ctx.beginPath();
+        const cardX = 80;
+        const cardY = y - 70;
+        const cardW = width - 160;
+        const cardH = 110;
+        const radius = 999;
+
+        ctx.moveTo(cardX + radius, cardY);
+        ctx.lineTo(cardX + cardW - radius, cardY);
+        ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + radius);
+        ctx.lineTo(cardX + cardW, cardY + cardH - radius);
+        ctx.quadraticCurveTo(
+          cardX + cardW,
+          cardY + cardH,
+          cardX + cardW - radius,
+          cardY + cardH
+        );
+        ctx.lineTo(cardX + radius, cardY + cardH);
+        ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - radius);
+        ctx.lineTo(cardX, cardY + radius);
+        ctx.quadraticCurveTo(cardX, cardY, cardX + radius, cardY);
+        ctx.closePath();
+
+        ctx.fillStyle = highlight
+          ? "rgba(15,23,42,0.9)"
+          : "rgba(15,23,42,0.8)";
+        ctx.fill();
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = highlight ? "#fbbf24" : "#4b5563";
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Index badge
+        ctx.beginPath();
+        const badgeX = cardX + 60;
+        const badgeY = y - 15;
+        const badgeR = 34;
+        ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+        ctx.fillStyle = highlight ? "#fbbf24" : "#111827";
+        ctx.fill();
+        drawText(
+          idxLabel,
+          badgeX,
+          badgeY + 12,
+          28,
+          highlight ? "#111827" : "#e5e7eb",
+          "center",
+          "700"
+        );
+
+        // Country name
+        const nameX = badgeX + 70;
+        drawText(name, nameX, y - 8, 36, "#f9fafb", "left", "600");
+
+        // Score
+        if (score != null && !Number.isNaN(score)) {
+          drawText(
+            `${score.toFixed(1)}/10`,
+            cardX + cardW - 60,
+            y - 6,
+            32,
+            "#fbbf24",
+            "right",
+            "600"
+          );
+        }
+      };
+
+      const s1 =
+        typeof first?.totalScore === "number" ? first.totalScore : null;
+      const s2 =
+        typeof second?.totalScore === "number" ? second.totalScore : null;
+      const s3 =
+        typeof third?.totalScore === "number" ? third.totalScore : null;
+
+      if (first) {
+        drawRow("#1", first.name, s1, rowYStart, true);
+      }
+      if (second) {
+        drawRow("#2", second.name, s2, rowYStart + rowGap, false);
+      }
+      if (third) {
+        drawRow("#3", third.name, s3, rowYStart + rowGap * 2, false);
+      }
+
+      // Bottom CTA
+      drawText(
+        "Take your quiz to find your best country match too!",
+        width / 2,
+        height - 210,
+        32,
+        "#e5e7eb",
+        "center",
+        "500"
+      );
+      drawText(
+        "Take your quiz on www.relomatcher.com",
+        width / 2,
+        height - 150,
+        32,
+        "#fbbf24",
+        "center",
+        "600"
+      );
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "relomatcher-story.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSavedOnce(true);
+    } catch (e) {
+      console.error("Failed to save story image", e);
+      alert("Could not generate the image. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
-      <a
-        href={imageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 rounded-full border border-slate-500 px-3 py-1.5 hover:bg-slate-900 hover:text-slate-50 transition-colors"
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
         <span>📱</span>
-        <span>Open story share image</span>
-      </a>
-      <span>
-        Open it, screenshot / save, and share it as an Instagram or TikTok
-        story.
+        <span>{saving ? "Generating image..." : "Save story image"}</span>
+      </button>
+      <span className="max-w-xs">
+        This saves a vertical story image with your top 3 countries. Share it
+        from your gallery on Instagram, WhatsApp, etc.
+        {savedOnce && " (Saved! Check your photos/downloads.)"}
       </span>
     </div>
   );
