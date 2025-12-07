@@ -1334,6 +1334,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+      // if you ever hit CORS issues, can try: img.referrerPolicy = "no-referrer";
     });
   }
 
@@ -1364,7 +1365,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         0,
         width
       );
-      gradient.addColorStop(0, "rgba(251,191,36,0.45)"); // brighter amber glow
+      gradient.addColorStop(0, "rgba(251,191,36,0.45)");
       gradient.addColorStop(1, "rgba(2,6,23,0)");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
@@ -1393,11 +1394,18 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
+      // --- Shifted-layout constants (more top margin, CTA higher) ---
+      const topOffset = 200; // push content down a bit
+      const titleY = topOffset + 55;
+      const subtitleY = titleY + 60;
+      const rowYStart = subtitleY + 110; // first card
+      const rowGap = 150;
+
       // --- Top label + brand ---
       drawText(
         "YOUR TOP COUNTRY MATCHES",
         80,
-        150,
+        topOffset,
         42,
         "#f9fafb",
         "left",
@@ -1407,18 +1415,18 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       drawText(
         "Relomatcher",
         width - 80,
-        150,
+        topOffset,
         38,
         "#e5e7eb",
         "right",
         "600"
       );
 
-      // --- Main title ---
+      // --- Main title & subtitle ---
       drawText(
         "Find your best country match.",
         80,
-        250,
+        titleY,
         60,
         "#f9fafb",
         "left",
@@ -1428,7 +1436,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       drawText(
         "My top 3 matches:",
         80,
-        320,
+        subtitleY,
         38,
         "#e5e7eb",
         "left",
@@ -1436,9 +1444,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       );
 
       // --- Card rows ---
-      const rowYStart = 430;
-      const rowGap = 150;
-
       const drawRow = (
         idxLabel: string,
         name: string,
@@ -1453,7 +1458,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         const cardH = 120;
         const radius = 32;
 
-        // Card background (high contrast)
+        // Card background
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(cardX + radius, cardY);
@@ -1500,13 +1505,15 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           "700"
         );
 
-        // Flag (if available)
+        // Flag (vertically aligned around text)
         let textStartX = badgeX + 70;
         if (flagImg) {
           const flagH = 46;
           const flagW = (flagImg.width / flagImg.height) * flagH;
+          // center flag roughly with the country text line
+          const textBaselineY = y - 8;
+          const flagY = textBaselineY - flagH / 2 + 4;
           const flagX = badgeX + 70;
-          const flagY = y - 50;
           ctx.drawImage(flagImg, flagX, flagY, flagW, flagH);
           textStartX = flagX + flagW + 20;
         }
@@ -1567,9 +1574,9 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         );
       }
 
-      // --- Bottom CTA block (big + obvious) ---
+      // --- Bottom CTA block (moved UP so not hidden by story UI) ---
       const ctaBoxHeight = 230;
-      const ctaBoxY = height - ctaBoxHeight - 120;
+      const ctaBoxY = height - ctaBoxHeight - 260; // was ~ -120, now higher
 
       ctx.fillStyle = "rgba(15,23,42,0.96)";
       ctx.beginPath();
@@ -1608,7 +1615,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       ctx.strokeStyle = "#fbbf24";
       ctx.stroke();
 
-      // CTA text
       drawText(
         "Want to know your matches?",
         width / 2,
@@ -1629,7 +1635,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "500"
       );
 
-      // Big domain
       drawText(
         "www.relomatcher.com",
         width / 2,
@@ -1640,18 +1645,43 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "800"
       );
 
-      // --- Export and download ---
+      // --- Export to PNG ---
       const dataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = "relomatcher-story.png";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
 
-      setSavedOnce(true);
+      // Convert to Blob + File for Web Share
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], "relomatcher-story.png", {
+        type: "image/png",
+      });
+
+      const navAny = navigator as any;
+
+      // Try native share with file (mobile browsers that support it)
+      if (
+        navAny.share &&
+        navAny.canShare &&
+        navAny.canShare({ files: [file] })
+      ) {
+        await navAny.share({
+          files: [file],
+          title: "My Relomatcher matches",
+          text:
+            "My top country matches from Relomatcher. Take your quiz on www.relomatcher.com and find yours.",
+        });
+        setSavedOnce(true);
+      } else {
+        // Fallback: trigger download
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = "relomatcher-story.png";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setSavedOnce(true);
+      }
     } catch (e) {
-      console.error("Failed to save story image", e);
+      console.error("Failed to generate/share story image", e);
       alert("Could not generate the image. Please try again.");
     } finally {
       setSaving(false);
@@ -1667,12 +1697,14 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
         <span>📱</span>
-        <span>{saving ? "Generating image..." : "Save story image"}</span>
+        <span>
+          {saving ? "Generating story image..." : "Share / save story image"}
+        </span>
       </button>
       <span className="max-w-xs">
-        This saves a vertical story image with your top 3 countries, flags and a
-        big www.relomatcher.com CTA.
-        {savedOnce && " (Saved! Check your photos/downloads.)"}
+        This creates a vertical story with your top 3 matches, flags and a big
+        www.relomatcher.com CTA.
+        {savedOnce && " (Done! Check your share sheet or downloads.)"}
       </span>
     </div>
   );
