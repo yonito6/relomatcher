@@ -691,10 +691,6 @@ function ResultsPanel({
     "qualified"
   );
 
-  // NEW: collapsible profile + AI summary
-  const [profileExpanded, setProfileExpanded] = useState(false); // default collapsed
-  const [aiExpanded, setAiExpanded] = useState(true);
-
   const monthlyIncome = profile?.monthlyIncome
     ? Number(profile.monthlyIncome.toString().replace(/,/g, ""))
     : null;
@@ -725,7 +721,7 @@ function ResultsPanel({
 
   return (
     <div className="space-y-5 mt-4">
-      {/* Top row: Upsell + AI summary (collapsible) */}
+      {/* Top row: Upsell + AI summary */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -751,91 +747,15 @@ function ResultsPanel({
                     AI summary of your matches
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAiExpanded((v) => !v)}
-                  className="text-[11px] text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
-                >
-                  <span>{aiExpanded ? "Hide" : "Show"}</span>
-                  <span>{aiExpanded ? "▲" : "▼"}</span>
-                </button>
               </div>
-              {aiExpanded && (
-                <p className="mt-2 text-xs text-slate-800">
-                  {aiData?.overallSummary
-                    ? aiData.overallSummary
-                    : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
-                </p>
-              )}
+              <p className="mt-2 text-xs text-slate-800">
+                {aiData?.overallSummary
+                  ? aiData.overallSummary
+                  : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
+              </p>
             </div>
           )}
         </div>
-      </div>
-
-      {/* My profile (collapsible, minimized by default) */}
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.25)] text-slate-900">
-        <button
-          type="button"
-          onClick={() => setProfileExpanded((v) => !v)}
-          className="w-full flex items-center justify-between text-sm"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5">
-              My profile
-            </span>
-            <span className="text-[11px] text-slate-500">
-              Tap to {profileExpanded ? "hide" : "view"} your answers
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-700">
-            {profileExpanded ? "▲" : "▼"}
-          </span>
-        </button>
-
-        {profileExpanded && profile && (
-          <div className="mt-3 grid gap-3 text-[11px] text-slate-700 sm:grid-cols-2">
-            <div className="space-y-1">
-              <p className="font-semibold text-slate-900">Basics</p>
-              {profile.ageRange && <p>Age range: {profile.ageRange}</p>}
-              {profile.currentCountry && (
-                <p>Current country: {profile.currentCountry}</p>
-              )}
-              {profile.familyStatus && (
-                <p>Family status: {profile.familyStatus}</p>
-              )}
-              {profile.relocatingWith && (
-                <p>Relocating with: {profile.relocatingWith}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="font-semibold text-slate-900">Passports & income</p>
-              {profile.passportCountry && (
-                <p>Passport: {profile.passportCountry}</p>
-              )}
-              {profile.secondPassportCountry && (
-                <p>2nd passport: {profile.secondPassportCountry}</p>
-              )}
-              {profile.monthlyIncome && (
-                <p>
-                  Income: {profile.monthlyIncome} {profile.incomeCurrency}
-                </p>
-              )}
-              {!!(profile.workSituation || []).length && (
-                <p>Work: {profile.workSituation.join(", ")}</p>
-              )}
-            </div>
-            <div className="space-y-1 sm:col-span-2">
-              <p className="font-semibold text-slate-900">Reasons</p>
-              {profile.reasons && profile.reasons.length > 0 ? (
-                <p>{profile.reasons.join(", ")}</p>
-              ) : (
-                <p className="text-slate-500">
-                  No specific reasons selected in the quiz.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Tabs */}
@@ -1488,6 +1408,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+      return;
     });
   }
 
@@ -1609,7 +1530,12 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.beginPath();
         ctx.moveTo(cardX + radius, cardY);
         ctx.lineTo(cardX + cardW - radius, cardY);
-        ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + radius);
+        ctx.quadraticCurveTo(
+          cardX + cardW,
+          cardY,
+          cardX + cardW,
+          cardY + radius
+        );
         ctx.lineTo(cardX + cardW, cardY + cardH - radius);
         ctx.quadraticCurveTo(
           cardX + cardW,
@@ -1618,7 +1544,12 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           cardY + cardH
         );
         ctx.lineTo(cardX + radius, cardY + cardH);
-        ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - radius);
+        ctx.quadraticCurveTo(
+          cardX,
+          cardY + cardH,
+          cardX,
+          cardY + cardH - radius
+        );
         ctx.lineTo(cardX, cardY + radius);
         ctx.quadraticCurveTo(cardX, cardY, cardX + radius, cardY);
         ctx.closePath();
