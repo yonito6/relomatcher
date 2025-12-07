@@ -367,7 +367,7 @@ export default function QuizPage() {
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
             <img
-              src="https://i.ibb.co/d4D8806r/relomatcher.jpg"
+              src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
               alt="Relomatcher logo"
               className="h-16 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
