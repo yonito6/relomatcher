@@ -1,9 +1,9 @@
 // app/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
-import type { QuizData from "@/lib/types";
+import type { QuizData } from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 const TOTAL_STEPS = 10;
@@ -692,7 +692,7 @@ function ResultsPanel({
   );
 
   // NEW: collapsible profile + AI summary
-  const [profileExpanded, setProfileExpanded] = useState(false); // default: collapsed
+  const [profileExpanded, setProfileExpanded] = useState(false); // default collapsed
   const [aiExpanded, setAiExpanded] = useState(true);
 
   const monthlyIncome = profile?.monthlyIncome
@@ -772,7 +772,7 @@ function ResultsPanel({
         </div>
       </div>
 
-      {/* NEW: My profile (collapsible, minimized by default) */}
+      {/* My profile (collapsible, minimized by default) */}
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.25)] text-slate-900">
         <button
           type="button"
@@ -921,7 +921,7 @@ function ResultsPanel({
             })}
           </div>
 
-          {/* NEW: Retake quiz button under top matches */}
+          {/* Retake quiz button under top matches */}
           <div className="pt-2 border-t border-slate-800/40 mt-4 flex justify-center">
             <button
               type="button"
@@ -1661,15 +1661,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           textStartX = flagX + flagW + 20;
         }
 
-        drawText(
-          name,
-          textStartX,
-          y - 8,
-          38,
-          "#f9fafb",
-          "left",
-          "600"
-        );
+        drawText(name, textStartX, y - 8, 38, "#f9fafb", "left", "600");
 
         if (score != null && !Number.isNaN(score)) {
           drawText(
