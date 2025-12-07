@@ -1323,10 +1323,6 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
   if (!topMatches || topMatches.length === 0) return null;
 
   const names = topMatches.slice(0, 3).map((m) => m.name);
-  const url =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://relomatcher.com";
 
   const text = `My Relomatcher top countries: ${names.join(
     ", "
@@ -1334,18 +1330,20 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
 
   async function handleShare() {
     try {
+      // Prefer native share if available
       if (navigator.share) {
         await navigator.share({
           title: "My Relomatcher results",
-          text,
-          url,
+          text, // 👈 ONLY text, no "url" field
         });
       } else if (navigator.clipboard) {
+        // Fallback: copy to clipboard
         await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
-        alert("Share text:\n\n" + text);
+        // Last fallback
+        alert("Share this text:\n\n" + text);
       }
     } catch (e) {
       console.error("Share failed", e);
