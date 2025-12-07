@@ -739,7 +739,7 @@ function ResultsPanel({
 
           {/* Share buttons */}
           <ShareResultsButton topMatches={topMatches} />
-          <ShareStoryImageButton topMatches={topMatches} />
+          <ShareStoryImageLink topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -1180,7 +1180,7 @@ function DisqualifiedPanel({
                     {netPct !== null && (
                       <p className="mt-1 text-[11px] text-slate-800">
                         Financially, you could keep roughly{" "}
-                        <span className="font-semibold text-amber-600">
+                          <span className="font-semibold text-amber-600">
                           {netPct}%
                         </span>{" "}
                         of your income here
@@ -1315,7 +1315,7 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share "my results" - image + text when possible */
+/* Share "my results" – try image first, then fall back */
 
 function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [copied, setCopied] = useState(false);
@@ -1359,7 +1359,7 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
 
       const imageUrl = `${origin}/api/share-story?${params.toString()}`;
 
-      // Try to share as an image file (on supported mobile browsers)
+      // ---------- 1) Best case: share as IMAGE file (mobile with Web Share Lv2) ----------
       if (
         typeof navigator !== "undefined" &&
         navigator.share &&
@@ -1380,31 +1380,41 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
               files: [file],
             });
             setSharing(false);
-            return;
+            return; // ✅ shared as real image
           }
         } catch (e) {
-          console.error("Image share failed, falling back to text:", e);
+          console.error("Image share failed, falling back:", e);
         }
       }
 
-      // Fallbacks: text + link
-      const fullText = `${baseText}  (Story image: ${imageUrl})`;
-
+      // ---------- 2) Second best: share URL + text (still via share sheet) ----------
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({
           title: "My Relomatcher results",
-          text: fullText,
+          text: baseText,
+          url: imageUrl,
         });
-      } else if (
+        setSharing(false);
+        return;
+      }
+
+      // ---------- 3) Last fallback: open image + copy text ----------
+      if (typeof window !== "undefined") {
+        window.open(imageUrl, "_blank");
+      }
+
+      if (
         typeof navigator !== "undefined" &&
         navigator.clipboard &&
         navigator.clipboard.writeText
       ) {
-        await navigator.clipboard.writeText(fullText);
+        await navigator.clipboard.writeText(baseText);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
-        alert("Share this text:\n\n" + fullText);
+        alert(
+          "We opened your share image in a new tab.\n\nCaption:\n\n" + baseText
+        );
       }
     } catch (e) {
       console.error("Share failed", e);
@@ -1426,10 +1436,58 @@ function ShareResultsButton({ topMatches }: { topMatches: CountryMatch[] }) {
       </button>
       {copied && (
         <span className="text-[10px] text-emerald-300">
-          Text + link copied! Paste to share.
+          Caption copied! Paste it with your image.
         </span>
       )}
     </div>
   );
 }
+
+/* Share story image link (vertical 1080x1920) */
+
+function ShareStoryImageLink({ topMatches }: { topMatches: CountryMatch[] }) {
+  if (!topMatches || topMatches.length === 0) return null;
+
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://relomatcher.com";
+
+  const params = new URLSearchParams();
+  const first = topMatches[0];
+  const second = topMatches[1];
+  const third = topMatches[2];
+
+  if (first) {
+    params.set("c1", first.name);
+    params.set("s1", first.totalScore.toFixed(1));
+  }
+  if (second) {
+    params.set("c2", second.name);
+    params.set("s2", second.totalScore.toFixed(1));
+  }
+  if (third) {
+    params.set("c3", third.name);
+    params.set("s3", third.totalScore.toFixed(1));
+  }
+
+  const imageUrl = `${origin}/api/share-story?${params.toString()}`;
+
+  return (
+    <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
+      <a
+        href={imageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 rounded-full border border-slate-500 px-3 py-1.5 hover:bg-slate-900 hover:text-slate-50 transition-colors"
+      >
+        <span>📱</span>
+        <span>Open story share image</span>
+      </a>
+      <span>
+        Open it, screenshot / save, and share it as an Instagram or TikTok
+        story.
+      </span>
+    </div>
+  );
 }
