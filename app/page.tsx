@@ -1326,6 +1326,17 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const second = topMatches[1];
   const third = topMatches[2];
 
+  async function loadFlag(code?: string): Promise<HTMLImageElement | null> {
+    if (!code) return null;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+    });
+  }
+
   async function handleSave() {
     if (typeof document === "undefined") return;
 
@@ -1341,11 +1352,10 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No 2D context");
 
-      // Background
+      // --- Background: solid dark + subtle top glow ---
       ctx.fillStyle = "#020617"; // slate-950
       ctx.fillRect(0, 0, width, height);
 
-      // Radial glow
       const gradient = ctx.createRadialGradient(
         width / 2,
         0,
@@ -1354,10 +1364,17 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         0,
         width
       );
-      gradient.addColorStop(0, "rgba(251,191,36,0.3)");
+      gradient.addColorStop(0, "rgba(251,191,36,0.45)"); // brighter amber glow
       gradient.addColorStop(1, "rgba(2,6,23,0)");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
+
+      // --- Load flags (if available) ---
+      const [flag1, flag2, flag3] = await Promise.all([
+        loadFlag(first?.code),
+        loadFlag(second?.code),
+        loadFlag(third?.code),
+      ]);
 
       // Helper for text
       const drawText = (
@@ -1376,62 +1393,69 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
-      // Top label
+      // --- Top label + brand ---
       drawText(
         "YOUR TOP COUNTRY MATCHES",
         80,
         150,
-        40,
-        "#e5e7eb",
-        "left",
-        "600"
-      );
-
-      // Logo text
-      drawText("Relomatcher", width - 80, 150, 36, "#9ca3af", "right", "500");
-
-      // Big title
-      drawText(
-        "Find your best country match.",
-        80,
-        260,
-        56,
+        42,
         "#f9fafb",
         "left",
         "700"
       );
 
-      // Subtitle
+      drawText(
+        "Relomatcher",
+        width - 80,
+        150,
+        38,
+        "#e5e7eb",
+        "right",
+        "600"
+      );
+
+      // --- Main title ---
+      drawText(
+        "Find your best country match.",
+        80,
+        250,
+        60,
+        "#f9fafb",
+        "left",
+        "700"
+      );
+
       drawText(
         "My top 3 matches:",
         80,
-        330,
-        34,
+        320,
+        38,
         "#e5e7eb",
         "left",
         "500"
       );
 
-      // Card rows
+      // --- Card rows ---
       const rowYStart = 430;
-      const rowGap = 140;
+      const rowGap = 150;
 
       const drawRow = (
         idxLabel: string,
         name: string,
         score: number | null,
         y: number,
-        highlight: boolean
+        highlight: boolean,
+        flagImg?: HTMLImageElement | null
       ) => {
-        // Card background
+        const cardX = 80;
+        const cardY = y - 75;
+        const cardW = width - 160;
+        const cardH = 120;
+        const radius = 32;
+
+        // Card background (high contrast)
         ctx.save();
         ctx.beginPath();
-        const cardX = 80;
-        const cardY = y - 70;
-        const cardW = width - 160;
-        const cardH = 110;
-        const radius = 999;
-
         ctx.moveTo(cardX + radius, cardY);
         ctx.lineTo(cardX + cardW - radius, cardY);
         ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + radius);
@@ -1449,19 +1473,18 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.closePath();
 
         ctx.fillStyle = highlight
-          ? "rgba(15,23,42,0.9)"
-          : "rgba(15,23,42,0.8)";
+          ? "rgba(15,23,42,0.98)"
+          : "rgba(15,23,42,0.96)";
         ctx.fill();
 
-        ctx.lineWidth = 2;
+        ctx.lineWidth = highlight ? 3 : 2;
         ctx.strokeStyle = highlight ? "#fbbf24" : "#4b5563";
         ctx.stroke();
-
         ctx.restore();
 
         // Index badge
         ctx.beginPath();
-        const badgeX = cardX + 60;
+        const badgeX = cardX + 70;
         const badgeY = y - 15;
         const badgeR = 34;
         ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
@@ -1471,15 +1494,33 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
           idxLabel,
           badgeX,
           badgeY + 12,
-          28,
+          30,
           highlight ? "#111827" : "#e5e7eb",
           "center",
           "700"
         );
 
+        // Flag (if available)
+        let textStartX = badgeX + 70;
+        if (flagImg) {
+          const flagH = 46;
+          const flagW = (flagImg.width / flagImg.height) * flagH;
+          const flagX = badgeX + 70;
+          const flagY = y - 50;
+          ctx.drawImage(flagImg, flagX, flagY, flagW, flagH);
+          textStartX = flagX + flagW + 20;
+        }
+
         // Country name
-        const nameX = badgeX + 70;
-        drawText(name, nameX, y - 8, 36, "#f9fafb", "left", "600");
+        drawText(
+          name,
+          textStartX,
+          y - 8,
+          38,
+          "#f9fafb",
+          "left",
+          "600"
+        );
 
         // Score
         if (score != null && !Number.isNaN(score)) {
@@ -1487,10 +1528,10 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
             `${score.toFixed(1)}/10`,
             cardX + cardW - 60,
             y - 6,
-            32,
+            34,
             "#fbbf24",
             "right",
-            "600"
+            "700"
           );
         }
       };
@@ -1503,35 +1544,103 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         typeof third?.totalScore === "number" ? third.totalScore : null;
 
       if (first) {
-        drawRow("#1", first.name, s1, rowYStart, true);
+        drawRow("#1", first.name, s1, rowYStart, true, flag1 || undefined);
       }
       if (second) {
-        drawRow("#2", second.name, s2, rowYStart + rowGap, false);
+        drawRow(
+          "#2",
+          second.name,
+          s2,
+          rowYStart + rowGap,
+          false,
+          flag2 || undefined
+        );
       }
       if (third) {
-        drawRow("#3", third.name, s3, rowYStart + rowGap * 2, false);
+        drawRow(
+          "#3",
+          third.name,
+          s3,
+          rowYStart + rowGap * 2,
+          false,
+          flag3 || undefined
+        );
       }
 
-      // Bottom CTA
-      drawText(
-        "Take your quiz to find your best country match too!",
-        width / 2,
-        height - 210,
-        32,
-        "#e5e7eb",
-        "center",
-        "500"
+      // --- Bottom CTA block (big + obvious) ---
+      const ctaBoxHeight = 230;
+      const ctaBoxY = height - ctaBoxHeight - 120;
+
+      ctx.fillStyle = "rgba(15,23,42,0.96)";
+      ctx.beginPath();
+      const ctaRadius = 40;
+      const ctaX = 80;
+      const ctaW = width - 160;
+
+      ctx.moveTo(ctaX + ctaRadius, ctaBoxY);
+      ctx.lineTo(ctaX + ctaW - ctaRadius, ctaBoxY);
+      ctx.quadraticCurveTo(
+        ctaX + ctaW,
+        ctaBoxY,
+        ctaX + ctaW,
+        ctaBoxY + ctaRadius
       );
+      ctx.lineTo(ctaX + ctaW, ctaBoxY + ctaBoxHeight - ctaRadius);
+      ctx.quadraticCurveTo(
+        ctaX + ctaW,
+        ctaBoxY + ctaBoxHeight,
+        ctaX + ctaW - ctaRadius,
+        ctaBoxY + ctaBoxHeight
+      );
+      ctx.lineTo(ctaX + ctaRadius, ctaBoxY + ctaBoxHeight);
+      ctx.quadraticCurveTo(
+        ctaX,
+        ctaBoxY + ctaBoxHeight,
+        ctaX,
+        ctaBoxY + ctaBoxHeight - ctaRadius
+      );
+      ctx.lineTo(ctaX, ctaBoxY + ctaRadius);
+      ctx.quadraticCurveTo(ctaX, ctaBoxY, ctaX + ctaRadius, ctaBoxY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#fbbf24";
+      ctx.stroke();
+
+      // CTA text
       drawText(
-        "Take your quiz on www.relomatcher.com",
+        "Want to know your matches?",
         width / 2,
-        height - 150,
-        32,
-        "#fbbf24",
+        ctaBoxY + 80,
+        40,
+        "#f9fafb",
         "center",
         "600"
       );
 
+      drawText(
+        "Take your quiz on",
+        width / 2,
+        ctaBoxY + 135,
+        34,
+        "#e5e7eb",
+        "center",
+        "500"
+      );
+
+      // Big domain
+      drawText(
+        "www.relomatcher.com",
+        width / 2,
+        ctaBoxY + 190,
+        46,
+        "#fbbf24",
+        "center",
+        "800"
+      );
+
+      // --- Export and download ---
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = dataUrl;
@@ -1561,8 +1670,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         <span>{saving ? "Generating image..." : "Save story image"}</span>
       </button>
       <span className="max-w-xs">
-        This saves a vertical story image with your top 3 countries. Share it
-        from your gallery on Instagram, WhatsApp, etc.
+        This saves a vertical story image with your top 3 countries, flags and a
+        big www.relomatcher.com CTA.
         {savedOnce && " (Saved! Check your photos/downloads.)"}
       </span>
     </div>
