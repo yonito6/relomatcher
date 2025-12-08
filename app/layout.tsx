@@ -7,6 +7,11 @@ import Script from "next/script";
 export const metadata = {
   title: "ReloMatcher",
   description: "The dating app for your next country",
+  icons: {
+    icon: "/icon.png", // favicon served automatically from app/icon.png
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
