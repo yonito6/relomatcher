@@ -253,11 +253,10 @@ function AdaptiveQuizForm({
     null
   );
 
-  // NEW: collapsible "My profile" – only collapsible AFTER first submit
-  const [collapsed, setCollapsed] = React.useState(false);
-  const [hasSubmittedOnce, setHasSubmittedOnce] = React.useState(false);
+  // Once user submitted "See my matches", hide the form completely
+  const [hasSubmitted, setHasSubmitted] = React.useState(false);
 
-  // NEW: mobile-friendly custom country suggestion instead of <datalist>
+  // mobile-friendly custom country suggestion instead of <datalist>
   const [countryQuery, setCountryQuery] = React.useState(
     data.currentCountry || ""
   );
@@ -292,14 +291,6 @@ function AdaptiveQuizForm({
   const isLastStep = currentStep === totalSteps - 1;
 
   const hasReason = (key: RelocationReasonId) => reasons.includes(key);
-
-  const toggleReason = (key: RelocationReasonId) => {
-    const exists = reasons.includes(key);
-    const next: RelocationReasonId[] = exists
-      ? reasons.filter((r) => r !== key)
-      : [...reasons, key];
-    onUpdate({ reasons: next });
-  };
 
   const setReason = (key: RelocationReasonId, enabled: boolean) => {
     const without = reasons.filter((r) => r !== key);
@@ -484,15 +475,16 @@ function AdaptiveQuizForm({
     setValidationError(null);
 
     if (isLastStep) {
-      // First time they click "See my matches":
-      //  - mark that we've submitted
-      //  - collapse the form (keep the header visible)
-      setHasSubmittedOnce(true);
-      setCollapsed(true);
+      setHasSubmitted(true);
       onSubmit();
     } else {
       onNext();
     }
+  }
+
+  // If user already submitted, this component renders nothing at all.
+  if (hasSubmitted) {
+    return null;
   }
 
   let stepContent: React.ReactNode = null;
@@ -507,13 +499,13 @@ function AdaptiveQuizForm({
         title="First, a few basics"
         subtitle="We start with simple details so we can compare new places to where you live now."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>Where are you currently based?</Label>
           <div className="relative w-full">
             <input
               type="text"
               autoComplete="off"
-              className="w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+              className="w-full max-w-full rounded-xl bg-white px-3 py-2.5 text-[14px] sm:text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
               placeholder="Start typing your country…"
               value={countryQuery}
               onFocus={() => setShowCountryDropdown(true)}
@@ -525,12 +517,12 @@ function AdaptiveQuizForm({
               }}
             />
             {showCountryDropdown && filteredCountries.length > 0 && (
-              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl bg-white shadow-lg">
                 {filteredCountries.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    className="block w-full px-3 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-100"
+                    className="block w-full px-3 py-1.5 text-left text-[12px] sm:text-[11px] text-slate-800 hover:bg-slate-100"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       handleCountrySelect(c);
@@ -542,13 +534,13 @@ function AdaptiveQuizForm({
               </div>
             )}
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[12px] sm:text-[11px] text-slate-500">
             We won&apos;t suggest {data.currentCountry || "your current country"} as a
             match.
           </p>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>How old are you?</Label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {["18–24", "25–29", "30–34", "35–39", "40–49", "50+"].map(
@@ -585,9 +577,9 @@ function AdaptiveQuizForm({
         title="Languages"
         subtitle="Places where you can speak easily will feel more like home."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>Which languages can you live your daily life in?</Label>
-          <p className="text-[11px] text-slate-500 mb-1">
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
             Work, friends, and basic paperwork. Pick all that apply.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -602,7 +594,7 @@ function AdaptiveQuizForm({
           </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>
             How important is it that your new country uses one of these languages a
             lot?
@@ -700,15 +692,15 @@ function AdaptiveQuizForm({
             />
             <DoesntMatterCard
               selected={taxNotPriority}
-              onClick={() => handleTaxPriority(false)}
+              onClick={() => handleColPriority(false)}
             >
               Not a priority for me
             </DoesntMatterCard>
           </div>
 
           {taxMatters && (
-            <div className="mt-2 space-y-1">
-              <p className="text-[11px] text-slate-600">
+            <div className="mt-1.5 space-y-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
                 How hard should we optimise for lower taxes?{" "}
                 <span className="font-semibold text-amber-600">
                   {taxImportance}/10
@@ -726,7 +718,7 @@ function AdaptiveQuizForm({
                 }
                 className="w-full accent-amber-400"
               />
-              <div className="flex justify-between text-[10px] text-slate-500">
+              <div className="flex justify-between text-[11px] text-slate-500">
                 <span>1 = small bonus if taxes are lower</span>
                 <span>10 = we strongly prioritise low-tax realistic options</span>
               </div>
@@ -735,7 +727,7 @@ function AdaptiveQuizForm({
         </div>
 
         {/* Cost of living */}
-        <div className="space-y-2 pt-3">
+        <div className="space-y-2 pt-2.5">
           <Label>
             Does having a lower cost of living than{" "}
             {data.currentCountry || "where you live now"} matter to you?
@@ -755,8 +747,8 @@ function AdaptiveQuizForm({
           </div>
 
           {colMatters && (
-            <div className="mt-2 space-y-1">
-              <p className="text-[11px] text-slate-600">
+            <div className="mt-1.5 space-y-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
                 How hard should we optimise for cheaper everyday life?{" "}
                 <span className="font-semibold text-amber-600">
                   {colImportance}/10
@@ -774,7 +766,7 @@ function AdaptiveQuizForm({
                 }
                 className="w-full accent-amber-400"
               />
-              <div className="flex justify-between text-[10px] text-slate-500">
+              <div className="flex justify-between text-[11px] text-slate-500">
                 <span>1 = small bonus if it&apos;s cheaper</span>
                 <span>10 = we heavily reward cheaper destinations</span>
               </div>
@@ -825,7 +817,7 @@ function AdaptiveQuizForm({
         title="Safety & stability"
         subtitle="This includes safety in the street, politics and how serious institutions feel."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>How important is safety and stability for you?</Label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <ChoiceCard
@@ -883,10 +875,10 @@ function AdaptiveQuizForm({
         </div>
 
         {caresSafety && (
-          <div className="space-y-3 pt-1">
+          <div className="space-y-2.5 pt-1">
             <div className="space-y-1">
               <Label>Street safety</Label>
-              <p className="text-[11px] text-slate-500 mb-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
                 Walking at night, public transport, general feeling on the street.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -913,7 +905,7 @@ function AdaptiveQuizForm({
 
             <div className="space-y-1">
               <Label>Politics</Label>
-              <p className="text-[11px] text-slate-500 mb-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
                 Protests, news drama, changes of government.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -940,7 +932,7 @@ function AdaptiveQuizForm({
 
             <div className="space-y-1">
               <Label>Institutions & corruption</Label>
-              <p className="text-[11px] text-slate-500 mb-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
                 How fair and &quot;serious&quot; the system feels (offices, police, courts).
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1036,7 +1028,7 @@ function AdaptiveQuizForm({
         subtitle="We match your answer with typical climate in different cities."
       >
         {/* Does climate matter? */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>
             Does the climate and weather in your next country matter to you?
           </Label>
@@ -1058,7 +1050,7 @@ function AdaptiveQuizForm({
         {/* Climate preference only if it matters */}
         {climateMatters && (
           <>
-            <div className="space-y-1 pt-2">
+            <div className="space-y-1.5 pt-2">
               <Label>What kind of climate sounds best for you?</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <ChoiceCard
@@ -1079,11 +1071,11 @@ function AdaptiveQuizForm({
               </div>
             </div>
 
-            <div className="space-y-1 pt-2">
+            <div className="space-y-1.5 pt-2">
               <Label>
                 How important is it that your new place fits this climate?
               </Label>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
                 We use this to decide how hard to avoid places with the opposite
                 weather.{" "}
                 <span className="font-semibold text-amber-600">
@@ -1102,7 +1094,7 @@ function AdaptiveQuizForm({
                 }
                 className="w-full accent-amber-400"
               />
-              <div className="flex justify-between text-[10px] text-slate-500">
+              <div className="flex justify-between text-[11px] text-slate-500">
                 <span>1 = nice bonus if it matches</span>
                 <span>10 = we strongly avoid the opposite climate</span>
               </div>
@@ -1134,9 +1126,9 @@ function AdaptiveQuizForm({
         title="Healthcare"
         subtitle="We care about how it feels in real life, not legal details."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>What kind of healthcare system sounds best to you?</Label>
-          <p className="text-[11px] text-slate-500 mb-1">
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
             From more public to more private.
           </p>
           <div className="grid grid-cols-1 gap-2">
@@ -1193,7 +1185,7 @@ function AdaptiveQuizForm({
         title="LGBTQ+ rights"
         subtitle="This can fully exclude some countries if you say it matters."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>How much do LGBTQ+ rights matter where you live?</Label>
           <div className="grid grid-cols-1 gap-2">
             <ChoiceCard
@@ -1291,9 +1283,9 @@ function AdaptiveQuizForm({
         title="Culture & vibe"
         subtitle="Think about daily life, social style, and general feeling of the place."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>Which cultures do you feel pulled to?</Label>
-          <p className="text-[11px] text-slate-500 mb-1">
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
             You can pick more than one, or say you don&apos;t mind.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1332,7 +1324,7 @@ function AdaptiveQuizForm({
         </div>
 
         {anyCulture && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label>Is this kind of culture a must-have?</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <ChoiceCard
@@ -1378,7 +1370,7 @@ function AdaptiveQuizForm({
         title="Development & infrastructure"
         subtitle="Think about roads, services, public transport and how smooth daily life feels."
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label>Do you care about how developed your next country feels?</Label>
           <div className="grid grid-cols-1 gap-2">
             <ChoiceCard
@@ -1449,9 +1441,9 @@ function AdaptiveQuizForm({
         </div>
 
         {caresDev && (
-          <div className="space-y-1">
+          <div className="space-y-1.5 pt-1.5">
             <Label>What parts of this matter most to you?</Label>
-            <p className="text-[11px] text-slate-500 mb-1">
+            <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
               Pick all that sound important. We’ll match you to cities that fit
               this better.
             </p>
@@ -1492,8 +1484,8 @@ function AdaptiveQuizForm({
         title="Check your profile"
         subtitle="If something looks wrong, you can go back and change it before we show matches."
       >
-        <div className="space-y-3 text-[11px] text-slate-800">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="space-y-3 text-[13px] sm:text-[11px] text-slate-800">
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
             <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
               Basics
             </p>
@@ -1519,7 +1511,7 @@ function AdaptiveQuizForm({
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
             <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
               Things we will focus on
             </p>
@@ -1594,7 +1586,7 @@ function AdaptiveQuizForm({
             </ul>
           </div>
 
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[12px] sm:text-[11px] text-slate-600">
             When you click{" "}
             <span className="font-semibold text-slate-900">
               See my matches
@@ -1610,73 +1602,54 @@ function AdaptiveQuizForm({
   return (
     <form
       onSubmit={handleFormSubmit}
-      className="w-full max-w-full bg-white border border-slate-200 rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
+      className="w-full max-w-full bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
-      {/* My profile header – always shown, collapsible only after first submit */}
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
+      {/* Header – no inner border, My profile stays on one line */}
+      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5">
+          <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5 whitespace-nowrap">
             My profile
           </span>
-          <span className="text-[11px] text-slate-500 truncate">
-            {hasSubmittedOnce
-              ? "Tap below to review or edit your answers."
-              : `Step ${currentStep + 1} of ${totalSteps}`}
-          </span>
+          {/* You still have step indicator near the button; no helper text here */}
         </div>
-        {hasSubmittedOnce && (
-          <button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            className="ml-2 flex items-center gap-1 text-[11px] text-slate-700 hover:text-slate-900"
-          >
-            <span>{collapsed ? "Show" : "Hide"}</span>
-            <span>{collapsed ? "▼" : "▲"}</span>
-          </button>
-        )}
       </div>
 
-      {/* Only show the actual step content + nav when not collapsed */}
-      {!collapsed && (
-        <>
-          {stepContent}
+      {stepContent}
 
-          {validationError && (
-            <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-              {validationError}
-            </p>
-          )}
+      {validationError && (
+        <p className="text-[12px] sm:text-[11px] text-rose-800 bg-rose-50 rounded-xl px-3 py-2">
+          {validationError}
+        </p>
+      )}
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between pt-2 mt-2">
-            <button
-              type="button"
-              onClick={onBack}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:border-slate-400 hover:bg-slate-50 transition-colors"
-            >
-              ← Back
-            </button>
+      {/* Navigation */}
+      <div className="flex items-center justify-between pt-2 mt-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+        >
+          ← Back
+        </button>
 
-            <div className="flex items-center gap-3">
-              <p className="hidden xs:block text-[11px] text-slate-500">
-                Step {currentStep + 1} of {totalSteps}
-              </p>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
+        <div className="flex items-center gap-3">
+          <p className="hidden xs:block text-[11px] text-slate-500">
+            Step {currentStep + 1} of {totalSteps}
+          </p>
+          <button
+            type="submit"
+            className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
                        bg-amber-400 text-slate-950 border border-transparent
                        shadow-[0_10px_25px_rgba(0,0,0,0.25)]
                        transition-all duration-150
                        hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
                        active:translate-y-0 active:scale-[0.97]
                        focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
-              >
-                {isLastStep ? "🔥 See my matches" : "Continue"}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          >
+            {isLastStep ? "🔥 See my matches" : "Continue"}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }
@@ -1695,32 +1668,32 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div className="flex items-start gap-3">
-        <div className="h-8 w-8 flex items-center justify-center rounded-2xl bg-slate-100 border border-slate-200 text-lg shrink-0">
+        <div className="h-8 w-8 flex items-center justify-center rounded-2xl bg-slate-100 text-lg shrink-0">
           {emoji}
         </div>
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900 tracking-tight">
+          <h2 className="text-[14px] sm:text-sm font-semibold text-slate-900 tracking-tight">
             {title}
           </h2>
-          <p className="text-[11px] text-slate-600">{subtitle}</p>
+          <p className="text-[12px] sm:text-[11px] text-slate-600">{subtitle}</p>
         </div>
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-3.5">{children}</div>
     </div>
   );
 }
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold text-slate-900 mb-0.5 tracking-tight">
+    <p className="text-[13px] sm:text-xs font-semibold text-slate-900 mb-0.5 tracking-tight">
       {children}
     </p>
   );
 }
 
-/** Clickable answer card with clear states + hover/select animation */
+/** Clickable answer card with clear states + no border */
 function ChoiceCard({
   label,
   selected,
@@ -1734,22 +1707,18 @@ function ChoiceCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex items-start gap-2 text-left text-[11px] px-3.5 py-2.5 rounded-2xl border
+      className={`group relative flex items-start gap-2 text-left text-[13px] sm:text-[11px] px-3.5 py-2.5 rounded-2xl
         w-full
         transition-all duration-150 ease-out font-medium
         ${
           selected
-            ? "bg-amber-400 text-slate-950 border-amber-400 shadow-md scale-[1.02]"
-            : "bg-white text-slate-900 border-slate-300 hover:border-amber-400 hover:bg-amber-50 hover:shadow-sm hover:-translate-y-0.5"
+            ? "bg-amber-400 text-slate-950 shadow-md scale-[1.02]"
+            : "bg-white text-slate-900 hover:bg-amber-50 hover:shadow-sm hover:-translate-y-0.5"
         }`}
     >
       <div
-        className={`mt-[2px] h-3.5 w-3.5 rounded-full border flex items-center justify-center transition-all duration-150 flex-shrink-0
-          ${
-            selected
-              ? "border-slate-950 bg-slate-50"
-              : "border-slate-400 bg-white group-hover:border-amber-400"
-          }`}
+        className={`mt-[2px] h-3.5 w-3.5 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0
+          ${selected ? "bg-slate-50" : "bg-slate-200 group-hover:bg-amber-300"}`}
       >
         {selected && (
           <span className="block h-2 w-2 rounded-full bg-slate-950" />
@@ -1760,7 +1729,7 @@ function ChoiceCard({
   );
 }
 
-/** “Doesn’t matter / not a priority” card */
+/** “Doesn’t matter / not a priority” card with no border */
 function DoesntMatterCard({
   children,
   selected,
@@ -1774,13 +1743,13 @@ function DoesntMatterCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex items-start gap-2 text-left text-[11px] px-3.5 py-2.5 rounded-2xl border
+      className={`group relative flex items-start gap-2 text-left text-[13px] sm:text-[11px] px-3.5 py-2.5 rounded-2xl
         w-full
         transition-all duration-150 ease-out
         ${
           selected
-            ? "bg-slate-900 text-slate-50 border-slate-900 shadow-md scale-[1.03]"
-            : "bg-white text-slate-700 border-slate-300 border-dashed hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 hover:-translate-y-0.5 hover:shadow-sm"
+            ? "bg-slate-900 text-slate-50 shadow-md scale-[1.03]"
+            : "bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:-translate-y-0.5 hover:shadow-sm"
         }`}
     >
       <div
@@ -1788,7 +1757,7 @@ function DoesntMatterCard({
           ${
             selected
               ? "bg-slate-50 text-slate-950"
-              : "bg-slate-100 text-slate-500 group-hover:bg-slate-900 group-hover:text-slate-50"
+              : "bg-slate-200 text-slate-600 group-hover:bg-slate-900 group-hover:text-slate-50"
           }`}
       >
         ×
@@ -1798,7 +1767,7 @@ function DoesntMatterCard({
         <span className="font-semibold mr-1 uppercase tracking-[0.14em] text-[10px]">
           Not a priority:
         </span>
-        <span className="text-[11px]">{children}</span>
+        <span className="text-[13px] sm:text-[11px]">{children}</span>
       </div>
     </button>
   );
