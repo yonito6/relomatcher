@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
-import type { QuizData, RelocationReasonId } from "@/lib/types";
+import type { QuizData } from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 const TOTAL_STEPS = 10;
@@ -423,7 +423,7 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
-      <div className="w-full max-w-6xl mx-auto">
+      <div className="w-full max-w-6xl mx-auto overflow-x-hidden">
         {/* Top bar with logo */}
         <header className="flex items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
@@ -659,14 +659,101 @@ function PremiumUpsell({
   );
 }
 
-/* Profile summary (for My profile collapsible) */
+/* Collapse helper – animate only on hide */
 
-function ProfileSummary({ profile }: { profile: QuizData | null }) {
+function CollapseOnHide({
+  open,
+  children,
+  className = "",
+}: {
+  open: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(open);
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      // Instantly show without animation
+      setIsVisible(true);
+      setIsClosing(false);
+      return;
+    }
+
+    if (!open && isVisible) {
+      // Animate closing
+      setIsClosing(true);
+      const timeout = setTimeout(() => {
+        setIsClosing(false);
+        setIsVisible(false);
+      }, 180);
+      return () => clearTimeout(timeout);
+    }
+  }, [open, isVisible]);
+
+  if (!isVisible) return null;
+
+  const base =
+    "overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-in-out";
+  const stateClass = isClosing
+    ? "max-h-0 opacity-0 -translate-y-1"
+    : "max-h-[2000px] opacity-100 translate-y-0";
+
+  return (
+    <div className={`${base} ${stateClass} ${className}`}>{children}</div>
+  );
+}
+
+/* Profile summary used in results (collapsible "My profile") */
+
+function ProfileSummaryCard({ profile }: { profile: QuizData | null }) {
   if (!profile) return null;
 
-  const reasons = (profile.reasons ?? []) as RelocationReasonId[];
-  const hasReason = (key: RelocationReasonId) => reasons.includes(key);
+  const reasons = new Set(profile.reasons || []);
   const languagesSpoken = profile.languagesSpoken || [];
+
+  const focusLines: string[] = [];
+
+  if (reasons.has("lower_taxes")) focusLines.push("You care about lower taxes.");
+  if (reasons.has("lower_cost_of_living"))
+    focusLines.push("You want a lower cost of living.");
+  if (reasons.has("better_weather"))
+    focusLines.push("You have a preferred climate.");
+  if (reasons.has("better_lgbtq"))
+    focusLines.push("LGBTQ+ rights matter to you.");
+  if (reasons.has("language_must_have"))
+    focusLines.push("You want to rely on one of your languages.");
+  if (reasons.has("safety_stability_priority"))
+    focusLines.push("Safety and stability are important to you.");
+  if (reasons.has("healthcare_strong_public"))
+    focusLines.push("You prefer strong public healthcare.");
+  if (reasons.has("healthcare_mixed"))
+    focusLines.push("You like a mix of public and private healthcare.");
+  if (reasons.has("healthcare_private"))
+    focusLines.push("You are okay with mostly private healthcare.");
+  if (reasons.has("culture_must_have"))
+    focusLines.push("You want to really connect with the local culture.");
+  if (reasons.has("development_care_yes"))
+    focusLines.push("You want a clearly developed country.");
+  if (reasons.has("development_care_some"))
+    focusLines.push(
+      "You prefer decent standards but accept some rough edges."
+    );
+  if (reasons.has("development_not_important"))
+    focusLines.push("You are flexible about how developed the country feels.");
+  if (reasons.has("dev_public_transport"))
+    focusLines.push(
+      "Public transport and moving without a car matter to you."
+    );
+  if (reasons.has("dev_digital_services"))
+    focusLines.push("You care about good digital services (apps, online).");
+  if (reasons.has("dev_infrastructure_clean"))
+    focusLines.push("You like cleaner, more maintained streets and buildings.");
+  if (reasons.has("dev_everyday_services"))
+    focusLines.push(
+      "You want easy everyday services and modern city life."
+    );
 
   return (
     <div className="space-y-3 text-[11px] text-slate-800">
@@ -701,62 +788,12 @@ function ProfileSummary({ profile }: { profile: QuizData | null }) {
           Things we will focus on
         </p>
         <ul className="space-y-0.5 text-slate-800">
-          {hasReason("lower_taxes") && <li>• You care about lower taxes.</li>}
-          {hasReason("lower_cost_of_living") && (
-            <li>• You want a lower cost of living.</li>
-          )}
-          {hasReason("better_weather") && (
-            <li>• You have a preferred climate.</li>
-          )}
-          {hasReason("better_lgbtq") && (
-            <li>• LGBTQ+ rights matter to you.</li>
-          )}
-          {hasReason("language_must_have") && (
-            <li>• You want to rely on one of your languages.</li>
-          )}
-          {hasReason("safety_stability_priority") && (
-            <li>• Safety and stability are important to you.</li>
-          )}
-          {hasReason("healthcare_strong_public") && (
-            <li>• You prefer strong public healthcare.</li>
-          )}
-          {hasReason("healthcare_mixed") && (
-            <li>• You like a mix of public and private healthcare.</li>
-          )}
-          {hasReason("healthcare_private") && (
-            <li>• You are okay with mostly private healthcare.</li>
-          )}
-          {hasReason("culture_must_have") && (
-            <li>• You want to really connect with the local culture.</li>
-          )}
-          {hasReason("development_care_yes") && (
-            <li>• You want a clearly developed country.</li>
-          )}
-          {hasReason("development_care_some") && (
-            <li>• You prefer decent standards but accept some rough edges.</li>
-          )}
-          {hasReason("development_not_important") && (
-            <li>
-              • You are flexible about how developed the country feels.
-            </li>
-          )}
-          {hasReason("dev_public_transport") && (
-            <li>• Public transport and moving without a car matter to you.</li>
-          )}
-          {hasReason("dev_digital_services") && (
-            <li>
-              • You care about good digital services (apps, online services).
-            </li>
-          )}
-          {hasReason("dev_infrastructure_clean") && (
-            <li>• You like cleaner, more maintained streets and buildings.</li>
-          )}
-          {hasReason("dev_everyday_services") && (
-            <li>• You want easy everyday services and modern city life.</li>
-          )}
-          {reasons.length === 0 && (
+          {focusLines.length === 0 && (
             <li>• You did not mark any strong priorities yet.</li>
           )}
+          {focusLines.map((line, idx) => (
+            <li key={idx}>• {line}</li>
+          ))}
         </ul>
       </div>
     </div>
@@ -795,10 +832,7 @@ function ResultsPanel({
     "qualified"
   );
 
-  // Collapsibles
-  // My profile: show collapsed by default once results appear
-  const [profileOpen, setProfileOpen] = useState(false);
-  // AI summary: open by default
+  const [profileOpen, setProfileOpen] = useState(false); // start collapsed
   const [aiOpen, setAiOpen] = useState(true);
 
   const monthlyIncome = profile?.monthlyIncome
@@ -831,45 +865,30 @@ function ResultsPanel({
 
   return (
     <div className="space-y-5 mt-4">
-      {/* My profile collapsible – only appears after results, starts collapsed */}
+      {/* My profile collapsible – ONLY visible after results */}
       {profile && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
           <button
             type="button"
-            onClick={() => setProfileOpen((v) => !v)}
-            className="flex items-center justify-between w-full text-left"
+            onClick={() => setProfileOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between text-xs font-semibold text-slate-800"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🧾</span>
-              <div className="flex flex-col">
-                <span className="font-semibold text-[11px] uppercase tracking-[0.14em] text-slate-700">
-                  My profile
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  Tap to review what we used to rank your matches.
-                </span>
-              </div>
-            </div>
+            <span>My profile</span>
             <span className="text-[11px] text-slate-500">
-              {profileOpen ? "Hide" : "Show"}
-              <span className="ml-1">{profileOpen ? "▲" : "▼"}</span>
+              {profileOpen ? "Hide" : "Show"}{" "}
+              <span className="inline-block ml-1">
+                {profileOpen ? "▲" : "▼"}
+              </span>
             </span>
           </button>
-          <div
-            className="overflow-hidden transition-all duration-200 ease-out"
-            style={{
-              maxHeight: profileOpen ? 800 : 0,
-              opacity: profileOpen ? 1 : 0,
-            }}
-          >
-            <div className="mt-3">
-              <ProfileSummary profile={profile} />
-            </div>
-          </div>
+
+          <CollapseOnHide open={profileOpen} className="mt-3">
+            <ProfileSummaryCard profile={profile} />
+          </CollapseOnHide>
         </div>
       )}
 
-      {/* Top row: Upsell + AI summary (AI is collapsible) */}
+      {/* Top row: Upsell + AI summary (AI collapsible) */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -888,35 +907,29 @@ function ResultsPanel({
             </div>
           ) : (
             <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
-              <button
-                type="button"
-                onClick={() => setAiOpen((v) => !v)}
-                className="flex items-center justify-between w-full text-left"
-              >
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🤖</span>
                   <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-emerald-600">
                     AI summary of your matches
                   </p>
                 </div>
-                <span className="text-[11px] text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((prev) => !prev)}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold"
+                >
                   {aiOpen ? "Hide" : "Show"}
-                  <span className="ml-1">{aiOpen ? "▲" : "▼"}</span>
-                </span>
-              </button>
-              <div
-                className="overflow-hidden transition-all duration-200 ease-out"
-                style={{
-                  maxHeight: aiOpen ? 300 : 0,
-                  opacity: aiOpen ? 1 : 0,
-                }}
-              >
+                </button>
+              </div>
+
+              <CollapseOnHide open={aiOpen}>
                 <p className="mt-2 text-xs text-slate-800">
                   {aiData?.overallSummary
                     ? aiData.overallSummary
                     : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
                 </p>
-              </div>
+              </CollapseOnHide>
             </div>
           )}
         </div>
@@ -958,9 +971,6 @@ function ResultsPanel({
           <p className="text-[11px] font-semibold text-slate-400">
             Your top matches (tap like or pass, then open the breakdown)
           </p>
-
-          {/* Share story image only (no text share) */}
-          <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -1005,16 +1015,18 @@ function ResultsPanel({
             })}
           </div>
 
-          {/* Retake quiz button under top matches */}
-          <div className="pt-2 border-t border-slate-800/40 mt-4 flex justify-center">
+          {/* Retake + Share row */}
+          <div className="pt-4 border-t border-slate-800/40 mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               type="button"
               onClick={onRetake}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-4 py-1.5 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-1 rounded-full border border-slate-500 bg-slate-900 px-5 py-2 text-[12px] font-semibold text-slate-50 hover:bg-slate-800 hover:border-slate-400 transition-colors shadow-[0_10px_24px_rgba(15,23,42,0.6)]"
             >
               <span>🔁</span>
               <span>Retake quiz</span>
             </button>
+
+            <ShareStoryImageButton topMatches={topMatches} />
           </div>
         </div>
       )}
@@ -1307,36 +1319,34 @@ function MatchCard({
           <span className="text-[11px]">{expanded ? "▲" : "▼"}</span>
         </button>
 
-        {expanded && (
-          <div className="mt-3 space-y-2">
-            {dims.map((d) => {
-              const value = match.breakdown[d.key];
-              const expl =
-                match.explanations[d.key as keyof DimensionExplanations];
-              if (value === undefined || value === null) return null;
-              const pctWidth = `${(value / 10) * 100}%`;
-              return (
-                <div key={d.key} className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{d.label}</span>
-                    <span className="font-semibold text-slate-900">
-                      {value.toFixed(1)}/10
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-amber-500 transition-all"
-                      style={{ width: pctWidth }}
-                    />
-                  </div>
-                  {expl && (
-                    <p className="text-[11px] text-slate-700">{expl}</p>
-                  )}
+        <CollapseOnHide open={expanded} className="mt-3 space-y-2">
+          {dims.map((d) => {
+            const value = match.breakdown[d.key];
+            const expl =
+              match.explanations[d.key as keyof DimensionExplanations];
+            if (value === undefined || value === null) return null;
+            const pctWidth = `${(value / 10) * 100}%`;
+            return (
+              <div key={d.key} className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>{d.label}</span>
+                  <span className="font-semibold text-slate-900">
+                    {value.toFixed(1)}/10
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all"
+                    style={{ width: pctWidth }}
+                  />
+                </div>
+                {expl && (
+                  <p className="text-[11px] text-slate-700">{expl}</p>
+                )}
+              </div>
+            );
+          })}
+        </CollapseOnHide>
       </div>
     </div>
   );
@@ -1483,38 +1493,36 @@ function DisqualifiedPanel({
                   </span>
                 </button>
 
-                {expanded && (
-                  <div className="mt-3 space-y-2">
-                    {dims.map((d) => {
-                      const value = m.breakdown[d.key];
-                      const expl =
-                        m.explanations[d.key as keyof DimensionExplanations];
-                      if (value === undefined || value === null) return null;
-                      const pctWidth = `${(value / 10) * 100}%`;
-                      return (
-                        <div key={d.key} className="space-y-1">
-                          <div className="flex items-center justify-between text-[11px] text-slate-500">
-                            <span>{d.label}</span>
-                            <span className="font-semibold text-slate-900">
-                              {value.toFixed(1)}/10
-                            </span>
-                          </div>
-                          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-amber-500 transition-all"
-                              style={{ width: pctWidth }}
-                            />
-                          </div>
-                          {expl && (
-                            <p className="text-[11px] text-slate-700">
-                              {expl}
-                            </p>
-                          )}
+                <CollapseOnHide open={expanded} className="mt-3 space-y-2">
+                  {dims.map((d) => {
+                    const value = m.breakdown[d.key];
+                    const expl =
+                      m.explanations[d.key as keyof DimensionExplanations];
+                    if (value === undefined || value === null) return null;
+                    const pctWidth = `${(value / 10) * 100}%`;
+                    return (
+                      <div key={d.key} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>{d.label}</span>
+                          <span className="font-semibold text-slate-900">
+                            {value.toFixed(1)}/10
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-amber-500 transition-all"
+                            style={{ width: pctWidth }}
+                          />
+                        </div>
+                        {expl && (
+                          <p className="text-[11px] text-slate-700">
+                            {expl}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CollapseOnHide>
               </div>
             </div>
           );
@@ -1552,7 +1560,7 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share story image via canvas (no text share) */
+/* Share story image via canvas (no text share) – golden CTA */
 
 function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [saving, setSaving] = useState(false);
@@ -1912,15 +1920,15 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+        className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-slate-950 text-[12px] font-semibold px-5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.8)] hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
         <span>📱</span>
         <span>
-          {saving ? "Generating story image..." : "Share / save story image"}
+          {saving ? "Generating image…" : "Share your results"}
         </span>
       </button>
-      <span className="max-w-xs">
-        This creates a vertical story with your top 3 matches, flags and a big
+      <span className="max-w-xs text-[11px] text-slate-400">
+        Creates a vertical story with your top 3 matches, flags and a big
         www.relomatcher.com CTA.
         {savedOnce && " (Done! Check your share sheet or downloads.)"}
       </span>
