@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
-import type { QuizData } from "@/lib/types";
+import type { QuizData, RelocationReasonId } from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 const TOTAL_STEPS = 10;
@@ -659,6 +659,110 @@ function PremiumUpsell({
   );
 }
 
+/* Profile summary (for My profile collapsible) */
+
+function ProfileSummary({ profile }: { profile: QuizData | null }) {
+  if (!profile) return null;
+
+  const reasons = (profile.reasons ?? []) as RelocationReasonId[];
+  const hasReason = (key: RelocationReasonId) => reasons.includes(key);
+  const languagesSpoken = profile.languagesSpoken || [];
+
+  return (
+    <div className="space-y-3 text-[11px] text-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+          Basics
+        </p>
+        <ul className="space-y-0.5">
+          <li>
+            <span className="font-semibold text-slate-900">
+              Current country:
+            </span>{" "}
+            {profile.currentCountry || "Not specified"}
+          </li>
+          <li>
+            <span className="font-semibold text-slate-900">Age:</span>{" "}
+            {profile.ageRange || "Not specified"}
+          </li>
+          <li>
+            <span className="font-semibold text-slate-900">
+              Languages you can live in:
+            </span>{" "}
+            {languagesSpoken.length > 0
+              ? languagesSpoken.join(", ")
+              : "Not specified"}
+          </li>
+        </ul>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+          Things we will focus on
+        </p>
+        <ul className="space-y-0.5 text-slate-800">
+          {hasReason("lower_taxes") && <li>• You care about lower taxes.</li>}
+          {hasReason("lower_cost_of_living") && (
+            <li>• You want a lower cost of living.</li>
+          )}
+          {hasReason("better_weather") && (
+            <li>• You have a preferred climate.</li>
+          )}
+          {hasReason("better_lgbtq") && (
+            <li>• LGBTQ+ rights matter to you.</li>
+          )}
+          {hasReason("language_must_have") && (
+            <li>• You want to rely on one of your languages.</li>
+          )}
+          {hasReason("safety_stability_priority") && (
+            <li>• Safety and stability are important to you.</li>
+          )}
+          {hasReason("healthcare_strong_public") && (
+            <li>• You prefer strong public healthcare.</li>
+          )}
+          {hasReason("healthcare_mixed") && (
+            <li>• You like a mix of public and private healthcare.</li>
+          )}
+          {hasReason("healthcare_private") && (
+            <li>• You are okay with mostly private healthcare.</li>
+          )}
+          {hasReason("culture_must_have") && (
+            <li>• You want to really connect with the local culture.</li>
+          )}
+          {hasReason("development_care_yes") && (
+            <li>• You want a clearly developed country.</li>
+          )}
+          {hasReason("development_care_some") && (
+            <li>• You prefer decent standards but accept some rough edges.</li>
+          )}
+          {hasReason("development_not_important") && (
+            <li>
+              • You are flexible about how developed the country feels.
+            </li>
+          )}
+          {hasReason("dev_public_transport") && (
+            <li>• Public transport and moving without a car matter to you.</li>
+          )}
+          {hasReason("dev_digital_services") && (
+            <li>
+              • You care about good digital services (apps, online services).
+            </li>
+          )}
+          {hasReason("dev_infrastructure_clean") && (
+            <li>• You like cleaner, more maintained streets and buildings.</li>
+          )}
+          {hasReason("dev_everyday_services") && (
+            <li>• You want easy everyday services and modern city life.</li>
+          )}
+          {reasons.length === 0 && (
+            <li>• You did not mark any strong priorities yet.</li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /* Results UI */
 
 function ResultsPanel({
@@ -691,6 +795,12 @@ function ResultsPanel({
     "qualified"
   );
 
+  // Collapsibles
+  // My profile: show collapsed by default once results appear
+  const [profileOpen, setProfileOpen] = useState(false);
+  // AI summary: open by default
+  const [aiOpen, setAiOpen] = useState(true);
+
   const monthlyIncome = profile?.monthlyIncome
     ? Number(profile.monthlyIncome.toString().replace(/,/g, ""))
     : null;
@@ -721,7 +831,45 @@ function ResultsPanel({
 
   return (
     <div className="space-y-5 mt-4">
-      {/* Top row: Upsell + AI summary */}
+      {/* My profile collapsible – only appears after results, starts collapsed */}
+      {profile && (
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
+          <button
+            type="button"
+            onClick={() => setProfileOpen((v) => !v)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧾</span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-[11px] uppercase tracking-[0.14em] text-slate-700">
+                  My profile
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Tap to review what we used to rank your matches.
+                </span>
+              </div>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              {profileOpen ? "Hide" : "Show"}
+              <span className="ml-1">{profileOpen ? "▲" : "▼"}</span>
+            </span>
+          </button>
+          <div
+            className="overflow-hidden transition-all duration-200 ease-out"
+            style={{
+              maxHeight: profileOpen ? 800 : 0,
+              opacity: profileOpen ? 1 : 0,
+            }}
+          >
+            <div className="mt-3">
+              <ProfileSummary profile={profile} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top row: Upsell + AI summary (AI is collapsible) */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -740,19 +888,35 @@ function ResultsPanel({
             </div>
           ) : (
             <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
-              <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setAiOpen((v) => !v)}
+                className="flex items-center justify-between w-full text-left"
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🤖</span>
                   <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-emerald-600">
                     AI summary of your matches
                   </p>
                 </div>
+                <span className="text-[11px] text-slate-500">
+                  {aiOpen ? "Hide" : "Show"}
+                  <span className="ml-1">{aiOpen ? "▲" : "▼"}</span>
+                </span>
+              </button>
+              <div
+                className="overflow-hidden transition-all duration-200 ease-out"
+                style={{
+                  maxHeight: aiOpen ? 300 : 0,
+                  opacity: aiOpen ? 1 : 0,
+                }}
+              >
+                <p className="mt-2 text-xs text-slate-800">
+                  {aiData?.overallSummary
+                    ? aiData.overallSummary
+                    : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
+                </p>
               </div>
-              <p className="mt-2 text-xs text-slate-800">
-                {aiData?.overallSummary
-                  ? aiData.overallSummary
-                  : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
-              </p>
             </div>
           )}
         </div>
