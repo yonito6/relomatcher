@@ -35,8 +35,6 @@ type DimensionBreakdown = {
   expatScene?: number;
   socialScene?: number;
   lgbtRights?: number;
-
-  // extra dimensions related to your form
   healthcareSystem?: number;
   publicTransport?: number;
   digitalServices?: number;
@@ -56,7 +54,6 @@ type DimensionExplanations = {
   expatScene?: string;
   socialScene?: string;
   lgbtRights?: string;
-
   healthcareSystem?: string;
   publicTransport?: string;
   digitalServices?: string;
@@ -106,6 +103,86 @@ type AIExplainData = {
   disqualified: AIExplainCountryComment[];
 };
 
+type SeoMenuItem = {
+  id: string;
+  label: string;
+  keyword: string;
+  description: string;
+};
+
+const SEO_MENU_ITEMS: SeoMenuItem[] = [
+  {
+    id: "best-places-world",
+    label: "Best places to live in the world",
+    keyword: "best places to live in the world",
+    description:
+      "Long-form guides comparing the best places to live in the world by taxes, safety, cost of living and lifestyle. Great top-funnel content for people still exploring options globally.",
+  },
+  {
+    id: "best-countries-live",
+    label: "Best countries to live",
+    keyword: "best countries to live",
+    description:
+      "Country-level rankings for people asking which are the best countries to live in. Perfect for list posts like “Top 10 countries to live in if you work online.”",
+  },
+  {
+    id: "best-cities-live",
+    label: "Best cities to live in",
+    keyword: "best cities to live in",
+    description:
+      "City-focused deep dives for major hubs. You can split by lifestyle: calm, family-friendly, party cities, startup hubs, etc.",
+  },
+  {
+    id: "easiest-countries-immigrate",
+    label: "Easiest countries to immigrate to",
+    keyword: "easiest countries to immigrate to",
+    description:
+      "Explain real, realistic paths: digital nomad visas, freelancer visas, residency-by-investment and easy long-stay options.",
+  },
+  {
+    id: "digital-nomad-countries",
+    label: "Digital nomad countries",
+    keyword: "digital nomad countries",
+    description:
+      "Roundups of the best digital nomad countries, combining visas, internet, safety and cost of living for remote workers.",
+  },
+  {
+    id: "best-expat-countries",
+    label: "Best expat countries",
+    keyword: "best expat countries",
+    description:
+      "Guides for expats who want stable, long-term life abroad: healthcare, schools, bureaucracy and integration.",
+  },
+  {
+    id: "best-cities-expats",
+    label: "Best cities for expats",
+    keyword: "best cities for expats",
+    description:
+      "City-level content around expat communities, coworking, international schools, English levels and social life.",
+  },
+  {
+    id: "where-should-i-move-quiz",
+    label: "Where should I move? Quiz",
+    keyword: "where should I move quiz",
+    description:
+      "Landing pages focused on the quiz itself. You already have this – we’ll link future articles back into the quiz and vice versa.",
+  },
+  {
+    id: "where-should-i-live-test",
+    label: "Where should I live? Test",
+    keyword: "where i should live test",
+    description:
+      "Alternate quiz wording (test vs quiz). Great for extra landing pages that still point into your main Relomatcher quiz.",
+  },
+  {
+    id: "lowest-tax-countries",
+    label: "Lowest-tax countries to live in",
+    keyword: "lowest tax countries to live in",
+    description:
+      "A hub page about low-tax and tax-efficient countries for remote workers and business owners. From here we can link out to specific country breakdowns and your quiz.",
+  },
+];
+
 export default function QuizPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<QuizData>(initialData);
@@ -117,25 +194,20 @@ export default function QuizPage() {
   const [result, setResult] = useState<QuizApiResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Unified loading + visual progress
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // AI explanation state
   const [aiData, setAiData] = useState<AIExplainData | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Landing vs quiz
   const [showQuiz, setShowQuiz] = useState(false);
 
-  // For auto-scroll to loading and results
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledToResultsRef = useRef(false);
 
-  /* ---------------------------------------------------------------------- */
-  /*        FORCE-DISABLE HORIZONTAL SCROLL ON HTML/BODY (MOBILE)          */
-  /* ---------------------------------------------------------------------- */
+  const [seoMenuOpen, setSeoMenuOpen] = useState(false);
+  const [openSeoItemId, setOpenSeoItemId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -154,10 +226,6 @@ export default function QuizPage() {
       body.style.overflowX = prevBodyOverflowX;
     };
   }, []);
-
-  /* ---------------------------------------------------------------------- */
-  /*                        RESTORE LAST RESULT (SESSION)                   */
-  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -205,7 +273,6 @@ export default function QuizPage() {
     }
   }, []);
 
-  // Infer default currency from country
   useEffect(() => {
     const map: Record<string, string> = {
       Israel: "ILS",
@@ -243,7 +310,6 @@ export default function QuizPage() {
   }
 
   function handleBack() {
-    // If on first step → go back to landing page
     if (currentStep === 0) {
       setShowQuiz(false);
       if (typeof window !== "undefined") {
@@ -296,9 +362,10 @@ export default function QuizPage() {
           const body = (await aiRes
             .json()
             .catch(
-              () => ({ error: "Failed to parse AI response JSON" }) as {
-                error?: string;
-              }
+              () =>
+                ({ error: "Failed to parse AI response JSON" }) as {
+                  error?: string;
+                }
             )) as Partial<AIExplainData> & { error?: string };
 
           if (!aiRes.ok) {
@@ -345,21 +412,18 @@ export default function QuizPage() {
 
   const stepProgress = ((currentStep + 1) / TOTAL_STEPS) * 100;
 
-  // Progress animation for the loading bar
   useEffect(() => {
     if (!loading) return;
 
-    // Ensure we never start from 0 visually
     setProgress((prev) => (prev < 5 ? 5 : prev));
 
     const id = setInterval(() => {
       setProgress((prev) => {
-        // Let it go up to 95% while waiting for real results
         if (prev >= 95) return prev;
 
         const target = 95;
         const distance = target - prev;
-        const baseIncrement = distance * 0.04; // a bit faster
+        const baseIncrement = distance * 0.04;
         const jitter = Math.random() * 0.8;
         let next = prev + baseIncrement + jitter;
         if (next > target) next = target;
@@ -426,97 +490,128 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
-      <div className="w-full max-w-6xl mx-auto">
-        {/* Top bar with logo */}
+      <div className="w-full max-w-6xl mx-auto relative">
         <header className="flex items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
             <img
               src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
-              alt="ReloMatcher – relocation quiz logo"
+              alt="Relomatcher logo"
               className="h-12 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
           </div>
         </header>
 
-        {/* LANDING VIEW */}
         {!showQuiz && (
           <section className="space-y-8">
-            {/* Hero */}
             <div className="space-y-3 max-w-2xl">
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
-                Where should I move? Free quiz to find the best country and city
-                to live in.
+                Best countries to live – smart “Where should I move?” quiz.
               </h1>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed">
-                Answer a few smart questions and let ReloMatcher act as your{" "}
-                <strong className="font-semibold">
-                  &quot;where should I live&quot; test
-                </strong>
-                . We rank{" "}
-                <strong className="font-semibold">
-                  the best places to live in the world
-                </strong>{" "}
-                for your taxes, cost of living, safety, LGBTQ+ rights, climate
-                and lifestyle – then explain exactly why each match fits you.
+                Our AI-powered relocation engine analyzes your answers and ranks
+                the best places to live in the world for you – then explains in
+                clear language why each country fits your taxes, lifestyle, and
+                long-term plans.
               </p>
             </div>
 
-            {/* Bullets */}
             <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
               <Bullet icon="🧠" title="Adaptive questions">
-                We only go deep on the things you say you care about – if you
-                don&apos;t care about taxes, we won&apos;t interrogate you about
-                taxes.
+                We only go deep on the things you say you care about – like
+                taxes, cost of living, climate or career – and keep the rest
+                lightweight.
               </Bullet>
-              <Bullet icon="🏳️‍🌈" title="Identity-aware">
-                You can mark things like safety, culture and lifestyle as
-                non-negotiable and we&apos;ll avoid places that don&apos;t fit.
+              <Bullet icon="🎯" title="Personalised matching">
+                Tell us what matters and our scoring engine focuses on your
+                priorities, then AI refines the final list of countries for you.
               </Bullet>
-              <Bullet icon="🌦️" title="Climate & vibe first">
-                Prefer cold cities with nightlife, or warm laid-back coasts? We
-                treat vibe as seriously as numbers.
+              <Bullet icon="🌦️" title="Climate & lifestyle focus">
+                Whether you want cold, organised cities or warm, coastal life,
+                we match places to the climate and daily vibe you actually want.
               </Bullet>
               <Bullet icon="💸" title="Built for online earners">
-                Tuned for remote workers, founders and people whose income
-                isn&apos;t locked to one country.
+                Perfect for remote workers and founders who want to optimise
+                quality of life, cost of living and realistic tax situations.
               </Bullet>
             </div>
 
-            {/* CTA */}
             <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
                 onClick={handleStartQuiz}
                 className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-950 text-sm font-semibold px-7 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.6)] hover:bg-amber-300 transition-colors"
               >
-                <span>✨ Start the relocation quiz</span>
+                <span>✨ Start the “Where should I move?” quiz</span>
                 <span className="text-lg">→</span>
               </button>
               <p className="text-[11px] text-slate-500 text-center">
-                ~10 quick steps · a personalised{" "}
-                <strong className="font-semibold">
-                  &quot;where should I move&quot; quiz
-                </strong>{" "}
-                for remote workers, founders and online earners.
+                ~10 quick steps · built for remote workers, founders and online
+                earners.
               </p>
             </div>
 
-            {/* SEO intro copy with real keywords */}
-            <SeoIntroBlock />
+            <section className="space-y-5 max-w-3xl">
+              <h2 className="text-lg md:text-xl font-semibold tracking-tight text-slate-50">
+                Best places to live in the world, lowest-tax countries and more.
+              </h2>
+              <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
+                Over time, Relomatcher will become a hub for{" "}
+                <strong className="text-slate-100">
+                  best places to live in the world
+                </strong>
+                ,{" "}
+                <strong className="text-slate-100">
+                  best countries to live
+                </strong>
+                ,{" "}
+                <strong className="text-slate-100">
+                  best cities for expats
+                </strong>{" "}
+                and{" "}
+                <strong className="text-slate-100">
+                  easiest countries to immigrate to
+                </strong>
+                . Each guide will link directly into your personalised quiz
+                result, so you don&apos;t just read lists – you see what fits
+                your profile.
+              </p>
 
-            {/* Collapsible SEO/article menu for internal links */}
-            <SeoArticleMenu />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+                    For explorers
+                  </p>
+                  <p className="text-sm text-slate-50 font-semibold mb-1">
+                    Best places to live in the world
+                  </p>
+                  <p className="text-[12px] text-slate-400">
+                    High-level guides for people researching where to move,
+                    before they narrow down with the quiz.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+                    For planners
+                  </p>
+                  <p className="text-sm text-slate-50 font-semibold mb-1">
+                    Lowest-tax and easiest countries to immigrate to
+                  </p>
+                  <p className="text-[12px] text-slate-400">
+                    Practical breakdowns of relocation-friendly countries and
+                    cities that work for real online earners, not just theory.
+                  </p>
+                </div>
+              </div>
+            </section>
           </section>
         )}
 
-        {/* QUIZ VIEW */}
         {showQuiz && (
           <>
             <section
               id="quiz-form-section"
               className="space-y-4 mt-4 max-w-3xl mx-auto"
             >
-              {/* Step indicator */}
               <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.3)] text-slate-900">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
                   Step {currentStep + 1} of {TOTAL_STEPS}
@@ -529,7 +624,6 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Form card */}
               <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 shadow-[0_18px_40px_rgba(15,23,42,0.45)] text-slate-900">
                 <AdaptiveQuizForm
                   currentStep={currentStep}
@@ -543,7 +637,6 @@ export default function QuizPage() {
                 />
               </div>
 
-              {/* Loading */}
               {loading && (
                 <div ref={loadingRef}>
                   <LoadingScreen progress={progress} />
@@ -555,7 +648,6 @@ export default function QuizPage() {
               )}
             </section>
 
-            {/* Results under quiz */}
             {!loading &&
               result &&
               result.topMatches &&
@@ -576,171 +668,99 @@ export default function QuizPage() {
               )}
           </>
         )}
+
+        <button
+          type="button"
+          onClick={() => setSeoMenuOpen((v) => !v)}
+          className="fixed z-40 right-4 bottom-5 md:bottom-auto md:top-1/2 md:-translate-y-1/2 inline-flex items-center justify-center rounded-full bg-slate-900 border border-slate-700 shadow-[0_14px_32px_rgba(0,0,0,0.6)] h-11 w-11 hover:bg-slate-800 active:scale-95 transition-transform"
+          aria-label="Open relocation topics menu"
+        >
+          <div className="flex flex-col gap-1.5">
+            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
+            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
+            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
+          </div>
+        </button>
+
+        <div
+          className={`fixed inset-y-0 right-0 z-40 w-72 sm:w-80 bg-slate-950/95 border-l border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.75)] transform transition-transform duration-300 ${
+            seoMenuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
+                Relocation topics
+              </p>
+              <p className="text-xs text-slate-200">
+                Future guides for SEO + internal links.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSeoMenuOpen(false)}
+              className="h-7 w-7 flex items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-xs text-slate-200 hover:bg-slate-800"
+              aria-label="Close relocation topics menu"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="px-3 py-3 h-full overflow-y-auto">
+            <p className="text-[11px] text-slate-400 mb-3">
+              We&apos;ll turn each of these into a dedicated article and link
+              them into your quiz results and landing pages.
+            </p>
+            <div className="space-y-2">
+              {SEO_MENU_ITEMS.map((item) => {
+                const isOpen = openSeoItemId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-slate-800 bg-slate-900/70"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenSeoItemId((prev) =>
+                          prev === item.id ? null : item.id
+                        )
+                      }
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-semibold text-slate-50 truncate">
+                          {item.label}
+                        </p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          Keyword: {item.keyword}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {isOpen ? "▲" : "▼"}
+                      </span>
+                    </button>
+                    <SimpleCollapsible isOpen={isOpen}>
+                      <div className="px-3 pb-3">
+                        <p className="text-[11px] text-slate-300">
+                          {item.description}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1.5">
+                          Later we&apos;ll add internal links here (for example:
+                          /guides/{item.id}) and link back into the quiz.
+                        </p>
+                      </div>
+                    </SimpleCollapsible>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );
 }
-
-/* -------------------- Landing page SEO helpers -------------------- */
-
-function SeoIntroBlock() {
-  return (
-    <section className="max-w-3xl space-y-2 text-[12px] md:text-[13px] text-slate-400 leading-relaxed">
-      <p>
-        Most{" "}
-        <strong className="font-semibold">
-          &quot;best places to live in the world&quot;
-        </strong>{" "}
-        lists are generic. ReloMatcher looks at what actually matters to you:
-        taxes, cost of living, safety, LGBTQ+ protections, public transport,
-        digital services and the climate or vibe you prefer.
-      </p>
-      <p>
-        Use this quiz instead of scrolling random lists of{" "}
-        <strong className="font-semibold">best countries to live</strong>,{" "}
-        <strong className="font-semibold">best cities to live in</strong> or{" "}
-        <strong className="font-semibold">best expat countries</strong>. You get
-        a ranked shortlist that fits your reality – whether you&apos;re a
-        digital nomad, an expat, or just curious about where you could be
-        happier.
-      </p>
-    </section>
-  );
-}
-
-function SeoArticleMenu() {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <section className="max-w-3xl">
-      <div className="rounded-2xl border border-slate-800/70 bg-slate-900/70 shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-sm">📚</span>
-            <div>
-              <p className="text-[12px] font-semibold text-slate-50 tracking-tight">
-                Explore relocation guides &amp; rankings
-              </p>
-              <p className="text-[11px] text-slate-400">
-                We&apos;ll add in-depth articles here – everything from best
-                expat countries to easiest countries to immigrate to.
-              </p>
-            </div>
-          </div>
-          <span className="text-xs text-slate-400">
-            {open ? "Hide ▲" : "Show ▼"}
-          </span>
-        </button>
-
-        <SimpleCollapsible isOpen={open}>
-          <nav className="px-4 pb-4 pt-1 text-[11px] text-slate-300 space-y-3">
-            <div>
-              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
-                Relocation quizzes &amp; tests
-              </p>
-              <ul className="space-y-1.5">
-                <li>
-                  <a
-                    href="#quiz-form-section"
-                    className="hover:text-amber-300"
-                  >
-                    Where should I move quiz (main tool)
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/where-should-i-relocate-quiz"
-                    className="hover:text-amber-300"
-                  >
-                    Where should I relocate quiz – deep dive
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
-                Best places to live
-              </p>
-              <ul className="space-y-1.5">
-                <li>
-                  <a
-                    href="/guides/best-places-to-live-in-the-world"
-                    className="hover:text-amber-300"
-                  >
-                    Best places to live in the world
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/best-countries-to-live"
-                    className="hover:text-amber-300"
-                  >
-                    Best countries to live
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/best-cities-to-live-in"
-                    className="hover:text-amber-300"
-                  >
-                    Best cities to live in
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
-                Expat &amp; digital nomad guides
-              </p>
-              <ul className="space-y-1.5">
-                <li>
-                  <a
-                    href="/guides/best-expat-countries"
-                    className="hover:text-amber-300"
-                  >
-                    Best expat countries
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/best-cities-for-expats"
-                    className="hover:text-amber-300"
-                  >
-                    Best cities for expats
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/digital-nomad-countries"
-                    className="hover:text-amber-300"
-                  >
-                    Best digital nomad countries
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/guides/easiest-countries-to-immigrate-to"
-                    className="hover:text-amber-300"
-                  >
-                    Easiest countries to immigrate to
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </nav>
-        </SimpleCollapsible>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------- Generic landing bullets -------------------- */
 
 function Bullet({
   icon,
@@ -767,8 +787,6 @@ function Bullet({
     </div>
   );
 }
-
-/* PREMIUM UPSELL */
 
 function PremiumUpsell({
   profile,
@@ -823,7 +841,6 @@ function PremiumUpsell({
 
       <div className="mt-3 space-y-1">
         <GenerateReportButton profile={profile} topMatches={topMatches} />
-
         <div className="flex items-center gap-1 mt-1">
           <span className="text-[12px]">🛡️</span>
           <p className="text-[10px] text-slate-500">
@@ -838,8 +855,6 @@ function PremiumUpsell({
     </div>
   );
 }
-
-/* Simple collapsible helper with smooth slide + fade */
 
 function SimpleCollapsible({
   isOpen,
@@ -858,8 +873,6 @@ function SimpleCollapsible({
     </div>
   );
 }
-
-/* Results UI */
 
 function ResultsPanel({
   result,
@@ -922,7 +935,6 @@ function ResultsPanel({
 
   return (
     <div className="space-y-5 mt-4">
-      {/* Top row: Upsell + AI summary */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -969,7 +981,6 @@ function ResultsPanel({
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="mt-1">
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-[11px] font-medium shadow-[0_10px_24px_rgba(15,23,42,0.25)] text-slate-700">
           <button
@@ -999,14 +1010,12 @@ function ResultsPanel({
         </div>
       </div>
 
-      {/* Qualified tab */}
       {activeTab === "qualified" && (
         <div className="space-y-3">
           <p className="text-[11px] font-semibold text-slate-400">
             Your top matches (tap like or pass, then open the breakdown)
           </p>
 
-          {/* Hidden trigger for story image (no visible duplicate row) */}
           <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
@@ -1052,7 +1061,6 @@ function ResultsPanel({
             })}
           </div>
 
-          {/* Retake + Share buttons under top matches */}
           <div className="pt-2 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               type="button"
@@ -1080,7 +1088,6 @@ function ResultsPanel({
         </div>
       )}
 
-      {/* Disqualified tab */}
       {activeTab === "disqualified" && hasDisqualified && (
         <DisqualifiedPanel
           disqualifiedTop={disqualifiedTop}
@@ -1094,15 +1101,13 @@ function ResultsPanel({
       {activeTab === "disqualified" && !hasDisqualified && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.25)]">
           We didn&apos;t have to disqualify any strong matches based on your
-          hard rules. If you tighten something like LGBTQ+ or culture later,
-          you&apos;ll see countries appear here that we had to remove.
+          hard rules. If you tighten something like culture or residency realism
+          later, you&apos;ll see countries appear here that we had to remove.
         </div>
       )}
     </div>
   );
 }
-
-/* Dimension builder */
 
 function buildDimensionsForProfile(
   profile: QuizData | null,
@@ -1211,8 +1216,6 @@ function buildDimensionsForProfile(
 
   return resultDims;
 }
-
-/* Match card */
 
 function MatchCard({
   match,
@@ -1403,8 +1406,6 @@ function MatchCard({
   );
 }
 
-/* Disqualified panel */
-
 function DisqualifiedPanel({
   disqualifiedTop,
   dims,
@@ -1427,8 +1428,7 @@ function DisqualifiedPanel({
       </p>
       <p className="text-[11px] text-slate-500">
         These countries matched you on many things, but were removed because of a
-        hard rule you set (for example non-negotiable LGBT rights, culture, or
-        residency realism). They can still be interesting to research if
+        hard rule you set. They can still be interesting to research if
         you&apos;re flexible.
       </p>
 
@@ -1585,8 +1585,6 @@ function DisqualifiedPanel({
   );
 }
 
-/* Loading */
-
 function LoadingScreen({ progress }: { progress: number }) {
   const clamped = Math.max(3, Math.min(progress, 100));
 
@@ -1612,8 +1610,6 @@ function LoadingScreen({ progress }: { progress: number }) {
     </div>
   );
 }
-
-/* Share story image via canvas (hidden trigger; only bottom CTA visible) */
 
 function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [saving, setSaving] = useState(false);
@@ -1652,7 +1648,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No 2D context");
 
-      // Background
       ctx.fillStyle = "#020617";
       ctx.fillRect(0, 0, width, height);
 
@@ -1967,18 +1962,25 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
     }
   }
 
-  // Hidden container – only the bottom "Share your results" button triggers this.
   return (
-    <div className="hidden">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
       <button
         type="button"
         data-share-story-button
         onClick={handleSave}
         disabled={saving}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
-        {saving ? "Generating story image..." : "Share / save story image"}
-        {savedOnce && " (Done) "}
+        <span>📱</span>
+        <span>
+          {saving ? "Generating story image..." : "Share / save story image"}
+        </span>
       </button>
+      <span className="max-w-xs">
+        This creates a vertical story with your top 3 matches, flags and a big
+        www.relomatcher.com CTA.
+        {savedOnce && " (Done! Check your share sheet or downloads.)"}
+      </span>
     </div>
   );
 }
