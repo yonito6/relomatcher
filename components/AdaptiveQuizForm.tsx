@@ -249,12 +249,12 @@ function AdaptiveQuizForm({
 }: Props) {
   const reasons = (data.reasons ?? []) as RelocationReasonId[];
   const languagesSpoken = data.languagesSpoken || [];
-  const [validationError, setValidationError] = React.useState<string | null>(
-    null
-  );
+  const [validationError, setValidationError] =
+    React.useState<string | null>(null);
 
-  // Once user submitted "See my matches", hide the form completely
+  // After "See my matches" we mark submitted and collapse the form
   const [hasSubmitted, setHasSubmitted] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   // mobile-friendly custom country suggestion instead of <datalist>
   const [countryQuery, setCountryQuery] = React.useState(
@@ -476,15 +476,11 @@ function AdaptiveQuizForm({
 
     if (isLastStep) {
       setHasSubmitted(true);
+      setIsCollapsed(true); // auto-collapse after "See my matches"
       onSubmit();
     } else {
       onNext();
     }
-  }
-
-  // If user already submitted, this component renders nothing at all.
-  if (hasSubmitted) {
-    return null;
   }
 
   let stepContent: React.ReactNode = null;
@@ -505,7 +501,7 @@ function AdaptiveQuizForm({
             <input
               type="text"
               autoComplete="off"
-              className="w-full max-w-full rounded-xl bg-white px-3 py-2.5 text-[14px] sm:text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full max-w-full rounded-xl bg-white px-3 py-2.5 text-[16px] sm:text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
               placeholder="Start typing your country…"
               value={countryQuery}
               onFocus={() => setShowCountryDropdown(true)}
@@ -1266,9 +1262,7 @@ function AdaptiveQuizForm({
         const next: RelocationReasonId[] = [...without, "culture_not_important"];
         onUpdate({ reasons: next });
       } else {
-        const withoutNot = reasons.filter(
-          (r) => r !== "culture_not_important"
-        );
+        const withoutNot = reasons.filter((r) => r !== "culture_not_important");
         const exists = withoutNot.includes(key);
         const next: RelocationReasonId[] = exists
           ? withoutNot.filter((r) => r !== key)
@@ -1599,57 +1593,72 @@ function AdaptiveQuizForm({
     );
   }
 
+  // If submitted AND collapsed → only show the header bar, no content or buttons
+  const showBody = !(hasSubmitted && isCollapsed);
+
   return (
     <form
       onSubmit={handleFormSubmit}
       className="w-full max-w-full bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
-      {/* Header – no inner border, My profile stays on one line */}
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+      {/* Header – My profile stays on one line */}
+      <div
+        className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 cursor-default"
+        onClick={() => {
+          if (hasSubmitted) {
+            setIsCollapsed((prev) => !prev);
+          }
+        }}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5 whitespace-nowrap">
             My profile
           </span>
-          {/* You still have step indicator near the button; no helper text here */}
         </div>
+        {hasSubmitted && (
+          <span className="text-[11px] text-slate-500">
+            {isCollapsed ? "Tap to expand" : "Tap to collapse"}
+          </span>
+        )}
       </div>
 
-      {stepContent}
+      {showBody && stepContent}
 
-      {validationError && (
+      {showBody && validationError && (
         <p className="text-[12px] sm:text-[11px] text-rose-800 bg-rose-50 rounded-xl px-3 py-2">
           {validationError}
         </p>
       )}
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-2 mt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-        >
-          ← Back
-        </button>
-
-        <div className="flex items-center gap-3">
-          <p className="hidden xs:block text-[11px] text-slate-500">
-            Step {currentStep + 1} of {totalSteps}
-          </p>
+      {showBody && (
+        <div className="flex items-center justify-between pt-2 mt-2">
           <button
-            type="submit"
-            className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
-                       bg-amber-400 text-slate-950 border border-transparent
-                       shadow-[0_10px_25px_rgba(0,0,0,0.25)]
-                       transition-all duration-150
-                       hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
-                       active:translate-y-0 active:scale-[0.97]
-                       focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
+            type="button"
+            onClick={onBack}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
           >
-            {isLastStep ? "🔥 See my matches" : "Continue"}
+            ← Back
           </button>
+
+          <div className="flex items-center gap-3">
+            <p className="hidden xs:block text-[11px] text-slate-500">
+              Step {currentStep + 1} of {totalSteps}
+            </p>
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
+                         bg-amber-400 text-slate-950 border border-transparent
+                         shadow-[0_10px_25px_rgba(0,0,0,0.25)]
+                         transition-all duration-150
+                         hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
+                         active:translate-y-0 active:scale-[0.97]
+                         focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
+            >
+              {isLastStep ? "🔥 See my matches" : "Continue"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </form>
   );
 }
