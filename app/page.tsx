@@ -349,17 +349,20 @@ export default function QuizPage() {
   useEffect(() => {
     if (!loading) return;
 
+    // Ensure we never start from 0 visually
     setProgress((prev) => (prev < 5 ? 5 : prev));
 
     const id = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 80) return prev;
+        // Let it go up to 95% while waiting for real results
+        if (prev >= 95) return prev;
 
-        const distance = 80 - prev;
-        const baseIncrement = distance * 0.025;
-        const jitter = Math.random() * 0.5;
+        const target = 95;
+        const distance = target - prev;
+        const baseIncrement = distance * 0.04; // a bit faster
+        const jitter = Math.random() * 0.8;
         let next = prev + baseIncrement + jitter;
-        if (next > 80) next = 80;
+        if (next > target) next = target;
         return next;
       });
     }, 200);
@@ -423,7 +426,7 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
-      <div className="w-full max-w-6xl mx-auto overflow-x-hidden">
+      <div className="w-full max-w-6xl mx-auto">
         {/* Top bar with logo */}
         <header className="flex items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
@@ -659,6 +662,28 @@ function PremiumUpsell({
   );
 }
 
+/* Simple collapsible helper with smooth slide + fade */
+
+function SimpleCollapsible({
+  isOpen,
+  children,
+}: {
+  isOpen: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen
+          ? "max-h-[1000px] opacity-100"
+          : "max-h-0 opacity-0"
+      }`}
+    >
+      <div className={isOpen ? "mt-3" : ""}>{children}</div>
+    </div>
+  );
+}
+
 /* Results UI */
 
 function ResultsPanel({
@@ -690,9 +715,7 @@ function ResultsPanel({
   const [activeTab, setActiveTab] = useState<"qualified" | "disqualified">(
     "qualified"
   );
-
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(true);
+  const [aiCollapsed, setAiCollapsed] = useState(false);
 
   const monthlyIncome = profile?.monthlyIncome
     ? Number(profile.monthlyIncome.toString().replace(/,/g, ""))
@@ -722,146 +745,8 @@ function ResultsPanel({
 
   const hasDisqualified = disqualifiedTop.length > 0;
 
-  const reasonsSet = new Set((profile?.reasons || []) as string[]);
-  const hasReason = (id: string) => reasonsSet.has(id);
-
   return (
     <div className="space-y-5 mt-4">
-      {/* My profile collapsible – only exists once results exist */}
-      {profile && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.3)] text-slate-900">
-          <button
-            type="button"
-            onClick={() => setProfileOpen((o) => !o)}
-            className="w-full flex items-center justify-between text-[11px]"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900">
-                My profile
-              </span>
-              <span className="text-[10px] text-slate-500">
-                Tap to review your answers
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-500">
-              {profileOpen ? "▲" : "▼"}
-            </span>
-          </button>
-          <div
-            className={`mt-2 overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
-              profileOpen
-                ? "max-h-[600px] opacity-100 translate-y-0"
-                : "max-h-0 opacity-0 -translate-y-1"
-            }`}
-          >
-            <div className="pt-2 border-t border-slate-200 text-[11px] space-y-2">
-              <div className="space-y-1">
-                <p className="font-semibold text-slate-900">Basics</p>
-                <ul className="space-y-0.5 text-slate-800">
-                  <li>
-                    <span className="font-semibold">Current country:</span>{" "}
-                    {profile.currentCountry || "Not specified"}
-                  </li>
-                  <li>
-                    <span className="font-semibold">Age:</span>{" "}
-                    {profile.ageRange || "Not specified"}
-                  </li>
-                  <li>
-                    <span className="font-semibold">
-                      Languages you can live in:
-                    </span>{" "}
-                    {profile.languagesSpoken &&
-                    profile.languagesSpoken.length > 0
-                      ? profile.languagesSpoken.join(", ")
-                      : "Not specified"}
-                  </li>
-                </ul>
-              </div>
-
-              <div className="space-y-1">
-                <p className="font-semibold text-slate-900">
-                  Things we focused on
-                </p>
-                <ul className="space-y-0.5 text-slate-800">
-                  {hasReason("lower_taxes") && (
-                    <li>• You care about lower taxes.</li>
-                  )}
-                  {hasReason("lower_cost_of_living") && (
-                    <li>• You want a lower cost of living.</li>
-                  )}
-                  {hasReason("better_weather") && (
-                    <li>• You have a preferred climate.</li>
-                  )}
-                  {hasReason("better_lgbtq") && (
-                    <li>• LGBTQ+ rights matter to you.</li>
-                  )}
-                  {hasReason("language_must_have") && (
-                    <li>• You want to rely on one of your languages.</li>
-                  )}
-                  {hasReason("safety_stability_priority") && (
-                    <li>• Safety and stability are important to you.</li>
-                  )}
-                  {hasReason("healthcare_strong_public") && (
-                    <li>• You prefer strong public healthcare.</li>
-                  )}
-                  {hasReason("healthcare_mixed") && (
-                    <li>• You like a mix of public and private healthcare.</li>
-                  )}
-                  {hasReason("healthcare_private") && (
-                    <li>• You are okay with mostly private healthcare.</li>
-                  )}
-                  {hasReason("culture_must_have") && (
-                    <li>
-                      • You want to really connect with the local culture.
-                    </li>
-                  )}
-                  {hasReason("development_care_yes") && (
-                    <li>• You want a clearly developed country.</li>
-                  )}
-                  {hasReason("development_care_some") && (
-                    <li>
-                      • You prefer decent standards but accept some rough
-                      edges.
-                    </li>
-                  )}
-                  {hasReason("development_not_important") && (
-                    <li>
-                      • You are flexible about how developed the country feels.
-                    </li>
-                  )}
-                  {hasReason("dev_public_transport") && (
-                    <li>
-                      • Public transport and moving without a car matter to
-                      you.
-                    </li>
-                  )}
-                  {hasReason("dev_digital_services") && (
-                    <li>
-                      • You care about good digital services (apps, online
-                      services).
-                    </li>
-                  )}
-                  {hasReason("dev_infrastructure_clean") && (
-                    <li>
-                      • You like cleaner, more maintained streets and
-                      buildings.
-                    </li>
-                  )}
-                  {hasReason("dev_everyday_services") && (
-                    <li>
-                      • You want easy everyday services and modern city life.
-                    </li>
-                  )}
-                  {reasonsSet.size === 0 && (
-                    <li>• You did not mark any strong priorities yet.</li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Top row: Upsell + AI summary */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
@@ -883,8 +768,8 @@ function ResultsPanel({
             <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
               <button
                 type="button"
-                onClick={() => setAiOpen((o) => !o)}
-                className="w-full flex items-center justify-between gap-2"
+                onClick={() => setAiCollapsed((v) => !v)}
+                className="flex items-center justify-between gap-2 w-full text-left"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🤖</span>
@@ -892,23 +777,18 @@ function ResultsPanel({
                     AI summary of your matches
                   </p>
                 </div>
-                <span className="text-[11px] text-slate-500">
-                  {aiOpen ? "Hide" : "Show"}
+                <span className="text-xs text-slate-500">
+                  {aiCollapsed ? "Show ▼" : "Hide ▲"}
                 </span>
               </button>
-              <div
-                className={`mt-2 overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
-                  aiOpen
-                    ? "max-h-[400px] opacity-100 translate-y-0"
-                    : "max-h-0 opacity-0 -translate-y-1"
-                }`}
-              >
+
+              <SimpleCollapsible isOpen={!aiCollapsed}>
                 <p className="text-xs text-slate-800">
                   {aiData?.overallSummary
                     ? aiData.overallSummary
                     : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
                 </p>
-              </div>
+              </SimpleCollapsible>
             </div>
           )}
         </div>
@@ -950,6 +830,9 @@ function ResultsPanel({
           <p className="text-[11px] font-semibold text-slate-400">
             Your top matches (tap like or pass, then open the breakdown)
           </p>
+
+          {/* Share story image only (no text share) */}
+          <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
@@ -994,17 +877,30 @@ function ResultsPanel({
             })}
           </div>
 
-          {/* Retake + Share buttons side-by-side */}
-          <div className="pt-3 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+          {/* Retake + Share buttons under top matches */}
+          <div className="pt-2 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               type="button"
               onClick={onRetake}
-              className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-5 py-2 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-5 py-2 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors min-w-[150px]"
             >
               <span>🔁</span>
               <span>Retake quiz</span>
             </button>
-            <ShareStoryImageButton topMatches={topMatches} />
+
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.querySelector(
+                  "[data-share-story-button]"
+                ) as HTMLButtonElement | null;
+                if (el) el.click();
+              }}
+              className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-400 text-slate-950 px-5 py-2 text-[11px] font-semibold shadow-[0_12px_30px_rgba(15,23,42,0.5)] hover:bg-amber-300 transition-colors min-w-[150px]"
+            >
+              <span>📤</span>
+              <span>Share your results</span>
+            </button>
           </div>
         </div>
       )}
@@ -1297,13 +1193,7 @@ function MatchCard({
           <span className="text-[11px]">{expanded ? "▲" : "▼"}</span>
         </button>
 
-        <div
-          className={`overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
-            expanded
-              ? "max-h-[1200px] opacity-100 translate-y-0 mt-3"
-              : "max-h-0 opacity-0 -translate-y-1"
-          }`}
-        >
+        <SimpleCollapsible isOpen={expanded}>
           <div className="space-y-2">
             {dims.map((d) => {
               const value = match.breakdown[d.key];
@@ -1332,7 +1222,7 @@ function MatchCard({
               );
             })}
           </div>
-        </div>
+        </SimpleCollapsible>
       </div>
     </div>
   );
@@ -1465,9 +1355,7 @@ function DisqualifiedPanel({
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedCode((prev) =>
-                      prev === m.code ? null : m.code
-                    )
+                    setExpandedCode((prev) => (prev === m.code ? null : m.code))
                   }
                   className="flex items-center justify-between w-full text-[11px] text-slate-800 hover:text-slate-900"
                 >
@@ -1481,13 +1369,7 @@ function DisqualifiedPanel({
                   </span>
                 </button>
 
-                <div
-                  className={`overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
-                    expanded
-                      ? "max-h-[1200px] opacity-100 translate-y-0 mt-3"
-                      : "max-h-0 opacity-0 -translate-y-1"
-                  }`}
-                >
+                <SimpleCollapsible isOpen={expanded}>
                   <div className="space-y-2">
                     {dims.map((d) => {
                       const value = m.breakdown[d.key];
@@ -1518,7 +1400,7 @@ function DisqualifiedPanel({
                       );
                     })}
                   </div>
-                </div>
+                </SimpleCollapsible>
               </div>
             </div>
           );
@@ -1556,7 +1438,7 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share story image via canvas */
+/* Share story image via canvas (no text share) */
 
 function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [saving, setSaving] = useState(false);
@@ -1888,7 +1770,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
         await navAny.share({
           files: [file],
-          title: "My Relomatcher results",
+          title: "My Relomatcher matches",
           text:
             "My top country matches from Relomatcher. Take your quiz on www.relomatcher.com and find yours.",
         });
@@ -1911,19 +1793,24 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleSave}
-      disabled={saving}
-      className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-400 text-slate-950 text-[11px] font-semibold px-5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
-    >
-      <span>{saving ? "Generating..." : "Share your results"}</span>
-      {!saving && <span className="text-xs">📤</span>}
-      {savedOnce && !saving && (
-        <span className="text-[9px] text-slate-900 ml-1">
-          (Saved / shared)
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
+      <button
+        type="button"
+        data-share-story-button
+        onClick={handleSave}
+        disabled={saving}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        <span>📱</span>
+        <span>
+          {saving ? "Generating story image..." : "Share / save story image"}
         </span>
-      )}
-    </button>
+      </button>
+      <span className="max-w-xs">
+        This creates a vertical story with your top 3 matches, flags and a big
+        www.relomatcher.com CTA.
+        {savedOnce && " (Done! Check your share sheet or downloads.)"}
+      </span>
+    </div>
   );
 }
