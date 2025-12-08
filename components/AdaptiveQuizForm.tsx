@@ -1643,13 +1643,13 @@ function AdaptiveQuizForm({
           {/* Navigation */}
           <div className="flex items-center justify-between pt-2 mt-2">
             <button
-              type="button"
-              onClick={onBack}
-              disabled={currentStep === 0}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-400 hover:bg-slate-50 transition-colors"
-            >
-              ← Back
-            </button>
+  type="button"
+  onClick={onBack}
+  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:border-slate-400 hover:bg-slate-50 transition-colors"
+>
+  ← Back
+</button>
+
             <div className="flex items-center gap-3">
               <p className="hidden xs:block text-[11px] text-slate-500">
                 Step {currentStep + 1} of {totalSteps}
