@@ -253,8 +253,8 @@ function AdaptiveQuizForm({
     null
   );
 
-  // NEW: collapsible "My profile"
-  const [collapsed, setCollapsed] = React.useState(false);
+  // NEW: Once final submit is done, hide the whole form section
+  const [hiddenAfterSubmit, setHiddenAfterSubmit] = React.useState(false);
 
   // NEW: mobile-friendly custom country suggestion instead of <datalist>
   const [countryQuery, setCountryQuery] = React.useState(
@@ -429,7 +429,11 @@ function AdaptiveQuizForm({
       }
     } else if (currentStep === 6) {
       const anyLgbt = (
-        ["lgbt_full_rights", "lgbt_friendly", "lgbt_dont_care"] as RelocationReasonId[]
+        [
+          "lgbt_full_rights",
+          "lgbt_friendly",
+          "lgbt_dont_care",
+        ] as RelocationReasonId[]
       ).some((r) => reasons.includes(r));
       if (!anyLgbt) {
         error =
@@ -483,8 +487,8 @@ function AdaptiveQuizForm({
     setValidationError(null);
 
     if (isLastStep) {
-      // IMPORTANT: collapse the profile tab after clicking "See my matches"
-      setCollapsed(true);
+      // FINAL STEP: hide the form UI and trigger submit so results show
+      setHiddenAfterSubmit(true);
       onSubmit();
     } else {
       onNext();
@@ -509,7 +513,7 @@ function AdaptiveQuizForm({
             <input
               type="text"
               autoComplete="off"
-              className="w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+              className="w-full max-w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[16px] sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
               placeholder="Start typing your country…"
               value={countryQuery}
               onFocus={() => setShowCountryDropdown(true)}
@@ -1603,73 +1607,52 @@ function AdaptiveQuizForm({
     );
   }
 
+  // After final submit, hide the form completely (page will show My profile + results)
+  if (hiddenAfterSubmit) {
+    return null;
+  }
+
   return (
     <form
       onSubmit={handleFormSubmit}
       className="w-full max-w-full bg-white border border-slate-200 rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
-      {/* Collapsible header for the existing profile form */}
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5">
-            My profile
-          </span>
-          <span className="text-[11px] text-slate-500 truncate">
-            Step {currentStep + 1} of {totalSteps} · Tap to{" "}
-            {collapsed ? "expand" : "collapse"}.
-          </span>
-        </div>
+      {stepContent}
+
+      {validationError && (
+        <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+          {validationError}
+        </p>
+      )}
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between pt-2 mt-2">
         <button
           type="button"
-          onClick={() => setCollapsed((v) => !v)}
-          className="ml-2 flex items-center gap-1 text-[11px] text-slate-700 hover:text-slate-900"
+          onClick={onBack}
+          className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:border-slate-400 hover:bg-slate-50 transition-colors"
         >
-          <span>{collapsed ? "Show" : "Hide"}</span>
-          <span>{collapsed ? "▼" : "▲"}</span>
+          ← Back
         </button>
-      </div>
 
-      {/* Only show the actual step content + nav when not collapsed */}
-      {!collapsed && (
-        <>
-          {stepContent}
-
-          {validationError && (
-            <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-              {validationError}
-            </p>
-          )}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between pt-2 mt-2">
-            <button
-  type="button"
-  onClick={onBack}
-  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:border-slate-400 hover:bg-slate-50 transition-colors"
->
-  ← Back
-</button>
-
-            <div className="flex items-center gap-3">
-              <p className="hidden xs:block text-[11px] text-slate-500">
-                Step {currentStep + 1} of {totalSteps}
-              </p>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
+        <div className="flex items-center gap-3">
+          <p className="hidden xs:block text-[11px] text-slate-500">
+            Step {currentStep + 1} of {totalSteps}
+          </p>
+          <button
+            type="submit"
+            className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
                        bg-amber-400 text-slate-950 border border-transparent
                        shadow-[0_10px_25px_rgba(0,0,0,0.25)]
                        transition-all duration-150
                        hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
                        active:translate-y-0 active:scale-[0.97]
                        focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
-              >
-                {isLastStep ? "🔥 See my matches" : "Continue"}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          >
+            {isLastStep ? "🔥 See my matches" : "Continue"}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }
