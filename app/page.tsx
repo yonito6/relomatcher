@@ -659,147 +659,6 @@ function PremiumUpsell({
   );
 }
 
-/* Collapse helper – animate only on hide */
-
-function CollapseOnHide({
-  open,
-  children,
-  className = "",
-}: {
-  open: boolean;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const [isVisible, setIsVisible] = useState(open);
-  const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      // Instantly show without animation
-      setIsVisible(true);
-      setIsClosing(false);
-      return;
-    }
-
-    if (!open && isVisible) {
-      // Animate closing
-      setIsClosing(true);
-      const timeout = setTimeout(() => {
-        setIsClosing(false);
-        setIsVisible(false);
-      }, 180);
-      return () => clearTimeout(timeout);
-    }
-  }, [open, isVisible]);
-
-  if (!isVisible) return null;
-
-  const base =
-    "overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-in-out";
-  const stateClass = isClosing
-    ? "max-h-0 opacity-0 -translate-y-1"
-    : "max-h-[2000px] opacity-100 translate-y-0";
-
-  return (
-    <div className={`${base} ${stateClass} ${className}`}>{children}</div>
-  );
-}
-
-/* Profile summary used in results (collapsible "My profile") */
-
-function ProfileSummaryCard({ profile }: { profile: QuizData | null }) {
-  if (!profile) return null;
-
-  const reasons = new Set(profile.reasons || []);
-  const languagesSpoken = profile.languagesSpoken || [];
-
-  const focusLines: string[] = [];
-
-  if (reasons.has("lower_taxes")) focusLines.push("You care about lower taxes.");
-  if (reasons.has("lower_cost_of_living"))
-    focusLines.push("You want a lower cost of living.");
-  if (reasons.has("better_weather"))
-    focusLines.push("You have a preferred climate.");
-  if (reasons.has("better_lgbtq"))
-    focusLines.push("LGBTQ+ rights matter to you.");
-  if (reasons.has("language_must_have"))
-    focusLines.push("You want to rely on one of your languages.");
-  if (reasons.has("safety_stability_priority"))
-    focusLines.push("Safety and stability are important to you.");
-  if (reasons.has("healthcare_strong_public"))
-    focusLines.push("You prefer strong public healthcare.");
-  if (reasons.has("healthcare_mixed"))
-    focusLines.push("You like a mix of public and private healthcare.");
-  if (reasons.has("healthcare_private"))
-    focusLines.push("You are okay with mostly private healthcare.");
-  if (reasons.has("culture_must_have"))
-    focusLines.push("You want to really connect with the local culture.");
-  if (reasons.has("development_care_yes"))
-    focusLines.push("You want a clearly developed country.");
-  if (reasons.has("development_care_some"))
-    focusLines.push(
-      "You prefer decent standards but accept some rough edges."
-    );
-  if (reasons.has("development_not_important"))
-    focusLines.push("You are flexible about how developed the country feels.");
-  if (reasons.has("dev_public_transport"))
-    focusLines.push(
-      "Public transport and moving without a car matter to you."
-    );
-  if (reasons.has("dev_digital_services"))
-    focusLines.push("You care about good digital services (apps, online).");
-  if (reasons.has("dev_infrastructure_clean"))
-    focusLines.push("You like cleaner, more maintained streets and buildings.");
-  if (reasons.has("dev_everyday_services"))
-    focusLines.push(
-      "You want easy everyday services and modern city life."
-    );
-
-  return (
-    <div className="space-y-3 text-[11px] text-slate-800">
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
-          Basics
-        </p>
-        <ul className="space-y-0.5">
-          <li>
-            <span className="font-semibold text-slate-900">
-              Current country:
-            </span>{" "}
-            {profile.currentCountry || "Not specified"}
-          </li>
-          <li>
-            <span className="font-semibold text-slate-900">Age:</span>{" "}
-            {profile.ageRange || "Not specified"}
-          </li>
-          <li>
-            <span className="font-semibold text-slate-900">
-              Languages you can live in:
-            </span>{" "}
-            {languagesSpoken.length > 0
-              ? languagesSpoken.join(", ")
-              : "Not specified"}
-          </li>
-        </ul>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
-          Things we will focus on
-        </p>
-        <ul className="space-y-0.5 text-slate-800">
-          {focusLines.length === 0 && (
-            <li>• You did not mark any strong priorities yet.</li>
-          )}
-          {focusLines.map((line, idx) => (
-            <li key={idx}>• {line}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 /* Results UI */
 
 function ResultsPanel({
@@ -832,7 +691,7 @@ function ResultsPanel({
     "qualified"
   );
 
-  const [profileOpen, setProfileOpen] = useState(false); // start collapsed
+  const [profileOpen, setProfileOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(true);
 
   const monthlyIncome = profile?.monthlyIncome
@@ -863,32 +722,147 @@ function ResultsPanel({
 
   const hasDisqualified = disqualifiedTop.length > 0;
 
+  const reasonsSet = new Set((profile?.reasons || []) as string[]);
+  const hasReason = (id: string) => reasonsSet.has(id);
+
   return (
     <div className="space-y-5 mt-4">
-      {/* My profile collapsible – ONLY visible after results */}
+      {/* My profile collapsible – only exists once results exist */}
       {profile && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_14px_32px_rgba(15,23,42,0.3)] text-slate-900">
           <button
             type="button"
-            onClick={() => setProfileOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between text-xs font-semibold text-slate-800"
+            onClick={() => setProfileOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-[11px]"
           >
-            <span>My profile</span>
-            <span className="text-[11px] text-slate-500">
-              {profileOpen ? "Hide" : "Show"}{" "}
-              <span className="inline-block ml-1">
-                {profileOpen ? "▲" : "▼"}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-900">
+                My profile
               </span>
+              <span className="text-[10px] text-slate-500">
+                Tap to review your answers
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              {profileOpen ? "▲" : "▼"}
             </span>
           </button>
+          <div
+            className={`mt-2 overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
+              profileOpen
+                ? "max-h-[600px] opacity-100 translate-y-0"
+                : "max-h-0 opacity-0 -translate-y-1"
+            }`}
+          >
+            <div className="pt-2 border-t border-slate-200 text-[11px] space-y-2">
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-900">Basics</p>
+                <ul className="space-y-0.5 text-slate-800">
+                  <li>
+                    <span className="font-semibold">Current country:</span>{" "}
+                    {profile.currentCountry || "Not specified"}
+                  </li>
+                  <li>
+                    <span className="font-semibold">Age:</span>{" "}
+                    {profile.ageRange || "Not specified"}
+                  </li>
+                  <li>
+                    <span className="font-semibold">
+                      Languages you can live in:
+                    </span>{" "}
+                    {profile.languagesSpoken &&
+                    profile.languagesSpoken.length > 0
+                      ? profile.languagesSpoken.join(", ")
+                      : "Not specified"}
+                  </li>
+                </ul>
+              </div>
 
-          <CollapseOnHide open={profileOpen} className="mt-3">
-            <ProfileSummaryCard profile={profile} />
-          </CollapseOnHide>
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-900">
+                  Things we focused on
+                </p>
+                <ul className="space-y-0.5 text-slate-800">
+                  {hasReason("lower_taxes") && (
+                    <li>• You care about lower taxes.</li>
+                  )}
+                  {hasReason("lower_cost_of_living") && (
+                    <li>• You want a lower cost of living.</li>
+                  )}
+                  {hasReason("better_weather") && (
+                    <li>• You have a preferred climate.</li>
+                  )}
+                  {hasReason("better_lgbtq") && (
+                    <li>• LGBTQ+ rights matter to you.</li>
+                  )}
+                  {hasReason("language_must_have") && (
+                    <li>• You want to rely on one of your languages.</li>
+                  )}
+                  {hasReason("safety_stability_priority") && (
+                    <li>• Safety and stability are important to you.</li>
+                  )}
+                  {hasReason("healthcare_strong_public") && (
+                    <li>• You prefer strong public healthcare.</li>
+                  )}
+                  {hasReason("healthcare_mixed") && (
+                    <li>• You like a mix of public and private healthcare.</li>
+                  )}
+                  {hasReason("healthcare_private") && (
+                    <li>• You are okay with mostly private healthcare.</li>
+                  )}
+                  {hasReason("culture_must_have") && (
+                    <li>
+                      • You want to really connect with the local culture.
+                    </li>
+                  )}
+                  {hasReason("development_care_yes") && (
+                    <li>• You want a clearly developed country.</li>
+                  )}
+                  {hasReason("development_care_some") && (
+                    <li>
+                      • You prefer decent standards but accept some rough
+                      edges.
+                    </li>
+                  )}
+                  {hasReason("development_not_important") && (
+                    <li>
+                      • You are flexible about how developed the country feels.
+                    </li>
+                  )}
+                  {hasReason("dev_public_transport") && (
+                    <li>
+                      • Public transport and moving without a car matter to
+                      you.
+                    </li>
+                  )}
+                  {hasReason("dev_digital_services") && (
+                    <li>
+                      • You care about good digital services (apps, online
+                      services).
+                    </li>
+                  )}
+                  {hasReason("dev_infrastructure_clean") && (
+                    <li>
+                      • You like cleaner, more maintained streets and
+                      buildings.
+                    </li>
+                  )}
+                  {hasReason("dev_everyday_services") && (
+                    <li>
+                      • You want easy everyday services and modern city life.
+                    </li>
+                  )}
+                  {reasonsSet.size === 0 && (
+                    <li>• You did not mark any strong priorities yet.</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Top row: Upsell + AI summary (AI collapsible) */}
+      {/* Top row: Upsell + AI summary */}
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -907,29 +881,34 @@ function ResultsPanel({
             </div>
           ) : (
             <div className="h-full rounded-2xl border border-emerald-300 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.25)] text-slate-900">
-              <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setAiOpen((o) => !o)}
+                className="w-full flex items-center justify-between gap-2"
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🤖</span>
                   <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-emerald-600">
                     AI summary of your matches
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAiOpen((prev) => !prev)}
-                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold"
-                >
+                <span className="text-[11px] text-slate-500">
                   {aiOpen ? "Hide" : "Show"}
-                </button>
-              </div>
-
-              <CollapseOnHide open={aiOpen}>
-                <p className="mt-2 text-xs text-slate-800">
+                </span>
+              </button>
+              <div
+                className={`mt-2 overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
+                  aiOpen
+                    ? "max-h-[400px] opacity-100 translate-y-0"
+                    : "max-h-0 opacity-0 -translate-y-1"
+                }`}
+              >
+                <p className="text-xs text-slate-800">
                   {aiData?.overallSummary
                     ? aiData.overallSummary
                     : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
                 </p>
-              </CollapseOnHide>
+              </div>
             </div>
           )}
         </div>
@@ -1015,17 +994,16 @@ function ResultsPanel({
             })}
           </div>
 
-          {/* Retake + Share row */}
-          <div className="pt-4 border-t border-slate-800/40 mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* Retake + Share buttons side-by-side */}
+          <div className="pt-3 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row gap-2 justify-center">
             <button
               type="button"
               onClick={onRetake}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-500 bg-slate-900 px-5 py-2 text-[12px] font-semibold text-slate-50 hover:bg-slate-800 hover:border-slate-400 transition-colors shadow-[0_10px_24px_rgba(15,23,42,0.6)]"
+              className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-5 py-2 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors w-full sm:w-auto"
             >
               <span>🔁</span>
               <span>Retake quiz</span>
             </button>
-
             <ShareStoryImageButton topMatches={topMatches} />
           </div>
         </div>
@@ -1319,34 +1297,42 @@ function MatchCard({
           <span className="text-[11px]">{expanded ? "▲" : "▼"}</span>
         </button>
 
-        <CollapseOnHide open={expanded} className="mt-3 space-y-2">
-          {dims.map((d) => {
-            const value = match.breakdown[d.key];
-            const expl =
-              match.explanations[d.key as keyof DimensionExplanations];
-            if (value === undefined || value === null) return null;
-            const pctWidth = `${(value / 10) * 100}%`;
-            return (
-              <div key={d.key} className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>{d.label}</span>
-                  <span className="font-semibold text-slate-900">
-                    {value.toFixed(1)}/10
-                  </span>
+        <div
+          className={`overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
+            expanded
+              ? "max-h-[1200px] opacity-100 translate-y-0 mt-3"
+              : "max-h-0 opacity-0 -translate-y-1"
+          }`}
+        >
+          <div className="space-y-2">
+            {dims.map((d) => {
+              const value = match.breakdown[d.key];
+              const expl =
+                match.explanations[d.key as keyof DimensionExplanations];
+              if (value === undefined || value === null) return null;
+              const pctWidth = `${(value / 10) * 100}%`;
+              return (
+                <div key={d.key} className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>{d.label}</span>
+                    <span className="font-semibold text-slate-900">
+                      {value.toFixed(1)}/10
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all"
+                      style={{ width: pctWidth }}
+                    />
+                  </div>
+                  {expl && (
+                    <p className="text-[11px] text-slate-700">{expl}</p>
+                  )}
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-amber-500 transition-all"
-                    style={{ width: pctWidth }}
-                  />
-                </div>
-                {expl && (
-                  <p className="text-[11px] text-slate-700">{expl}</p>
-                )}
-              </div>
-            );
-          })}
-        </CollapseOnHide>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1479,7 +1465,9 @@ function DisqualifiedPanel({
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedCode((prev) => (prev === m.code ? null : m.code))
+                    setExpandedCode((prev) =>
+                      prev === m.code ? null : m.code
+                    )
                   }
                   className="flex items-center justify-between w-full text-[11px] text-slate-800 hover:text-slate-900"
                 >
@@ -1493,36 +1481,44 @@ function DisqualifiedPanel({
                   </span>
                 </button>
 
-                <CollapseOnHide open={expanded} className="mt-3 space-y-2">
-                  {dims.map((d) => {
-                    const value = m.breakdown[d.key];
-                    const expl =
-                      m.explanations[d.key as keyof DimensionExplanations];
-                    if (value === undefined || value === null) return null;
-                    const pctWidth = `${(value / 10) * 100}%`;
-                    return (
-                      <div key={d.key} className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] text-slate-500">
-                          <span>{d.label}</span>
-                          <span className="font-semibold text-slate-900">
-                            {value.toFixed(1)}/10
-                          </span>
+                <div
+                  className={`overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
+                    expanded
+                      ? "max-h-[1200px] opacity-100 translate-y-0 mt-3"
+                      : "max-h-0 opacity-0 -translate-y-1"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    {dims.map((d) => {
+                      const value = m.breakdown[d.key];
+                      const expl =
+                        m.explanations[d.key as keyof DimensionExplanations];
+                      if (value === undefined || value === null) return null;
+                      const pctWidth = `${(value / 10) * 100}%`;
+                      return (
+                        <div key={d.key} className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>{d.label}</span>
+                            <span className="font-semibold text-slate-900">
+                              {value.toFixed(1)}/10
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-amber-500 transition-all"
+                              style={{ width: pctWidth }}
+                            />
+                          </div>
+                          {expl && (
+                            <p className="text-[11px] text-slate-700">
+                              {expl}
+                            </p>
+                          )}
                         </div>
-                        <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-amber-500 transition-all"
-                            style={{ width: pctWidth }}
-                          />
-                        </div>
-                        {expl && (
-                          <p className="text-[11px] text-slate-700">
-                            {expl}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </CollapseOnHide>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -1560,7 +1556,7 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share story image via canvas (no text share) – golden CTA */
+/* Share story image via canvas */
 
 function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [saving, setSaving] = useState(false);
@@ -1892,7 +1888,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
         await navAny.share({
           files: [file],
-          title: "My Relomatcher matches",
+          title: "My Relomatcher results",
           text:
             "My top country matches from Relomatcher. Take your quiz on www.relomatcher.com and find yours.",
         });
@@ -1915,23 +1911,19 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving}
-        className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-slate-950 text-[12px] font-semibold px-5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.8)] hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-      >
-        <span>📱</span>
-        <span>
-          {saving ? "Generating image…" : "Share your results"}
+    <button
+      type="button"
+      onClick={handleSave}
+      disabled={saving}
+      className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-400 text-slate-950 text-[11px] font-semibold px-5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors w-full sm:w-auto"
+    >
+      <span>{saving ? "Generating..." : "Share your results"}</span>
+      {!saving && <span className="text-xs">📤</span>}
+      {savedOnce && !saving && (
+        <span className="text-[9px] text-slate-900 ml-1">
+          (Saved / shared)
         </span>
-      </button>
-      <span className="max-w-xs text-[11px] text-slate-400">
-        Creates a vertical story with your top 3 matches, flags and a big
-        www.relomatcher.com CTA.
-        {savedOnce && " (Done! Check your share sheet or downloads.)"}
-      </span>
-    </div>
+      )}
+    </button>
   );
 }
