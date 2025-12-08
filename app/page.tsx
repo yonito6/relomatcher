@@ -432,7 +432,7 @@ export default function QuizPage() {
           <div className="flex items-center gap-3">
             <img
               src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
-              alt="Relomatcher logo"
+              alt="ReloMatcher – relocation quiz logo"
               className="h-12 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
           </div>
@@ -444,13 +444,20 @@ export default function QuizPage() {
             {/* Hero */}
             <div className="space-y-3 max-w-2xl">
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
-                Find your best country match.
+                Where should I move? Free quiz to find the best country and city
+                to live in.
               </h1>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed">
-                Our AI-powered relocation engine analyzes your preferences and
-                lifestyle to rank the countries that fit you best — and explains
-                in clear, human-like language why each destination matches your
-                profile.
+                Answer a few smart questions and let ReloMatcher act as your{" "}
+                <strong className="font-semibold">
+                  &quot;where should I live&quot; test
+                </strong>
+                . We rank{" "}
+                <strong className="font-semibold">
+                  the best places to live in the world
+                </strong>{" "}
+                for your taxes, cost of living, safety, LGBTQ+ rights, climate
+                and lifestyle – then explain exactly why each match fits you.
               </p>
             </div>
 
@@ -482,14 +489,23 @@ export default function QuizPage() {
                 onClick={handleStartQuiz}
                 className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-950 text-sm font-semibold px-7 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.6)] hover:bg-amber-300 transition-colors"
               >
-                <span>✨ Start your quiz now</span>
+                <span>✨ Start the relocation quiz</span>
                 <span className="text-lg">→</span>
               </button>
               <p className="text-[11px] text-slate-500 text-center">
-                ~10 quick steps · built for remote workers, founders and online
-                earners.
+                ~10 quick steps · a personalised{" "}
+                <strong className="font-semibold">
+                  &quot;where should I move&quot; quiz
+                </strong>{" "}
+                for remote workers, founders and online earners.
               </p>
             </div>
+
+            {/* SEO intro copy with real keywords */}
+            <SeoIntroBlock />
+
+            {/* Collapsible SEO/article menu for internal links */}
+            <SeoArticleMenu />
           </section>
         )}
 
@@ -564,6 +580,167 @@ export default function QuizPage() {
     </main>
   );
 }
+
+/* -------------------- Landing page SEO helpers -------------------- */
+
+function SeoIntroBlock() {
+  return (
+    <section className="max-w-3xl space-y-2 text-[12px] md:text-[13px] text-slate-400 leading-relaxed">
+      <p>
+        Most{" "}
+        <strong className="font-semibold">
+          &quot;best places to live in the world&quot;
+        </strong>{" "}
+        lists are generic. ReloMatcher looks at what actually matters to you:
+        taxes, cost of living, safety, LGBTQ+ protections, public transport,
+        digital services and the climate or vibe you prefer.
+      </p>
+      <p>
+        Use this quiz instead of scrolling random lists of{" "}
+        <strong className="font-semibold">best countries to live</strong>,{" "}
+        <strong className="font-semibold">best cities to live in</strong> or{" "}
+        <strong className="font-semibold">best expat countries</strong>. You get
+        a ranked shortlist that fits your reality – whether you&apos;re a
+        digital nomad, an expat, or just curious about where you could be
+        happier.
+      </p>
+    </section>
+  );
+}
+
+function SeoArticleMenu() {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <section className="max-w-3xl">
+      <div className="rounded-2xl border border-slate-800/70 bg-slate-900/70 shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📚</span>
+            <div>
+              <p className="text-[12px] font-semibold text-slate-50 tracking-tight">
+                Explore relocation guides &amp; rankings
+              </p>
+              <p className="text-[11px] text-slate-400">
+                We&apos;ll add in-depth articles here – everything from best
+                expat countries to easiest countries to immigrate to.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-slate-400">
+            {open ? "Hide ▲" : "Show ▼"}
+          </span>
+        </button>
+
+        <SimpleCollapsible isOpen={open}>
+          <nav className="px-4 pb-4 pt-1 text-[11px] text-slate-300 space-y-3">
+            <div>
+              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
+                Relocation quizzes &amp; tests
+              </p>
+              <ul className="space-y-1.5">
+                <li>
+                  <a
+                    href="#quiz-form-section"
+                    className="hover:text-amber-300"
+                  >
+                    Where should I move quiz (main tool)
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/where-should-i-relocate-quiz"
+                    className="hover:text-amber-300"
+                  >
+                    Where should I relocate quiz – deep dive
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
+                Best places to live
+              </p>
+              <ul className="space-y-1.5">
+                <li>
+                  <a
+                    href="/guides/best-places-to-live-in-the-world"
+                    className="hover:text-amber-300"
+                  >
+                    Best places to live in the world
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/best-countries-to-live"
+                    className="hover:text-amber-300"
+                  >
+                    Best countries to live
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/best-cities-to-live-in"
+                    className="hover:text-amber-300"
+                  >
+                    Best cities to live in
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="uppercase tracking-[0.18em] text-slate-500 text-[10px] mb-1">
+                Expat &amp; digital nomad guides
+              </p>
+              <ul className="space-y-1.5">
+                <li>
+                  <a
+                    href="/guides/best-expat-countries"
+                    className="hover:text-amber-300"
+                  >
+                    Best expat countries
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/best-cities-for-expats"
+                    className="hover:text-amber-300"
+                  >
+                    Best cities for expats
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/digital-nomad-countries"
+                    className="hover:text-amber-300"
+                  >
+                    Best digital nomad countries
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/guides/easiest-countries-to-immigrate-to"
+                    className="hover:text-amber-300"
+                  >
+                    Easiest countries to immigrate to
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </nav>
+        </SimpleCollapsible>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------- Generic landing bullets -------------------- */
 
 function Bullet({
   icon,
@@ -674,9 +851,7 @@ function SimpleCollapsible({
   return (
     <div
       className={`overflow-hidden transition-all duration-300 ease-in-out ${
-        isOpen
-          ? "max-h-[1000px] opacity-100"
-          : "max-h-0 opacity-0"
+        isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
       }`}
     >
       <div className={isOpen ? "mt-3" : ""}>{children}</div>
@@ -831,7 +1006,7 @@ function ResultsPanel({
             Your top matches (tap like or pass, then open the breakdown)
           </p>
 
-          {/* Share story image only (no text share) */}
+          {/* Hidden trigger for story image (no visible duplicate row) */}
           <ShareStoryImageButton topMatches={topMatches} />
 
           <div className="space-y-3">
@@ -1438,7 +1613,7 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-/* Share story image via canvas (no text share) */
+/* Share story image via canvas (hidden trigger; only bottom CTA visible) */
 
 function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
   const [saving, setSaving] = useState(false);
@@ -1792,25 +1967,18 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
     }
   }
 
+  // Hidden container – only the bottom "Share your results" button triggers this.
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
+    <div className="hidden">
       <button
         type="button"
         data-share-story-button
         onClick={handleSave}
         disabled={saving}
-        className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-slate-50 text-[11px] font-semibold px-3 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.4)] hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
       >
-        <span>📱</span>
-        <span>
-          {saving ? "Generating story image..." : "Share / save story image"}
-        </span>
+        {saving ? "Generating story image..." : "Share / save story image"}
+        {savedOnce && " (Done) "}
       </button>
-      <span className="max-w-xs">
-        This creates a vertical story with your top 3 matches, flags and a big
-        www.relomatcher.com CTA.
-        {savedOnce && " (Done! Check your share sheet or downloads.)"}
-      </span>
     </div>
   );
 }
