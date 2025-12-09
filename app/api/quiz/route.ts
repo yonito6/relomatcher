@@ -228,6 +228,22 @@ async function aiRerankMatches(
   candidates: CountryMatch[],
   disqualified: DisqualifiedCountry[]
 ): Promise<{ ranked: AIReRanked[]; disqualifiedNotes: AIReRanked[] }> {
+  // Optional global "fast mode": skip AI entirely and use numeric order
+  if (process.env.NEXT_PUBLIC_RM_FAST_MODE === "1") {
+    return {
+      ranked: candidates.map((c, idx) => ({
+        code: c.code,
+        aiRank: idx + 1,
+        aiNote: "Fast mode – using numeric ranking order.",
+      })),
+      disqualifiedNotes: disqualified.map((c, idx) => ({
+        code: c.code,
+        aiRank: idx + 1,
+        aiNote: c.reason,
+      })),
+    };
+  }
+
   const client = await getOpenAIClient();
 
   // No client → do nothing, fall back to numeric
@@ -257,9 +273,9 @@ async function aiRerankMatches(
     incomeCurrency: pAny.incomeCurrency ?? null,
   };
 
-  // IMPORTANT: send ALL candidates (numeric winners)
-  const shortCandidates = candidates;
-  const shortDisq = disqualified.slice(0, 30);
+  // IMPORTANT: only send a trimmed list to keep the prompt fast/light
+  const shortCandidates = candidates.slice(0, 15); // top 15 winners are enough
+  const shortDisq = disqualified.slice(0, 8); // top 8 disqualified
 
   const userPayload = {
     profile: cleanedProfile,
