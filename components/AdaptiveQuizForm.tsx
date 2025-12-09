@@ -1,305 +1,3 @@
-"use client";
-
-import React from "react";
-import type { QuizData, RelocationReasonId } from "@/lib/types";
-
-type Props = {
-  currentStep: number;
-  totalSteps: number;
-  data: QuizData;
-  originCurrencyLabel: string;
-  onUpdate: (values: Partial<QuizData>) => void;
-  onNext: () => void;
-  onBack: () => void;
-  onSubmit: () => void;
-};
-
-// Country list for autocomplete
-const COUNTRY_OPTIONS = [
-  "Afghanistan",
-  "Albania",
-  "Algeria",
-  "Andorra",
-  "Angola",
-  "Antigua and Barbuda",
-  "Argentina",
-  "Armenia",
-  "Australia",
-  "Austria",
-  "Azerbaijan",
-  "Bahamas",
-  "Bahrain",
-  "Bangladesh",
-  "Barbados",
-  "Belarus",
-  "Belgium",
-  "Belize",
-  "Benin",
-  "Bhutan",
-  "Bolivia",
-  "Bosnia and Herzegovina",
-  "Botswana",
-  "Brazil",
-  "Brunei",
-  "Bulgaria",
-  "Burkina Faso",
-  "Burundi",
-  "Cambodia",
-  "Cameroon",
-  "Canada",
-  "Cape Verde",
-  "Central African Republic",
-  "Chad",
-  "Chile",
-  "China",
-  "Colombia",
-  "Comoros",
-  "Costa Rica",
-  "Croatia",
-  "Cuba",
-  "Cyprus",
-  "Czech Republic",
-  "Democratic Republic of the Congo",
-  "Denmark",
-  "Djibouti",
-  "Dominica",
-  "Dominican Republic",
-  "Ecuador",
-  "Egypt",
-  "El Salvador",
-  "Equatorial Guinea",
-  "Eritrea",
-  "Estonia",
-  "Eswatini",
-  "Ethiopia",
-  "Fiji",
-  "Finland",
-  "France",
-  "Gabon",
-  "Gambia",
-  "Georgia",
-  "Germany",
-  "Ghana",
-  "Greece",
-  "Grenada",
-  "Guatemala",
-  "Guinea",
-  "Guinea-Bissau",
-  "Guyana",
-  "Haiti",
-  "Honduras",
-  "Hungary",
-  "Iceland",
-  "India",
-  "Indonesia",
-  "Iran",
-  "Iraq",
-  "Ireland",
-  "Israel",
-  "Italy",
-  "Ivory Coast",
-  "Jamaica",
-  "Japan",
-  "Jordan",
-  "Kazakhstan",
-  "Kenya",
-  "Kiribati",
-  "Kosovo",
-  "Kuwait",
-  "Kyrgyzstan",
-  "Laos",
-  "Latvia",
-  "Lebanon",
-  "Lesotho",
-  "Liberia",
-  "Libya",
-  "Liechtenstein",
-  "Lithuania",
-  "Luxembourg",
-  "Madagascar",
-  "Malawi",
-  "Malaysia",
-  "Maldives",
-  "Mali",
-  "Malta",
-  "Mauritania",
-  "Mauritius",
-  "Mexico",
-  "Moldova",
-  "Monaco",
-  "Mongolia",
-  "Montenegro",
-  "Morocco",
-  "Mozambique",
-  "Myanmar",
-  "Namibia",
-  "Nauru",
-  "Nepal",
-  "Netherlands",
-  "New Zealand",
-  "Nicaragua",
-  "Niger",
-  "Nigeria",
-  "North Korea",
-  "North Macedonia",
-  "Norway",
-  "Oman",
-  "Pakistan",
-  "Panama",
-  "Papua New Guinea",
-  "Paraguay",
-  "Peru",
-  "Philippines",
-  "Poland",
-  "Portugal",
-  "Qatar",
-  "Republic of the Congo",
-  "Romania",
-  "Russia",
-  "Rwanda",
-  "Saint Kitts and Nevis",
-  "Saint Lucia",
-  "Saint Vincent and the Grenadines",
-  "Samoa",
-  "San Marino",
-  "Sao Tome and Principe",
-  "Saudi Arabia",
-  "Senegal",
-  "Serbia",
-  "Seychelles",
-  "Sierra Leone",
-  "Singapore",
-  "Slovakia",
-  "Slovenia",
-  "Solomon Islands",
-  "Somalia",
-  "South Africa",
-  "South Korea",
-  "South Sudan",
-  "Spain",
-  "Sri Lanka",
-  "Sudan",
-  "Suriname",
-  "Sweden",
-  "Switzerland",
-  "Syria",
-  "Taiwan",
-  "Tajikistan",
-  "Tanzania",
-  "Thailand",
-  "Timor-Leste",
-  "Togo",
-  "Tonga",
-  "Trinidad and Tobago",
-  "Tunisia",
-  "Turkey",
-  "Turkmenistan",
-  "Uganda",
-  "Ukraine",
-  "United Arab Emirates",
-  "United Kingdom",
-  "United States",
-  "Uruguay",
-  "Uzbekistan",
-  "Vanuatu",
-  "Vatican City",
-  "Venezuela",
-  "Vietnam",
-  "Yemen",
-  "Zambia",
-  "Zimbabwe",
-  "Other / not listed",
-];
-
-// Widely used languages in relocation hotspots
-const LANGUAGE_OPTIONS = [
-  "English",
-  "Spanish",
-  "Portuguese",
-  "French",
-  "German",
-  "Italian",
-  "Dutch",
-  "Greek",
-  "Romanian",
-  "Bulgarian",
-  "Polish",
-  "Czech",
-  "Hungarian",
-  "Russian",
-  "Ukrainian",
-  "Turkish",
-  "Arabic",
-  "Hebrew",
-  "Thai",
-  "Chinese (Mandarin)",
-  "Japanese",
-  "Korean",
-];
-
-function AdaptiveQuizForm({
-  currentStep,
-  totalSteps,
-  data,
-  originCurrencyLabel,
-  onUpdate,
-  onNext,
-  onBack,
-  onSubmit,
-}: Props) {
-  const reasons = (data.reasons ?? []) as RelocationReasonId[];
-  const languagesSpoken = data.languagesSpoken || [];
-  const [validationError, setValidationError] =
-    React.useState<string | null>(null);
-
-  // After "See my matches" we mark submitted and collapse the form
-  const [hasSubmitted, setHasSubmitted] = React.useState(false);
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
-
-  // mobile-friendly custom country suggestion instead of <datalist>
-  const [countryQuery, setCountryQuery] = React.useState(
-    data.currentCountry || ""
-  );
-  const [showCountryDropdown, setShowCountryDropdown] =
-    React.useState<boolean>(false);
-
-  const filteredCountries = React.useMemo(() => {
-    const q = countryQuery.trim().toLowerCase();
-    if (!q) return COUNTRY_OPTIONS.slice(0, 15);
-    return COUNTRY_OPTIONS.filter((c) =>
-      c.toLowerCase().includes(q)
-    ).slice(0, 15);
-  }, [countryQuery]);
-
-  const handleCountrySelect = (country: string) => {
-    setCountryQuery(country);
-    onUpdate({ currentCountry: country });
-    setShowCountryDropdown(false);
-  };
-
-  // "knobs" – numeric sliders stored on the profile
-  const anyData = data as any;
-  const taxImportance =
-    typeof anyData.taxImportance === "number" ? anyData.taxImportance : 7;
-  const colImportance =
-    typeof anyData.colImportance === "number" ? anyData.colImportance : 7;
-  const climateImportance =
-    typeof anyData.climateImportance === "number"
-      ? anyData.climateImportance
-      : 7;
-
-  const isLastStep = currentStep === totalSteps - 1;
-
-  const hasReason = (key: RelocationReasonId) => reasons.includes(key);
-
-  const setReason = (key: RelocationReasonId, enabled: boolean) => {
-    const without = reasons.filter((r) => r !== key);
-    const next: RelocationReasonId[] = enabled ? [...without, key] : without;
-    onUpdate({ reasons: next });
-  };
-
-  const setExclusiveReason = (
-    groupKeys: RelocationReasonId[],
     chosenKey: RelocationReasonId | null
   ) => {
     const withoutGroup = reasons.filter((r) => !groupKeys.includes(r));
@@ -486,8 +184,10 @@ function AdaptiveQuizForm({
     setValidationError(null);
 
     if (isLastStep) {
+      // Mark as submitted and collapsed; persist via effect
       setHasSubmitted(true);
-      setIsCollapsed(true); // auto-collapse after "See my matches"
+      setIsCollapsed(true);
+
       onSubmit();
     } else {
       onNext();
@@ -1671,18 +1371,21 @@ function AdaptiveQuizForm({
             <p className="hidden xs:block text-[11px] text-slate-500">
               Question {currentStep + 1} of {totalSteps}
             </p>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-full text-xs font-semibold tracking-wide
+            {/* Remove "See my matches" after first submit */}
+            {!(isLastStep && hasSubmitted) && (
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-full text-xs font-semibold tracking-wide
                          bg-amber-400 text-slate-950 border border-transparent
                          shadow-[0_10px_25px_rgba(0,0,0,0.25)]
                          transition-all duration-150
                          hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5
                          active:translate-y-0 active:scale-[0.97]
                          focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
-            >
-              {isLastStep ? "🔥 See my matches" : "Next"}
-            </button>
+              >
+                {isLastStep ? "🔥 See my matches" : "Next"}
+              </button>
+            )}
           </div>
         </div>
       )}

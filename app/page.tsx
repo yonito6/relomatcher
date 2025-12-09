@@ -924,14 +924,10 @@ function ResultsPanel({
   const hasDisqualified = disqualifiedTop.length > 0;
   const isAiLoading = !aiData && !aiError;
 
-  // Hidden share trigger (no visible button, but keeps bottom "Share your results" working)
-  const hasTopMatchesForShare = topMatches && topMatches.length > 0;
-
   return (
     <div className="space-y-5 mt-4">
-      {hasTopMatchesForShare && (
-        <ShareStoryImageButton topMatches={topMatches} hidden />
-      )}
+      {/* Hidden trigger so the bottom "Share your results" button works */}
+      <ShareStoryImageButton topMatches={topMatches} hidden />
 
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
@@ -1528,20 +1524,20 @@ function DisqualifiedPanel({
                     {netPct !== null && (
                       <p className="mt-1 text-[11px] text-slate-800">
                         Financially, you could keep roughly{" "}
-                        <span className="font-semibold text-amber-600">
-                          {netPct}%
-                        </span>{" "}
-                        of your income here
-                        {approxNet && (
-                          <>
-                            , ≈{" "}
-                            <span className="font-semibold text-slate-900">
-                              {approxNet.toLocaleString()} {currency}
-                            </span>{" "}
-                            / month
-                          </>
-                        )}
-                        .
+                          <span className="font-semibold text-amber-600">
+                            {netPct}%
+                          </span>{" "}
+                          of your income here
+                          {approxNet && (
+                            <>
+                              , ≈{" "}
+                              <span className="font-semibold text-slate-900">
+                                {approxNet.toLocaleString()} {currency}
+                              </span>{" "}
+                              / month
+                            </>
+                          )}
+                          .
                       </p>
                     )}
                   </div>
