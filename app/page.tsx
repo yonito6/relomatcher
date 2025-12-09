@@ -1700,23 +1700,23 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
-      // --- TOP AREA WITH LOGO + TITLE ---
+      // --- TOP AREA WITH BIGGER LOGO & PUSHED DOWN CONTENT ---
 
       let topOffset = 200;
 
       if (logo) {
-        const desiredWidth = 260;
+        const desiredWidth = 380; // 🔥 Bigger logo
         const aspect = logo.width / logo.height || 2.5;
         const logoW = desiredWidth;
         const logoH = desiredWidth / aspect;
 
         const logoX = width / 2 - logoW / 2;
-        const logoY = 120; // distance from top
+        const logoY = 260; // 🔥 More margin above logo (moves logo down)
 
         ctx.drawImage(logo, logoX, logoY, logoW, logoH);
 
-        // push the text below the logo
-        topOffset = logoY + logoH + 40;
+        // Push the text further down so everything is more centered
+        topOffset = logoY + logoH + 80; // 🔥 increased gap below logo
       }
 
       const titleY = topOffset + 55;
@@ -1733,8 +1733,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "left",
         "700"
       );
-
-      // ❌ Removed the old "Relomatcher" top-right text here
 
       drawText(
         "Find your best country match.",
