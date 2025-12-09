@@ -1705,7 +1705,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       let topOffset = 200;
 
       if (logo) {
-        const desiredWidth = 520; // 🔥 Bigger logo
+        const desiredWidth = 560; // 🔥 Bigger logo
         const aspect = logo.width / logo.height || 2.5;
         const logoW = desiredWidth;
         const logoH = desiredWidth / aspect;
