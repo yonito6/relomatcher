@@ -317,6 +317,13 @@ function AdaptiveQuizForm({
     onUpdate({ languagesSpoken: next });
   };
 
+  const stepContext = getStepContext(
+    currentStep,
+    data,
+    reasons,
+    languagesSpoken
+  );
+
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -498,6 +505,7 @@ function AdaptiveQuizForm({
         emoji="🧭"
         title="First, a few basics"
         subtitle="We start with simple details so we can compare new places to where you live now."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>Where are you currently based?</Label>
@@ -505,7 +513,7 @@ function AdaptiveQuizForm({
             <input
               type="text"
               autoComplete="off"
-              className="w-full max-w-full rounded-xl bg-white px-3 py-2.5 text-[16px] sm:text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full max-w-full rounded-2xl bg-white px-3 py-2.5 text-[16px] sm:text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
               placeholder="Start typing your country…"
               value={countryQuery}
               onFocus={() => setShowCountryDropdown(true)}
@@ -517,7 +525,7 @@ function AdaptiveQuizForm({
               }}
             />
             {showCountryDropdown && filteredCountries.length > 0 && (
-              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl bg-white shadow-lg">
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-2xl bg-white shadow-lg">
                 {filteredCountries.map((c) => (
                   <button
                     key={c}
@@ -576,6 +584,7 @@ function AdaptiveQuizForm({
         emoji="🗣️"
         title="Languages"
         subtitle="Places where you can speak easily will feel more like home."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>Which languages can you live your daily life in?</Label>
@@ -678,6 +687,7 @@ function AdaptiveQuizForm({
         emoji="💸"
         title="Money priorities"
         subtitle="We only ask how much you care, not how much you earn."
+        context={stepContext}
       >
         {/* Taxes */}
         <div className="space-y-2">
@@ -814,6 +824,7 @@ function AdaptiveQuizForm({
         emoji="🛡️"
         title="Safety & stability"
         subtitle="This includes safety in the street, politics and how serious institutions feel."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>How important is safety and stability for you?</Label>
@@ -931,7 +942,8 @@ function AdaptiveQuizForm({
             <div className="space-y-1">
               <Label>Institutions & corruption</Label>
               <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
-                How fair and &quot;serious&quot; the system feels (offices, police, courts).
+                How fair and &quot;serious&quot; the system feels (offices, police,
+                courts).
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <ChoiceCard
@@ -1024,6 +1036,7 @@ function AdaptiveQuizForm({
         emoji="🌦️"
         title="Climate & weather"
         subtitle="We match your answer with typical climate in different cities."
+        context={stepContext}
       >
         {/* Does climate matter? */}
         <div className="space-y-1.5">
@@ -1123,6 +1136,7 @@ function AdaptiveQuizForm({
         emoji="⚕️"
         title="Healthcare"
         subtitle="We care about how it feels in real life, not legal details."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>What kind of healthcare system sounds best to you?</Label>
@@ -1182,6 +1196,7 @@ function AdaptiveQuizForm({
         emoji="🏳️‍🌈"
         title="LGBTQ+ rights"
         subtitle="This can fully exclude some countries if you say it matters."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>How much do LGBTQ+ rights matter where you live?</Label>
@@ -1278,6 +1293,7 @@ function AdaptiveQuizForm({
         emoji="🎭"
         title="Culture & vibe"
         subtitle="Think about daily life, social style, and general feeling of the place."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>Which cultures do you feel pulled to?</Label>
@@ -1365,6 +1381,7 @@ function AdaptiveQuizForm({
         emoji="🏙️"
         title="Development & infrastructure"
         subtitle="Think about roads, services, public transport and how smooth daily life feels."
+        context={stepContext}
       >
         <div className="space-y-1.5">
           <Label>Do you care about how developed your next country feels?</Label>
@@ -1479,6 +1496,7 @@ function AdaptiveQuizForm({
         emoji="📋"
         title="Check your profile"
         subtitle="If something looks wrong, you can go back and change it before we show matches."
+        context={stepContext}
       >
         <div className="space-y-3 text-[13px] sm:text-[11px] text-slate-800">
           <div className="rounded-2xl bg-slate-50 px-3 py-2">
@@ -1601,25 +1619,35 @@ function AdaptiveQuizForm({
   return (
     <form
       onSubmit={handleFormSubmit}
-      className="w-full max-w-full bg:white bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
+      className="w-full max-w-full bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
-      {/* Header – My profile stays on one line */}
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+      {/* Chat-like header pill */}
+      <div className="flex items-center justify-between gap-2 rounded-full bg-slate-900/90 px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5 whitespace-nowrap">
-            My profile
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-xs font-semibold text-slate-950">
+            🙋
+          </span>
+          <span className="text-xs font-semibold text-slate-50 truncate">
+            My relocation profile
           </span>
         </div>
         {hasSubmitted && (
           <button
             type="button"
             onClick={() => setIsCollapsed((prev) => !prev)}
-            className="text-[11px] text-slate-500 hover:text-slate-700"
+            className="text-[11px] text-slate-200 hover:text-white"
           >
-            {isCollapsed ? "Tap to expand" : "Tap to collapse"}
+            {isCollapsed ? "Tap to view answers" : "Tap to hide chat"}
           </button>
         )}
       </div>
+
+      {showBody && (
+        <p className="text-[11px] text-slate-500 px-1">
+          I&apos;ll ask up to {totalSteps} quick questions, one theme at a time. You
+          can always go back if something doesn&apos;t feel right.
+        </p>
+      )}
 
       {showBody && stepContent}
 
@@ -1634,18 +1662,18 @@ function AdaptiveQuizForm({
           <button
             type="button"
             onClick={onBack}
-            className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+            className="px-3 py-1.5 rounded-full text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
           >
             ← Back
           </button>
 
           <div className="flex items-center gap-3">
             <p className="hidden xs:block text-[11px] text-slate-500">
-              Step {currentStep + 1} of {totalSteps}
+              Question {currentStep + 1} of {totalSteps}
             </p>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold tracking-wide
+              className="px-5 py-2 rounded-full text-xs font-semibold tracking-wide
                          bg-amber-400 text-slate-950 border border-transparent
                          shadow-[0_10px_25px_rgba(0,0,0,0.25)]
                          transition-all duration-150
@@ -1653,7 +1681,7 @@ function AdaptiveQuizForm({
                          active:translate-y-0 active:scale-[0.97]
                          focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white"
             >
-              {isLastStep ? "🔥 See my matches" : "Continue"}
+              {isLastStep ? "🔥 See my matches" : "Next"}
             </button>
           </div>
         </div>
@@ -1662,33 +1690,130 @@ function AdaptiveQuizForm({
   );
 }
 
+/* ---------- Dynamic "what we've learned" context ---------- */
+
+function getStepContext(
+  currentStep: number,
+  data: QuizData,
+  reasons: RelocationReasonId[],
+  languagesSpoken: string[]
+): string | null {
+  const country = data.currentCountry;
+  const age = data.ageRange;
+  const langs =
+    languagesSpoken && languagesSpoken.length > 0
+      ? languagesSpoken.join(", ")
+      : null;
+
+  const has = (k: RelocationReasonId) => reasons.includes(k);
+
+  if (currentStep === 0) {
+    return null;
+  }
+
+  if (currentStep === 1) {
+    if (country && age) {
+      return `Got it – you're currently in ${country} and around ${age}. Now let's make sure we don't send you somewhere you can't actually live day-to-day.`;
+    }
+    if (country) {
+      return `We know you're currently based in ${country}. Next, let's check which languages feel natural for you.`;
+    }
+    return "Next, I want to understand which languages feel natural for your daily life.";
+  }
+
+  if (currentStep === 2) {
+    if (langs) {
+      return `So you can live your daily life in ${langs}. Now let's talk about money priorities: taxes and cost of living.`;
+    }
+    return "Now let's talk about money priorities: taxes and cost of living.";
+  }
+
+  if (currentStep === 3) {
+    const bits: string[] = [];
+    if (has("lower_taxes")) bits.push("lower taxes");
+    if (has("lower_cost_of_living")) bits.push("lower cost of living");
+    if (bits.length) {
+      return `We’ll keep ${bits.join(" & ")} in mind. Next, I want to understand how calm and safe you want your future country to feel.`;
+    }
+    return "Now I want to understand how calm and safe you want your future country to feel.";
+  }
+
+  if (currentStep === 4) {
+    if (has("safety_stability_priority")) {
+      return "You told me safety and stability matter. Climate is the other big thing that shapes how everyday life feels, so let's tune that.";
+    }
+    return "Climate shapes daily mood a lot. Let’s see what kind of weather actually feels good for you.";
+  }
+
+  if (currentStep === 5) {
+    if (has("better_weather")) {
+      return "We’ve locked in your climate preferences. Now let's decide what kind of healthcare system fits you best.";
+    }
+    return "Next up: the healthcare system – how you actually experience doctors, hospitals, and payments.";
+  }
+
+  if (currentStep === 6) {
+    return "Healthcare is on the map. Now I need to know how much LGBTQ+ rights should influence your matches.";
+  }
+
+  if (currentStep === 7) {
+    if (has("better_lgbtq")) {
+      return "You asked for modern, LGBT-friendly places. Let’s now look at which cultures and vibes feel most like ‘you’.";
+    }
+    return "Great – now let's talk about culture and social vibe so your new place actually feels like home.";
+  }
+
+  if (currentStep === 8) {
+    if (has("culture_northern_europe")) {
+      return "You’re drawn to more calm, organized cultures. Now let's make sure the level of development and infrastructure matches that.";
+    }
+    return "Culture and vibe are clear. Next, I want to understand how developed and smooth you want day-to-day life to be.";
+  }
+
+  if (currentStep === 9) {
+    return "Here’s a quick recap of what I’ve learned about you. If something feels off, you can go back before I calculate your matches.";
+  }
+
+  return null;
+}
+
 /* ---------- UI helpers ---------- */
 
 function SectionCard({
   emoji,
   title,
   subtitle,
+  context,
   children,
 }: {
   emoji: string;
   title: string;
   subtitle: string;
+  context?: string | null;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-3.5">
-      <div className="flex items-start gap-3">
-        <div className="h-8 w-8 flex items-center justify-center rounded-2xl bg-slate-100 text-lg shrink-0">
+      {/* Bot chat bubble */}
+      <div className="flex items-start gap-2 sm:gap-3">
+        <div className="mt-0.5 h-8 w-8 flex items-center justify-center rounded-full bg-slate-900 text-lg shrink-0 text-amber-300">
           {emoji}
         </div>
-        <div className="min-w-0">
-          <h2 className="text-[14px] sm:text-sm font-semibold text-slate-900 tracking-tight">
+        <div className="max-w-full rounded-3xl bg-slate-100 px-3.5 py-3 shadow-sm">
+          {context && (
+            <p className="text-[11px] sm:text-[10px] text-emerald-700 mb-1.5">
+              {context}
+            </p>
+          )}
+          <h2 className="text-[14px] sm:text-sm font-semibold text-slate-900 tracking-tight mb-0.5">
             {title}
           </h2>
-          <p className="text-[12px] sm:text-[11px] text-slate-600">{subtitle}</p>
+          <p className="text-[12px] sm:text-[11px] text-slate-600 mb-2">
+            {subtitle}
+          </p>
+          <div className="space-y-3">{children}</div>
         </div>
       </div>
-      <div className="space-y-3.5">{children}</div>
     </div>
   );
 }
