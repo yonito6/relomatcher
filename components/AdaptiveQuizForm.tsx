@@ -421,7 +421,11 @@ function AdaptiveQuizForm({
       }
     } else if (currentStep === 6) {
       const anyLgbt = (
-        ["lgbt_full_rights", "lgbt_friendly", "lgbt_dont_care"] as RelocationReasonId[]
+        [
+          "lgbt_full_rights",
+          "lgbt_friendly",
+          "lgbt_dont_care",
+        ] as RelocationReasonId[]
       ).some((r) => reasons.includes(r));
       if (!anyLgbt) {
         error =
@@ -677,9 +681,7 @@ function AdaptiveQuizForm({
       >
         {/* Taxes */}
         <div className="space-y-2">
-          <Label>
-            Does paying lower taxes than you do today matter to you?
-          </Label>
+          <Label>Does paying lower taxes matter to you?</Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <ChoiceCard
               label="Yes, it matters"
@@ -688,7 +690,7 @@ function AdaptiveQuizForm({
             />
             <DoesntMatterCard
               selected={taxNotPriority}
-              onClick={() => handleColPriority(false)}
+              onClick={() => handleTaxPriority(false)}
             >
               Not a priority for me
             </DoesntMatterCard>
@@ -1599,26 +1601,23 @@ function AdaptiveQuizForm({
   return (
     <form
       onSubmit={handleFormSubmit}
-      className="w-full max-w-full bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
+      className="w-full max-w-full bg:white bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
     >
       {/* Header – My profile stays on one line */}
-      <div
-        className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 cursor-default"
-        onClick={() => {
-          if (hasSubmitted) {
-            setIsCollapsed((prev) => !prev);
-          }
-        }}
-      >
+      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs rounded-full bg-slate-900 text-slate-50 px-2 py-0.5 whitespace-nowrap">
             My profile
           </span>
         </div>
         {hasSubmitted && (
-          <span className="text-[11px] text-slate-500">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="text-[11px] text-slate-500 hover:text-slate-700"
+          >
             {isCollapsed ? "Tap to expand" : "Tap to collapse"}
-          </span>
+          </button>
         )}
       </div>
 
