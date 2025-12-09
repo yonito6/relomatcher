@@ -24,22 +24,34 @@ export async function GET(req: Request) {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            alignItems: "stretch",
-            backgroundColor: "#020617", // slate-950
+            backgroundColor: "#020617",
             padding: 64,
             boxSizing: "border-box",
           }}
         >
-          {/* Top bar */}
+          {/* TOP SECTION */}
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              flexDirection: "column",
               alignItems: "center",
-              fontSize: 32,
-              color: "#e5e7eb",
+              width: "100%",
+              marginBottom: 20,
             }}
           >
+            {/* Center Logo */}
+            <img
+              src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
+              alt="Relomatcher Logo"
+              style={{
+                width: 180,
+                height: "auto",
+                objectFit: "contain",
+                marginBottom: 28,
+              }}
+            />
+
+            {/* Top bar capsule - now centered */}
             <div
               style={{
                 padding: "8px 18px",
@@ -48,21 +60,14 @@ export async function GET(req: Request) {
                 fontSize: 22,
                 textTransform: "uppercase",
                 letterSpacing: 6,
+                color: "#e5e7eb",
               }}
             >
               Your matches
             </div>
-            <div
-              style={{
-                fontSize: 22,
-                color: "#9ca3af",
-              }}
-            >
-              Relomatcher
-            </div>
           </div>
 
-          {/* Center card with the 3 countries */}
+          {/* CENTER CARD */}
           <div
             style={{
               flexGrow: 1,
@@ -105,7 +110,7 @@ export async function GET(req: Request) {
             </div>
           </div>
 
-          {/* Bottom CTA */}
+          {/* CTA */}
           <div
             style={{
               display: "flex",
