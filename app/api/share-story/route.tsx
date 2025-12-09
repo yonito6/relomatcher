@@ -41,7 +41,7 @@ export async function GET(req: Request) {
           >
             {/* Center Logo (served reliably from /public) */}
             <img
-              src="/logo-v1.png"
+              src="public/logo.png"
               alt="Relomatcher Logo"
               style={{
                 width: 180,
