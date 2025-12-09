@@ -366,6 +366,9 @@ export default function QuizPage() {
    * AFTER we have result.topMatches (already AI-ranked),
    * we fetch AI explanation in the background.
    * This does NOT block showing the results.
+   *
+   * We also *preserve* existing aiData (e.g. if user comes back from Stripe)
+   * and avoid re-loading if it's already there.
    */
   useEffect(() => {
     const currentResult = result;
@@ -378,8 +381,25 @@ export default function QuizPage() {
     ) {
       return;
     }
-    if (aiRequestedRef.current) return;
 
+    // If we already have AI data and no error (e.g. after coming back from Stripe),
+    // just ensure it's in sessionStorage and skip re-fetching.
+    if (aiData && !aiError) {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({
+            profile: currentProfile,
+            result: currentResult,
+            aiData,
+            aiError: null,
+          })
+        );
+      }
+      return;
+    }
+
+    if (aiRequestedRef.current) return;
     aiRequestedRef.current = true;
 
     let cancelled = false;
@@ -387,7 +407,6 @@ export default function QuizPage() {
     async function loadAiExplain() {
       try {
         setAiError(null);
-        setAiData(null);
 
         const aiRes = await fetch("/api/ai-explain", {
           method: "POST",
@@ -446,7 +465,7 @@ export default function QuizPage() {
     return () => {
       cancelled = true;
     };
-  }, [result, submittedProfile, data]);
+  }, [result, submittedProfile, data, aiData, aiError]);
 
   function handleStartQuiz() {
     setShowQuiz(true);
@@ -905,8 +924,15 @@ function ResultsPanel({
   const hasDisqualified = disqualifiedTop.length > 0;
   const isAiLoading = !aiData && !aiError;
 
+  // Hidden share trigger (no visible button, but keeps bottom "Share your results" working)
+  const hasTopMatchesForShare = topMatches && topMatches.length > 0;
+
   return (
     <div className="space-y-5 mt-4">
+      {hasTopMatchesForShare && (
+        <ShareStoryImageButton topMatches={topMatches} hidden />
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
         <div className="h-full">
           <PremiumUpsell profile={profile} topMatches={topMatches} />
@@ -942,15 +968,24 @@ function ResultsPanel({
               </button>
 
               <SimpleCollapsible isOpen={!aiCollapsed}>
-                <p className="text-xs text-slate-800">
-                  {aiData?.overallSummary ? (
-                    aiData.overallSummary
-                  ) : aiError ? (
-                    "AI insights are unavailable right now, but you still have the full numeric breakdown below."
-                  ) : (
-                    "AI is still generating deeper insights for your matches… your full numeric breakdown is already ready below."
-                  )}
-                </p>
+                {aiData?.overallSummary ? (
+                  <p className="text-xs text-slate-800">
+                    {aiData.overallSummary}
+                  </p>
+                ) : aiError ? (
+                  <p className="text-xs text-slate-800">
+                    AI insights are unavailable right now, but you still have
+                    the full numeric breakdown below.
+                  </p>
+                ) : (
+                  <div className="flex items-start gap-2 text-xs text-slate-800">
+                    <div className="mt-[2px] h-4 w-4 rounded-full border-[2px] border-emerald-400 border-t-transparent animate-spin" />
+                    <p>
+                      We&apos;re generating deeper insights for your matches…
+                      your full numeric breakdown is already ready below.
+                    </p>
+                  </div>
+                )}
               </SimpleCollapsible>
             </div>
           )}
@@ -992,8 +1027,6 @@ function ResultsPanel({
             Your top matches (tap like or pass, then open the breakdown)
           </p>
 
-          <ShareStoryImageButton topMatches={topMatches} />
-
           <div className="space-y-3">
             {topMatches.map((m, idx) => {
               const vote = votes[m.code];
@@ -1025,7 +1058,8 @@ function ResultsPanel({
                     setVotes((prev) => ({
                       ...prev,
                       [m.code]: prev[m.code] === v ? undefined : v,
-                    }))}
+                    }))
+                  }
                   monthlyIncome={monthlyIncome}
                   currency={currency}
                   netPct={netPct}
@@ -1035,31 +1069,6 @@ function ResultsPanel({
                 />
               );
             })}
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={onRetake}
-              className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-5 py-2 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors min-w-[150px]"
-            >
-              <span>🔁</span>
-              <span>Retake quiz</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.querySelector(
-                  "[data-share-story-button]"
-                ) as HTMLButtonElement | null;
-                if (el) el.click();
-              }}
-              className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-400 text-slate-950 px-5 py-2 text-[11px] font-semibold shadow-[0_12px_30px_rgba(15,23,42,0.5)] hover:bg-amber-300 transition-colors min-w-[150px]"
-            >
-              <span>📤</span>
-              <span>Share your results</span>
-            </button>
           </div>
         </div>
       )}
@@ -1082,6 +1091,32 @@ function ResultsPanel({
           later, you&apos;ll see countries appear here that we had to remove.
         </div>
       )}
+
+      {/* Retake + Share buttons – visible on BOTH tabs */}
+      <div className="pt-2 border-t border-slate-800/40 mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={onRetake}
+          className="inline-flex items-center justify-center gap-1 rounded-full border border-slate-600 bg-slate-900 px-5 py-2 text-[11px] font-semibold text-slate-50 hover:bg-slate-800 transition-colors min-w-[150px]"
+        >
+          <span>🔁</span>
+          <span>Retake quiz</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.querySelector(
+              "[data-share-story-button]"
+            ) as HTMLButtonElement | null;
+            if (el) el.click();
+          }}
+          className="inline-flex items-center justify-center gap-1 rounded-full bg-amber-400 text-slate-950 px-5 py-2 text-[11px] font-semibold shadow-[0_12px_30px_rgba(15,23,42,0.5)] hover:bg-amber-300 transition-colors min-w-[150px]"
+        >
+          <span>📤</span>
+          <span>Share your results</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1240,6 +1275,8 @@ function MatchCard({
     ? "border-amber-300 bg-amber-50"
     : "border-slate-200 bg-white";
 
+  const flagCode = match.code?.toLowerCase();
+
   return (
     <div className={`${baseCardClasses} ${bestClasses} text-slate-900`}>
       <div className="flex items-start justify-between gap-3">
@@ -1248,10 +1285,18 @@ function MatchCard({
             #{rank}
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900 tracking-tight">
-              {match.name}
+            <p className="text-sm font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+              {flagCode && (
+                <img
+                  src={`https://flagcdn.com/24x18/${flagCode}.png`}
+                  alt={`${match.name} flag`}
+                  className="h-3.5 w-5 rounded-sm object-cover"
+                  loading="lazy"
+                />
+              )}
+              <span>{match.name}</span>
               {isBest && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-slate-950">
+                <span className="inline-flex items-center rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-slate-950">
                   Best match
                 </span>
               )}
@@ -1351,6 +1396,7 @@ function MatchCard({
           </div>
         </div>
       ) : null}
+
       <div className="mt-3 border-t border-slate-200 pt-2">
         <button
           type="button"
@@ -1443,6 +1489,8 @@ function DisqualifiedPanel({
               ? m.baseScore
               : 0;
 
+          const flagCode = m.code?.toLowerCase();
+
           return (
             <div
               key={m.code}
@@ -1454,9 +1502,17 @@ function DisqualifiedPanel({
                     ⚠
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900 tracking-tight">
-                      {m.name}
-                      <span className="ml-2 inline-flex items-center rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-semibold text-slate-50">
+                    <p className="text-sm font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+                      {flagCode && (
+                        <img
+                          src={`https://flagcdn.com/24x18/${flagCode}.png`}
+                          alt={`${m.name} flag`}
+                          className="h-3.5 w-5 rounded-sm object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <span>{m.name}</span>
+                      <span className="inline-flex items-center rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-semibold text-slate-50">
                         Disqualified
                       </span>
                     </p>
@@ -1520,7 +1576,9 @@ function DisqualifiedPanel({
                 </div>
               ) : isAiLoading ? (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 flex gap-2">
-                  <span className="mt-[1px] text-xs">⏳</span>
+                  <span className="mt-[1px] text-xs">
+                    <div className="h-4 w-4 rounded-full border-[2px] border-slate-400 border-t-transparent animate-spin" />
+                  </span>
                   <div>
                     <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-slate-500 mb-0.5">
                       Generating AI insight
@@ -1612,7 +1670,13 @@ function LoadingScreen({ progress }: { progress: number }) {
   );
 }
 
-function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
+function ShareStoryImageButton({
+  topMatches,
+  hidden = false,
+}: {
+  topMatches: CountryMatch[];
+  hidden?: boolean;
+}) {
   const [saving, setSaving] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
 
@@ -1989,6 +2053,20 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
     }
   }
 
+  // Hidden mode: keep only an invisible trigger for the bottom button.
+  if (hidden) {
+    return (
+      <button
+        type="button"
+        data-share-story-button
+        onClick={handleSave}
+        disabled={saving}
+        className="hidden"
+      />
+    );
+  }
+
+  // (If you ever want the visible button back in another place, this is it)
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-[11px] text-slate-400">
       <button
