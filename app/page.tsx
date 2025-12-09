@@ -108,7 +108,10 @@ const MAIN_MENU_ITEMS = [
   { id: "lowest-tax", label: "Lowest-tax countries" },
   { id: "best-places", label: "Best places to live" },
   { id: "expat-cities", label: "Best cities for expats" },
-  { id: "start-quiz", label: "Start the quiz" },
+  {
+    id: "start-quiz",
+    label: "Where should I relocate? quiz",
+  },
 ];
 
 export default function QuizPage() {
@@ -127,6 +130,7 @@ export default function QuizPage() {
 
   const [aiData, setAiData] = useState<AIExplainData | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [showQuiz, setShowQuiz] = useState(false);
 
@@ -135,9 +139,6 @@ export default function QuizPage() {
   const hasScrolledToResultsRef = useRef(false);
 
   const [seoMenuOpen, setSeoMenuOpen] = useState(false);
-
-  // To avoid double-fetching AI explain
-  const aiRequestedRef = useRef(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -156,6 +157,74 @@ export default function QuizPage() {
       body.style.overflowX = prevBodyOverflowX;
     };
   }, []);
+
+  // Helper to trigger AI explain (separate loading state + animation)
+  async function triggerAiExplain(
+    profile: QuizData,
+    currentResult: QuizApiResponse
+  ) {
+    if (
+      !currentResult.topMatches ||
+      currentResult.topMatches.length === 0
+    ) {
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+      setAiError(null);
+      setAiData(null);
+
+      const aiRes = await fetch("/api/ai-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile,
+          topMatches: currentResult.topMatches || [],
+          disqualifiedTop: currentResult.disqualifiedTop || [],
+        }),
+      });
+
+      const body = (await aiRes
+        .json()
+        .catch(
+          () =>
+            ({ error: "Failed to parse AI response JSON" }) as {
+              error?: string;
+            }
+        )) as Partial<AIExplainData> & { error?: string };
+
+      if (!aiRes.ok) {
+        setAiError(
+          body.error ||
+            "AI explanation request failed with non-200 status."
+        );
+        return;
+      }
+
+      const aiPayload = body as AIExplainData;
+      setAiData(aiPayload);
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({
+            profile,
+            result: currentResult,
+            aiData: aiPayload,
+            aiError: null,
+          })
+        );
+      }
+    } catch (e: any) {
+      console.error("AI explanation error:", e);
+      setAiError(
+        e?.message || "Something went wrong while generating AI insights."
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   // Restore last result from session storage (including AI data if present)
   useEffect(() => {
@@ -194,6 +263,11 @@ export default function QuizPage() {
 
       setCurrentStep(TOTAL_STEPS - 1);
       setShowQuiz(true);
+
+      // If we don't yet have AI data but have results, trigger AI explain
+      if (!parsed.aiData && parsed.result?.topMatches?.length) {
+        triggerAiExplain(parsed.profile, parsed.result);
+      }
     } catch (e) {
       console.error("Failed to restore relomatcherLastResult:", e);
     } finally {
@@ -252,23 +326,17 @@ export default function QuizPage() {
     setCurrentStep((s) => Math.max(s - 1, 0));
   }
 
-  /**
-   * SUBMIT: One server call only → /api/quiz
-   * /api/quiz is assumed to already:
-   *   - Score all countries numerically
-   *   - Use AI (aiRerankMatches) to decide final ranking + topMatches
-   */
   async function handleSubmit() {
     setSubmittedProfile(data);
     setLoading(true);
-    setProgress(10); // initial phase
+    setProgress(3);
     setErrorMsg(null);
     setResult(null);
 
     // reset AI state for this run
     setAiData(null);
     setAiError(null);
-    aiRequestedRef.current = false;
+    setAiLoading(false);
     hasScrolledToResultsRef.current = false;
 
     try {
@@ -285,9 +353,6 @@ export default function QuizPage() {
 
       const json = (await res.json()) as QuizApiResponse;
 
-      // Numeric + AI-based ranking are ready
-      setProgress(80);
-
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
           SESSION_STORAGE_KEY,
@@ -301,13 +366,17 @@ export default function QuizPage() {
       }
 
       setResult(json);
+      setProgress(100);
+
+      // Immediately kick off AI explanations (separate animation/state)
+      triggerAiExplain(data, json);
     } catch (err: any) {
       console.error("Quiz submit error:", err);
       setErrorMsg(
         err.message || "Something went wrong while scoring your matches."
       );
-    } finally {
       setProgress(100);
+    } finally {
       setTimeout(() => {
         setLoading(false);
         setProgress(0);
@@ -317,21 +386,18 @@ export default function QuizPage() {
 
   const stepProgress = ((currentStep + 1) / TOTAL_STEPS) * 100;
 
-  /**
-   * Loading bar animation: creep towards ~85%, then jump to 100% when done
-   * so it doesn't look "stuck" at 90 for ages.
-   */
+  // Loading bar animation: smoothly creep up to ~90%, then jump to 100% when the request really finishes.
   useEffect(() => {
     if (!loading) return;
 
-    setProgress((prev) => (prev < 10 ? 10 : prev));
+    setProgress((prev) => (prev < 3 ? 3 : prev));
 
     const id = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 85) return prev;
-        const increment = 3 + Math.random() * 4; // 3–7%
+        if (prev >= 90) return prev;
+        const increment = 2 + Math.random() * 3; // 2–5%
         const next = prev + increment;
-        return next > 85 ? 85 : next;
+        return next > 90 ? 90 : next;
       });
     }, 250);
 
@@ -367,94 +433,6 @@ export default function QuizPage() {
     }
   }, [loading, result]);
 
-  /**
-   * AFTER we have result.topMatches (already AI-ranked),
-   * we fetch AI explanation in the background.
-   * This does NOT block showing the results.
-   *
-   * ✅ FIXED: use currentResult/currentProfile so TS knows they're non-null.
-   */
-  useEffect(() => {
-    const currentResult = result;
-    const currentProfile = submittedProfile || data;
-
-    if (
-      !currentResult ||
-      !currentResult.topMatches ||
-      currentResult.topMatches.length === 0
-    ) {
-      return;
-    }
-    if (aiRequestedRef.current) return;
-
-    aiRequestedRef.current = true;
-
-    let cancelled = false;
-
-    async function loadAiExplain() {
-      try {
-        setAiError(null);
-        setAiData(null);
-
-        const aiRes = await fetch("/api/ai-explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profile: currentProfile,
-            topMatches: currentResult.topMatches || [],
-            disqualifiedTop: currentResult.disqualifiedTop || [],
-          }),
-        });
-
-        const body = (await aiRes
-          .json()
-          .catch(
-            () =>
-              ({ error: "Failed to parse AI response JSON" }) as {
-                error?: string;
-              }
-          )) as Partial<AIExplainData> & { error?: string };
-
-        if (cancelled) return;
-
-        if (!aiRes.ok) {
-          setAiError(
-            body.error || "AI explanation request failed with non-200 status."
-          );
-          return;
-        }
-
-        setAiData(body as AIExplainData);
-
-        // Update session storage with AI data as well
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(
-            SESSION_STORAGE_KEY,
-            JSON.stringify({
-              profile: currentProfile,
-              result: currentResult,
-              aiData: body,
-              aiError: null,
-            })
-          );
-        }
-      } catch (e: any) {
-        console.error("AI explanation error:", e);
-        if (!cancelled) {
-          setAiError(
-            e?.message || "Something went wrong while generating AI insights."
-          );
-        }
-      }
-    }
-
-    loadAiExplain();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [result, submittedProfile, data]);
-
   function handleStartQuiz() {
     setShowQuiz(true);
     setCurrentStep(0);
@@ -472,6 +450,7 @@ export default function QuizPage() {
     setResult(null);
     setAiData(null);
     setAiError(null);
+    setAiLoading(false);
     setErrorMsg(null);
     setLoading(false);
     setProgress(0);
@@ -520,13 +499,14 @@ export default function QuizPage() {
           <section className="space-y-8">
             <div className="space-y-3 max-w-2xl">
               <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-50 leading-tight">
-                Best countries to live – smart “Where should I move?” quiz.
+                Best countries to live – smart “Where should I relocate?”
+                quiz.
               </h1>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed">
-                Our AI-powered relocation engine analyzes your answers and ranks
-                the best places to live in the world for you – then explains in
-                clear language why each country fits your taxes, lifestyle, and
-                long-term plans.
+                Our AI-powered relocation engine analyzes your answers and
+                ranks the best places to live in the world for you – then
+                explains in clear language why each country fits your taxes,
+                lifestyle, and long-term plans.
               </p>
             </div>
 
@@ -538,11 +518,13 @@ export default function QuizPage() {
               </Bullet>
               <Bullet icon="🎯" title="Personalised matching">
                 Tell us what matters and our scoring engine focuses on your
-                priorities, then AI refines the final list of countries for you.
+                priorities, then AI refines the final list of countries for
+                you.
               </Bullet>
               <Bullet icon="🌦️" title="Climate & lifestyle focus">
                 Whether you want cold, organised cities or warm, coastal life,
-                we match places to the climate and daily vibe you actually want.
+                we match places to the climate and daily vibe you actually
+                want.
               </Bullet>
               <Bullet icon="💸" title="Built for online earners">
                 Perfect for remote workers and founders who want to optimise
@@ -556,18 +538,19 @@ export default function QuizPage() {
                 onClick={handleStartQuiz}
                 className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-950 text-sm font-semibold px-7 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.6)] hover:bg-amber-300 transition-colors"
               >
-                <span>✨ Start the “Where should I move?” quiz</span>
+                <span>✨ Start the “Where should I relocate?” quiz</span>
                 <span className="text-lg">→</span>
               </button>
               <p className="text-[11px] text-slate-500 text-center">
-                ~10 quick steps · built for remote workers, founders and online
-                earners.
+                ~10 quick steps · built for remote workers, founders and
+                online earners.
               </p>
             </div>
 
             <section className="space-y-5 max-w-3xl">
               <h2 className="text-lg md:text-xl font-semibold tracking-tight text-slate-50">
-                Best places to live in the world, lowest-tax countries and more.
+                Best places to live in the world, lowest-tax countries and
+                more.
               </h2>
               <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
                 Over time, Relomatcher will become a hub for{" "}
@@ -613,7 +596,8 @@ export default function QuizPage() {
                   </p>
                   <p className="text-[12px] text-slate-400">
                     Practical breakdowns of relocation-friendly countries and
-                    cities that work for real online earners, not just theory.
+                    cities that work for real online earners, not just
+                    theory.
                   </p>
                 </div>
               </div>
@@ -659,7 +643,9 @@ export default function QuizPage() {
               )}
 
               {errorMsg && (
-                <div className="mt-2 text-[11px] text-rose-300">{errorMsg}</div>
+                <div className="mt-2 text-[11px] text-rose-300">
+                  {errorMsg}
+                </div>
               )}
             </section>
 
@@ -677,6 +663,7 @@ export default function QuizPage() {
                     originCurrencyLabel={originCurrencyLabel}
                     aiData={aiData}
                     aiError={aiError}
+                    aiLoading={aiLoading}
                     onRetake={handleRetakeQuiz}
                   />
                 </section>
@@ -781,16 +768,17 @@ function PremiumUpsell({
             <span className="text-amber-500">step-by-step plan</span>.
           </h3>
           <p className="text-[11px] text-slate-600">
-            Get a downloadable PDF tailored to your answers and top countries:
+            Get a downloadable PDF tailored to your answers and top
+            countries:
           </p>
           <ul className="space-y-1 text-[11px] text-slate-700">
             <li>
-              ✅ <span className="font-semibold">Recommended cities</span> and
-              areas that match your vibe, budget and climate
+              ✅ <span className="font-semibold">Recommended cities</span>{" "}
+              and areas that match your vibe, budget and climate
             </li>
             <li>
-              ✅ <span className="font-semibold">Visa options</span> matched to
-              your passport, income and work situation
+              ✅ <span className="font-semibold">Visa options</span> matched
+              to your passport, income and work situation
             </li>
             <li>
               ✅{" "}
@@ -851,6 +839,7 @@ function ResultsPanel({
   originCurrencyLabel,
   aiData,
   aiError,
+  aiLoading,
   onRetake,
 }: {
   result: QuizApiResponse | null;
@@ -858,9 +847,9 @@ function ResultsPanel({
   originCurrencyLabel: string;
   aiData: AIExplainData | null;
   aiError: string | null;
+  aiLoading: boolean;
   onRetake: () => void;
 }) {
-  // ✅ Extra safety: if result is null or has no matches, render nothing
   if (!result || !result.topMatches || result.topMatches.length === 0) {
     return null;
   }
@@ -908,6 +897,21 @@ function ResultsPanel({
   }
 
   const hasDisqualified = disqualifiedTop.length > 0;
+
+  let aiSummaryText: string;
+  if (aiData?.overallSummary) {
+    aiSummaryText = aiData.overallSummary;
+  } else if (aiError) {
+    aiSummaryText =
+      "AI insights are unavailable right now, but you still have the full numeric breakdown below.";
+  } else if (aiLoading) {
+    aiSummaryText =
+      "AI is writing your personalised insights for these countries…";
+  } else {
+    aiSummaryText =
+      "AI insights will appear here in a moment. Your numeric scores are already ready below.";
+  }
+
   return (
     <div className="space-y-5 mt-4">
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
@@ -939,21 +943,18 @@ function ResultsPanel({
                     AI summary of your matches
                   </p>
                 </div>
-                <span className="text-xs text-slate-500">
-                  {aiCollapsed ? "Show ▼" : "Hide ▲"}
-                </span>
+                <div className="flex items-center gap-2">
+                  {aiLoading && !aiData && !aiError && (
+                    <span className="inline-flex h-4 w-4 animate-spin rounded-full border border-emerald-400 border-t-transparent" />
+                  )}
+                  <span className="text-xs text-slate-500">
+                    {aiCollapsed ? "Show ▼" : "Hide ▲"}
+                  </span>
+                </div>
               </button>
 
               <SimpleCollapsible isOpen={!aiCollapsed}>
-                <p className="text-xs text-slate-800">
-                  {aiData?.overallSummary ? (
-                    aiData.overallSummary
-                  ) : aiError ? (
-                    "AI insights are unavailable right now, but you still have the full numeric breakdown below."
-                  ) : (
-                    "AI is still reading your profile and matches… your full numeric breakdown is already ready below."
-                  )}
-                </p>
+                <p className="text-xs text-slate-800">{aiSummaryText}</p>
               </SimpleCollapsible>
             </div>
           )}
@@ -1080,8 +1081,9 @@ function ResultsPanel({
       {activeTab === "disqualified" && !hasDisqualified && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.25)]">
           We didn&apos;t have to disqualify any strong matches based on your
-          hard rules. If you tighten something like culture or residency realism
-          later, you&apos;ll see countries appear here that we had to remove.
+          hard rules. If you tighten something like culture or residency
+          realism later, you&apos;ll see countries appear here that we had to
+          remove.
         </div>
       )}
     </div>
@@ -1169,8 +1171,10 @@ function buildDimensionsForProfile(
     selectedKeys.add("everydayServices");
   }
 
-  const dimsFromReasons: { key: keyof DimensionBreakdown; label: string }[] =
-    [];
+  const dimsFromReasons: {
+    key: keyof DimensionBreakdown;
+    label: string;
+  }[] = [];
   for (const dim of [...baseDims, ...optionalDims]) {
     if (selectedKeys.has(dim.key)) dimsFromReasons.push(dim);
   }
@@ -1406,8 +1410,8 @@ function DisqualifiedPanel({
         Strong fits we had to disqualify for your rules
       </p>
       <p className="text-[11px] text-slate-500">
-        These countries matched you on many things, but were removed because of a
-        hard rule you set. They can still be interesting to research if
+        These countries matched you on many things, but were removed because
+        of a hard rule you set. They can still be interesting to research if
         you&apos;re flexible.
       </p>
 
@@ -1509,7 +1513,9 @@ function DisqualifiedPanel({
                 <button
                   type="button"
                   onClick={() =>
-                    setExpandedCode((prev) => (prev === m.code ? null : m.code))
+                    setExpandedCode((prev) =>
+                      prev === m.code ? null : m.code
+                    )
                   }
                   className="flex items-center justify-between w-full text-[11px] text-slate-800 hover:text-slate-900"
                 >
@@ -1583,8 +1589,9 @@ function LoadingScreen({ progress }: { progress: number }) {
 
       <p className="text-[11px] text-slate-400 max-w-xs">
         We&apos;re actually scoring every country against your answers, then
-        letting AI re-rank the top ones. It takes a few seconds – but it&apos;s
-        worth it to find a place that really fits you.
+        letting AI re-rank the top ones. It takes a few seconds – but we try
+        to match this bar to the real processing time so it doesn&apos;t feel
+        stuck.
       </p>
     </div>
   );
@@ -1618,7 +1625,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      // logo.png must be in /public/logo.png
       img.src = "/logo.png";
       return;
     });
@@ -1639,7 +1645,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No 2D context");
 
-      // Background
       ctx.fillStyle = "#020617";
       ctx.fillRect(0, 0, width, height);
 
@@ -1656,7 +1661,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
-      // Load assets
       const [logo, flag1, flag2, flag3] = await Promise.all([
         loadLogo(),
         loadFlag(first?.code),
@@ -1680,12 +1684,10 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
-      // --- TOP AREA WITH BIGGER LOGO & PUSHED DOWN CONTENT ---
-
       let topOffset = 200;
 
       if (logo) {
-        const desiredWidth = 560; // bigger logo
+        const desiredWidth = 560;
         const aspect = logo.width / logo.height || 2.5;
         const logoW = desiredWidth;
         const logoH = desiredWidth / aspect;
@@ -1732,8 +1734,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "left",
         "500"
       );
-
-      // --- ROWS WITH FLAGS & SCORES ---
 
       const drawRow = (
         idxLabel: string,
@@ -1861,8 +1861,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         );
       }
 
-      // --- CTA BOX WITH BIG DOMAIN ---
-
       const ctaBoxHeight = 230;
       const ctaBoxY = height - ctaBoxHeight - 260;
 
@@ -1942,7 +1940,11 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
 
       const navAny = navigator as any;
 
-      if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
+      if (
+        navAny.share &&
+        navAny.canShare &&
+        navAny.canShare({ files: [file] })
+      ) {
         await navAny.share({
           files: [file],
           title: "My Relomatcher matches",
@@ -1982,8 +1984,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         </span>
       </button>
       <span className="max-w-xs">
-        This creates a vertical story with your top 3 matches, flags, your logo
-        and a big www.relomatcher.com CTA.
+        This creates a vertical story with your top 3 matches, flags, your
+        logo and a big www.relomatcher.com CTA.
         {savedOnce && " (Done! Check your share sheet or downloads.)"}
       </span>
     </div>
