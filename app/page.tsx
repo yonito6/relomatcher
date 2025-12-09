@@ -1629,6 +1629,17 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+    });
+  }
+
+  async function loadLogo(): Promise<HTMLImageElement | null> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      // logo.png must be in /public/logo.png
+      img.src = "/logo.png";
       return;
     });
   }
@@ -1648,6 +1659,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No 2D context");
 
+      // Background
       ctx.fillStyle = "#020617";
       ctx.fillRect(0, 0, width, height);
 
@@ -1664,7 +1676,9 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
-      const [flag1, flag2, flag3] = await Promise.all([
+      // Load assets
+      const [logo, flag1, flag2, flag3] = await Promise.all([
+        loadLogo(),
         loadFlag(first?.code),
         loadFlag(second?.code),
         loadFlag(third?.code),
@@ -1686,7 +1700,25 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         ctx.fillText(text, x, y);
       };
 
-      const topOffset = 200;
+      // --- TOP AREA WITH LOGO + TITLE ---
+
+      let topOffset = 200;
+
+      if (logo) {
+        const desiredWidth = 260;
+        const aspect = logo.width / logo.height || 2.5;
+        const logoW = desiredWidth;
+        const logoH = desiredWidth / aspect;
+
+        const logoX = width / 2 - logoW / 2;
+        const logoY = 120; // distance from top
+
+        ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+
+        // push the text below the logo
+        topOffset = logoY + logoH + 40;
+      }
+
       const titleY = topOffset + 55;
       const subtitleY = titleY + 60;
       const rowYStart = subtitleY + 110;
@@ -1702,15 +1734,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "700"
       );
 
-      drawText(
-        "Relomatcher",
-        width - 80,
-        topOffset,
-        38,
-        "#e5e7eb",
-        "right",
-        "600"
-      );
+      // ❌ Removed the old "Relomatcher" top-right text here
 
       drawText(
         "Find your best country match.",
@@ -1731,6 +1755,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "left",
         "500"
       );
+
+      // --- ROWS WITH FLAGS & SCORES ---
 
       const drawRow = (
         idxLabel: string,
@@ -1858,6 +1884,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         );
       }
 
+      // --- CTA BOX WITH BIG DOMAIN ---
+
       const ctaBoxHeight = 230;
       const ctaBoxY = height - ctaBoxHeight - 260;
 
@@ -1928,6 +1956,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "800"
       );
 
+      // --- EXPORT / SHARE ---
+
       const dataUrl = canvas.toDataURL("image/png");
       const res = await fetch(dataUrl);
       const blob = await res.blob();
@@ -1977,8 +2007,8 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         </span>
       </button>
       <span className="max-w-xs">
-        This creates a vertical story with your top 3 matches, flags and a big
-        www.relomatcher.com CTA.
+        This creates a vertical story with your top 3 matches, flags, your logo
+        and a big www.relomatcher.com CTA.
         {savedOnce && " (Done! Check your share sheet or downloads.)"}
       </span>
     </div>
