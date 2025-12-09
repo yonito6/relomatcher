@@ -1705,13 +1705,13 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       let topOffset = 200;
 
       if (logo) {
-        const desiredWidth = 380; // 🔥 Bigger logo
+        const desiredWidth = 520; // 🔥 Bigger logo
         const aspect = logo.width / logo.height || 2.5;
         const logoW = desiredWidth;
         const logoH = desiredWidth / aspect;
 
         const logoX = width / 2 - logoW / 2;
-        const logoY = 260; // 🔥 More margin above logo (moves logo down)
+        const logoY = 240; // 🔥 More margin above logo (moves logo down)
 
         ctx.drawImage(logo, logoX, logoY, logoW, logoH);
 
