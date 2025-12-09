@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
 import type { QuizData } from "@/lib/types";
 import { GenerateReportButton } from "@/components/GenerateReportButton";
+import { useRouter } from "next/navigation";
 
 const TOTAL_STEPS = 10;
 const SESSION_STORAGE_KEY = "relomatcherLastResult";
@@ -112,6 +113,7 @@ const MAIN_MENU_ITEMS = [
 ];
 
 export default function QuizPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<QuizData>(initialData);
   const [originCurrencyLabel, setOriginCurrencyLabel] =
@@ -476,7 +478,10 @@ export default function QuizPage() {
   function handleMenuItemClick(id: string) {
     if (id === "start-quiz") {
       handleStartQuiz();
+    } else if (id === "how-it-works") {
+      router.push("/how-relomatcher-works");
     }
+
     setSeoMenuOpen(false);
   }
 
