@@ -1332,21 +1332,20 @@ function MatchCard({
           </div>
         </div>
       ) : isAiLoading ? (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 flex gap-2">
-          <span className="mt-[1px] text-xs">⏳</span>
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700 flex gap-3">
+          <div className="mt-[2px] h-4 w-4 rounded-full border-[2px] border-slate-400 border-t-transparent animate-spin" />
           <div>
             <p className="font-semibold text-[11px] uppercase tracking-[0.14em] text-slate-500 mb-0.5">
               Generating AI insight
             </p>
             <p>
               We&apos;re preparing a tailored explanation for why{" "}
-              <span className="font-semibold">{match.name}</span> fits you. This
-              will appear here in a few moments.
+              <span className="font-semibold">{match.name}</span> fits you.
+              This will appear here in a few moments.
             </p>
           </div>
         </div>
       ) : null}
-
       <div className="mt-3 border-t border-slate-200 pt-2">
         <button
           type="button"
@@ -1590,26 +1589,19 @@ function DisqualifiedPanel({
 }
 
 function LoadingScreen({ progress }: { progress: number }) {
-  const clamped = Math.max(3, Math.min(progress, 100));
-
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+      {/* Spinner */}
+      <div className="h-10 w-10 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
+
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
         <span className="text-base">🤖</span>
-        <span>AI is calculating your best matches…</span>
-      </div>
-
-      <div className="w-full max-w-xs h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700 shadow-inner">
-        <div
-          className="h-full bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200 transition-all duration-150 ease-out"
-          style={{ width: `${clamped}%` }}
-        />
+        <span>We&apos;re finding your best matches…</span>
       </div>
 
       <p className="text-[11px] text-slate-400 max-w-xs">
-        We&apos;re actually scoring every country against your answers, then
-        letting AI re-rank the top ones. It takes a few seconds – but it&apos;s
-        worth it to find a place that really fits you.
+        We&apos;re scoring each country against your answers and letting AI
+        refine the final list. This usually takes just a moment.
       </p>
     </div>
   );
