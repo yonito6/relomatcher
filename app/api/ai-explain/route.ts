@@ -220,8 +220,8 @@ No extra keys, no markdown, no prose outside JSON.
       console.error("Failed to parse AI JSON:", e, "content:", content);
     }
 
+    // If parsing fails completely → simple fallback for top matches + disqualified
     if (!parsed || typeof parsed.overallSummary !== "string") {
-      // Fallback simple AI-ish explanation if JSON parse fails
       const fallback: AIExplainData = {
         overallSummary:
           "Here are your top country matches based on your answers. The engine balanced taxes, cost of living, safety, lifestyle, climate and LGBT fit according to what you said matters.",
@@ -245,14 +245,40 @@ No extra keys, no markdown, no prose outside JSON.
     const allowedWinnerCodes = new Set(compactMatches.map((m) => m.code));
     const allowedDisqCodes = new Set(compactDisqualified.map((d) => d.code));
 
+    const rawWinners = Array.isArray(parsed.winners) ? parsed.winners : [];
+    const rawDisqualified = Array.isArray(parsed.disqualified)
+      ? parsed.disqualified
+      : [];
+
+    const cleanedWinnerBase: AIExplainCountryComment[] = rawWinners.filter(
+      (w: any) => w.code && allowedWinnerCodes.has(w.code)
+    );
+    const cleanedDisqBase: AIExplainCountryComment[] = rawDisqualified.filter(
+      (d: any) => d.code && allowedDisqCodes.has(d.code)
+    );
+
+    // Ensure ALL of the first 3 numeric matches get an AI comment
+    const ensuredWinners: AIExplainCountryComment[] = [...cleanedWinnerBase];
+
+    for (const m of compactMatches.slice(0, 3)) {
+      if (!ensuredWinners.some((w) => w.code === m.code)) {
+        ensuredWinners.push({
+          code: m.code,
+          aiComment: `Good fit overall: strong score of ${m.totalScore.toFixed(
+            1
+          )}/10 and a mix of ${m.shortNote.toLowerCase()}.`,
+        });
+      }
+    }
+
     const cleaned: AIExplainData = {
-      overallSummary: parsed.overallSummary,
-      winners: (parsed.winners || []).filter(
-        (w) => w.code && allowedWinnerCodes.has(w.code)
-      ),
-      disqualified: (parsed.disqualified || []).filter(
-        (d) => d.code && allowedDisqCodes.has(d.code)
-      ),
+      overallSummary:
+        typeof parsed.overallSummary === "string" &&
+        parsed.overallSummary.trim().length > 0
+          ? parsed.overallSummary
+          : "Here are your top country matches based on your answers. The engine balanced taxes, cost of living, safety, lifestyle, climate and LGBT fit according to what you said matters.",
+      winners: ensuredWinners,
+      disqualified: cleanedDisqBase,
     };
 
     return NextResponse.json(cleaned, { status: 200 });
