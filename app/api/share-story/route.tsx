@@ -15,6 +15,9 @@ export async function GET(req: Request) {
     const s2 = searchParams.get("s2") || "";
     const s3 = searchParams.get("s3") || "";
 
+    // Build absolute base URL for the logo
+    const { origin } = new URL(req.url);
+
     return new ImageResponse(
       (
         <div
@@ -39,9 +42,9 @@ export async function GET(req: Request) {
               marginBottom: 20,
             }}
           >
-            {/* Center Logo (served reliably from /public) */}
+            {/* Center Logo */}
             <img
-              src="public/logo.png"
+              src={`${origin}/logo.png`} // <<<<<< KEY FIX
               alt="Relomatcher Logo"
               style={{
                 width: 180,
