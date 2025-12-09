@@ -39,9 +39,9 @@ export async function GET(req: Request) {
               marginBottom: 20,
             }}
           >
-            {/* Center Logo */}
+            {/* Center Logo (served reliably from /public) */}
             <img
-              src="https://i.ibb.co/vxmwqW2x/logo-v1.png"
+              src="/logo-v1.png"
               alt="Relomatcher Logo"
               style={{
                 width: 180,
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
               }}
             />
 
-            {/* Top bar capsule - now centered */}
+            {/* Capsule */}
             <div
               style={{
                 padding: "8px 18px",
@@ -200,6 +200,7 @@ function Row(props: {
           {name}
         </div>
       </div>
+
       {score ? (
         <div
           style={{
