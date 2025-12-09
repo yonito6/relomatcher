@@ -103,84 +103,12 @@ type AIExplainData = {
   disqualified: AIExplainCountryComment[];
 };
 
-type SeoMenuItem = {
-  id: string;
-  label: string;
-  keyword: string;
-  description: string;
-};
-
-const SEO_MENU_ITEMS: SeoMenuItem[] = [
-  {
-    id: "best-places-world",
-    label: "Best places to live in the world",
-    keyword: "best places to live in the world",
-    description:
-      "Long-form guides comparing the best places to live in the world by taxes, safety, cost of living and lifestyle. Great top-funnel content for people still exploring options globally.",
-  },
-  {
-    id: "best-countries-live",
-    label: "Best countries to live",
-    keyword: "best countries to live",
-    description:
-      "Country-level rankings for people asking which are the best countries to live in. Perfect for list posts like “Top 10 countries to live in if you work online.”",
-  },
-  {
-    id: "best-cities-live",
-    label: "Best cities to live in",
-    keyword: "best cities to live in",
-    description:
-      "City-focused deep dives for major hubs. You can split by lifestyle: calm, family-friendly, party cities, startup hubs, etc.",
-  },
-  {
-    id: "easiest-countries-immigrate",
-    label: "Easiest countries to immigrate to",
-    keyword: "easiest countries to immigrate to",
-    description:
-      "Explain real, realistic paths: digital nomad visas, freelancer visas, residency-by-investment and easy long-stay options.",
-  },
-  {
-    id: "digital-nomad-countries",
-    label: "Digital nomad countries",
-    keyword: "digital nomad countries",
-    description:
-      "Roundups of the best digital nomad countries, combining visas, internet, safety and cost of living for remote workers.",
-  },
-  {
-    id: "best-expat-countries",
-    label: "Best expat countries",
-    keyword: "best expat countries",
-    description:
-      "Guides for expats who want stable, long-term life abroad: healthcare, schools, bureaucracy and integration.",
-  },
-  {
-    id: "best-cities-expats",
-    label: "Best cities for expats",
-    keyword: "best cities for expats",
-    description:
-      "City-level content around expat communities, coworking, international schools, English levels and social life.",
-  },
-  {
-    id: "where-should-i-move-quiz",
-    label: "Where should I move? Quiz",
-    keyword: "where should I move quiz",
-    description:
-      "Landing pages focused on the quiz itself. You already have this – we’ll link future articles back into the quiz and vice versa.",
-  },
-  {
-    id: "where-should-i-live-test",
-    label: "Where should I live? Test",
-    keyword: "where i should live test",
-    description:
-      "Alternate quiz wording (test vs quiz). Great for extra landing pages that still point into your main Relomatcher quiz.",
-  },
-  {
-    id: "lowest-tax-countries",
-    label: "Lowest-tax countries to live in",
-    keyword: "lowest tax countries to live in",
-    description:
-      "A hub page about low-tax and tax-efficient countries for remote workers and business owners. From here we can link out to specific country breakdowns and your quiz.",
-  },
+const MAIN_MENU_ITEMS = [
+  { id: "how-it-works", label: "How Relomatcher works" },
+  { id: "lowest-tax", label: "Lowest-tax countries" },
+  { id: "best-places", label: "Best places to live" },
+  { id: "expat-cities", label: "Best cities for expats" },
+  { id: "start-quiz", label: "Start the quiz" },
 ];
 
 export default function QuizPage() {
@@ -207,7 +135,9 @@ export default function QuizPage() {
   const hasScrolledToResultsRef = useRef(false);
 
   const [seoMenuOpen, setSeoMenuOpen] = useState(false);
-  const [openSeoItemId, setOpenSeoItemId] = useState<string | null>(null);
+
+  // To avoid double-fetching AI explain
+  const aiRequestedRef = useRef(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -227,6 +157,7 @@ export default function QuizPage() {
     };
   }, []);
 
+  // Restore last result from session storage (including AI data if present)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -273,6 +204,7 @@ export default function QuizPage() {
     }
   }, []);
 
+  // Infer origin currency label
   useEffect(() => {
     const map: Record<string, string> = {
       Israel: "ILS",
@@ -320,14 +252,23 @@ export default function QuizPage() {
     setCurrentStep((s) => Math.max(s - 1, 0));
   }
 
+  /**
+   * SUBMIT: One server call only → /api/quiz
+   * /api/quiz is assumed to already:
+   *   - Score all countries numerically
+   *   - Use AI (aiRerankMatches) to decide final ranking + topMatches
+   */
   async function handleSubmit() {
     setSubmittedProfile(data);
     setLoading(true);
-    setProgress(5);
+    setProgress(10); // initial phase
     setErrorMsg(null);
     setResult(null);
+
+    // reset AI state for this run
     setAiData(null);
     setAiError(null);
+    aiRequestedRef.current = false;
     hasScrolledToResultsRef.current = false;
 
     try {
@@ -344,43 +285,8 @@ export default function QuizPage() {
 
       const json = (await res.json()) as QuizApiResponse;
 
-      let localAiData: AIExplainData | null = null;
-      let localAiError: string | null = null;
-
-      if (json.topMatches && json.topMatches.length > 0) {
-        try {
-          const aiRes = await fetch("/api/ai-explain", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              profile: data,
-              topMatches: json.topMatches || [],
-              disqualifiedTop: json.disqualifiedTop || [],
-            }),
-          });
-
-          const body = (await aiRes
-            .json()
-            .catch(
-              () =>
-                ({ error: "Failed to parse AI response JSON" }) as {
-                  error?: string;
-                }
-            )) as Partial<AIExplainData> & { error?: string };
-
-          if (!aiRes.ok) {
-            localAiError =
-              body.error || "AI explanation request failed with non-200 status.";
-          } else {
-            localAiData = body as AIExplainData;
-          }
-        } catch (aiErr: any) {
-          console.error("AI explanation error:", aiErr);
-          localAiError =
-            aiErr?.message ||
-            "Something went wrong while generating AI insights.";
-        }
-      }
+      // Numeric + AI-based ranking are ready
+      setProgress(80);
 
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(
@@ -388,15 +294,13 @@ export default function QuizPage() {
           JSON.stringify({
             profile: data,
             result: json,
-            aiData: localAiData,
-            aiError: localAiError,
+            aiData: null,
+            aiError: null,
           })
         );
       }
 
       setResult(json);
-      setAiData(localAiData);
-      setAiError(localAiError);
     } catch (err: any) {
       console.error("Quiz submit error:", err);
       setErrorMsg(
@@ -406,34 +310,35 @@ export default function QuizPage() {
       setProgress(100);
       setTimeout(() => {
         setLoading(false);
-      }, 500);
+        setProgress(0);
+      }, 400);
     }
   }
 
   const stepProgress = ((currentStep + 1) / TOTAL_STEPS) * 100;
 
+  /**
+   * Loading bar animation: creep towards ~85%, then jump to 100% when done
+   * so it doesn't look "stuck" at 90 for ages.
+   */
   useEffect(() => {
     if (!loading) return;
 
-    setProgress((prev) => (prev < 5 ? 5 : prev));
+    setProgress((prev) => (prev < 10 ? 10 : prev));
 
     const id = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 95) return prev;
-
-        const target = 95;
-        const distance = target - prev;
-        const baseIncrement = distance * 0.04;
-        const jitter = Math.random() * 0.8;
-        let next = prev + baseIncrement + jitter;
-        if (next > target) next = target;
-        return next;
+        if (prev >= 85) return prev;
+        const increment = 3 + Math.random() * 4; // 3–7%
+        const next = prev + increment;
+        return next > 85 ? 85 : next;
       });
-    }, 200);
+    }, 250);
 
     return () => clearInterval(id);
   }, [loading]);
 
+  // Scroll to loading block when we start loading
   useEffect(() => {
     if (loading && loadingRef.current) {
       loadingRef.current.scrollIntoView({
@@ -443,6 +348,7 @@ export default function QuizPage() {
     }
   }, [loading]);
 
+  // Scroll to results when they're ready the first time
   useEffect(() => {
     if (
       !loading &&
@@ -460,6 +366,94 @@ export default function QuizPage() {
       }
     }
   }, [loading, result]);
+
+  /**
+   * AFTER we have result.topMatches (already AI-ranked),
+   * we fetch AI explanation in the background.
+   * This does NOT block showing the results.
+   *
+   * ✅ FIXED: use currentResult/currentProfile so TS knows they're non-null.
+   */
+  useEffect(() => {
+    const currentResult = result;
+    const currentProfile = submittedProfile || data;
+
+    if (
+      !currentResult ||
+      !currentResult.topMatches ||
+      currentResult.topMatches.length === 0
+    ) {
+      return;
+    }
+    if (aiRequestedRef.current) return;
+
+    aiRequestedRef.current = true;
+
+    let cancelled = false;
+
+    async function loadAiExplain() {
+      try {
+        setAiError(null);
+        setAiData(null);
+
+        const aiRes = await fetch("/api/ai-explain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile: currentProfile,
+            topMatches: currentResult.topMatches || [],
+            disqualifiedTop: currentResult.disqualifiedTop || [],
+          }),
+        });
+
+        const body = (await aiRes
+          .json()
+          .catch(
+            () =>
+              ({ error: "Failed to parse AI response JSON" }) as {
+                error?: string;
+              }
+          )) as Partial<AIExplainData> & { error?: string };
+
+        if (cancelled) return;
+
+        if (!aiRes.ok) {
+          setAiError(
+            body.error || "AI explanation request failed with non-200 status."
+          );
+          return;
+        }
+
+        setAiData(body as AIExplainData);
+
+        // Update session storage with AI data as well
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            SESSION_STORAGE_KEY,
+            JSON.stringify({
+              profile: currentProfile,
+              result: currentResult,
+              aiData: body,
+              aiError: null,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("AI explanation error:", e);
+        if (!cancelled) {
+          setAiError(
+            e?.message || "Something went wrong while generating AI insights."
+          );
+        }
+      }
+    }
+
+    loadAiExplain();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [result, submittedProfile, data]);
 
   function handleStartQuiz() {
     setShowQuiz(true);
@@ -488,9 +482,17 @@ export default function QuizPage() {
     }
   }
 
+  function handleMenuItemClick(id: string) {
+    if (id === "start-quiz") {
+      handleStartQuiz();
+    }
+    setSeoMenuOpen(false);
+  }
+
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-50 flex items-start justify-center py-10 px-4 font-sans">
       <div className="w-full max-w-6xl mx-auto relative">
+        {/* HEADER with logo + hamburger in the top-right */}
         <header className="flex items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-3">
             <img
@@ -499,6 +501,19 @@ export default function QuizPage() {
               className="h-12 w-auto object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.75)] rounded-xl"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setSeoMenuOpen((v) => !v)}
+            className="inline-flex items-center justify-center rounded-full bg-white text-slate-900 border border-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.35)] h-10 w-10 hover:bg-slate-100 active:scale-95 transition-transform"
+            aria-label="Open menu"
+          >
+            <div className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-5 rounded-full bg-slate-900" />
+              <span className="block h-0.5 w-5 rounded-full bg-slate-900" />
+              <span className="block h-0.5 w-5 rounded-full bg-slate-900" />
+            </div>
+          </button>
         </header>
 
         {!showQuiz && (
@@ -669,93 +684,49 @@ export default function QuizPage() {
           </>
         )}
 
-        <button
-          type="button"
-          onClick={() => setSeoMenuOpen((v) => !v)}
-          className="fixed z-40 right-4 bottom-5 md:bottom-auto md:top-1/2 md:-translate-y-1/2 inline-flex items-center justify-center rounded-full bg-slate-900 border border-slate-700 shadow-[0_14px_32px_rgba(0,0,0,0.6)] h-11 w-11 hover:bg-slate-800 active:scale-95 transition-transform"
-          aria-label="Open relocation topics menu"
-        >
-          <div className="flex flex-col gap-1.5">
-            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
-            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
-            <span className="block h-0.5 w-5 rounded-full bg-slate-100" />
-          </div>
-        </button>
+        {/* CLICK-OUTSIDE OVERLAY FOR MENU */}
+        {seoMenuOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40"
+            onClick={() => setSeoMenuOpen(false)}
+          />
+        )}
 
+        {/* RIGHT SIDE MENU – WHITE, LIKE THE FORM */}
         <div
-          className={`fixed inset-y-0 right-0 z-40 w-72 sm:w-80 bg-slate-950/95 border-l border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.75)] transform transition-transform duration-300 ${
+          className={`fixed inset-y-0 right-0 z-40 w-72 sm:w-80 bg-white border-l border-slate-200 shadow-[0_24px_60px_rgba(0,0,0,0.6)] transform transition-transform duration-300 ${
             seoMenuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
-                Relocation topics
-              </p>
-              <p className="text-xs text-slate-200">
-                Future guides for SEO + internal links.
-              </p>
-            </div>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
+              Menu
+            </p>
             <button
               type="button"
               onClick={() => setSeoMenuOpen(false)}
-              className="h-7 w-7 flex items-center justify-center rounded-full bg-slate-900 border border-slate-700 text-xs text-slate-200 hover:bg-slate-800"
-              aria-label="Close relocation topics menu"
+              className="h-7 w-7 flex items-center justify-center rounded-full bg-slate-100 border border-slate-300 text-xs text-slate-700 hover:bg-slate-200"
+              aria-label="Close menu"
             >
               ✕
             </button>
           </div>
 
-          <div className="px-3 py-3 h-full overflow-y-auto">
-            <p className="text-[11px] text-slate-400 mb-3">
-              We&apos;ll turn each of these into a dedicated article and link
-              them into your quiz results and landing pages.
-            </p>
-            <div className="space-y-2">
-              {SEO_MENU_ITEMS.map((item) => {
-                const isOpen = openSeoItemId === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/70"
+          <nav className="px-3 py-3">
+            <ul className="space-y-1.5">
+              {MAIN_MENU_ITEMS.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleMenuItemClick(item.id)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-[13px] font-medium text-slate-800 hover:bg-slate-100"
                   >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenSeoItemId((prev) =>
-                          prev === item.id ? null : item.id
-                        )
-                      }
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-semibold text-slate-50 truncate">
-                          {item.label}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">
-                          Keyword: {item.keyword}
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {isOpen ? "▲" : "▼"}
-                      </span>
-                    </button>
-                    <SimpleCollapsible isOpen={isOpen}>
-                      <div className="px-3 pb-3">
-                        <p className="text-[11px] text-slate-300">
-                          {item.description}
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-1.5">
-                          Later we&apos;ll add internal links here (for example:
-                          /guides/{item.id}) and link back into the quiz.
-                        </p>
-                      </div>
-                    </SimpleCollapsible>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
       </div>
     </main>
@@ -882,13 +853,18 @@ function ResultsPanel({
   aiError,
   onRetake,
 }: {
-  result: QuizApiResponse;
+  result: QuizApiResponse | null;
   profile: QuizData | null;
   originCurrencyLabel: string;
   aiData: AIExplainData | null;
   aiError: string | null;
   onRetake: () => void;
 }) {
+  // ✅ Extra safety: if result is null or has no matches, render nothing
+  if (!result || !result.topMatches || result.topMatches.length === 0) {
+    return null;
+  }
+
   const rawMatches = result.topMatches || [];
   const topMatches = rawMatches.slice(0, 3);
 
@@ -932,7 +908,6 @@ function ResultsPanel({
   }
 
   const hasDisqualified = disqualifiedTop.length > 0;
-
   return (
     <div className="space-y-5 mt-4">
       <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
@@ -971,9 +946,13 @@ function ResultsPanel({
 
               <SimpleCollapsible isOpen={!aiCollapsed}>
                 <p className="text-xs text-slate-800">
-                  {aiData?.overallSummary
-                    ? aiData.overallSummary
-                    : "Your matches are ready. If AI insights fail for some reason, you still have the full numeric breakdown below."}
+                  {aiData?.overallSummary ? (
+                    aiData.overallSummary
+                  ) : aiError ? (
+                    "AI insights are unavailable right now, but you still have the full numeric breakdown below."
+                  ) : (
+                    "AI is still reading your profile and matches… your full numeric breakdown is already ready below."
+                  )}
                 </p>
               </SimpleCollapsible>
             </div>
@@ -1629,6 +1608,7 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
       img.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+      return;
     });
   }
 
@@ -1705,18 +1685,17 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
       let topOffset = 200;
 
       if (logo) {
-        const desiredWidth = 560; // 🔥 Bigger logo
+        const desiredWidth = 560; // bigger logo
         const aspect = logo.width / logo.height || 2.5;
         const logoW = desiredWidth;
         const logoH = desiredWidth / aspect;
 
         const logoX = width / 2 - logoW / 2;
-        const logoY = 240; // 🔥 More margin above logo (moves logo down)
+        const logoY = 240;
 
         ctx.drawImage(logo, logoX, logoY, logoW, logoH);
 
-        // Push the text further down so everything is more centered
-        topOffset = logoY + logoH + 80; // 🔥 increased gap below logo
+        topOffset = logoY + logoH + 80;
       }
 
       const titleY = topOffset + 55;
@@ -1953,8 +1932,6 @@ function ShareStoryImageButton({ topMatches }: { topMatches: CountryMatch[] }) {
         "center",
         "800"
       );
-
-      // --- EXPORT / SHARE ---
 
       const dataUrl = canvas.toDataURL("image/png");
       const res = await fetch(dataUrl);

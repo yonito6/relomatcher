@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       reasons: profile.reasons,
     };
 
-    const compactMatches = topMatches.slice(0, 3).map((m) => ({
+    const compactMatches = topMatches.slice(0, 10).map((m) => ({
       code: m.code,
       name: m.name,
       totalScore: m.totalScore,
@@ -119,32 +119,39 @@ export async function POST(req: Request) {
       explanations: m.explanations,
     }));
 
-    const compactDisqualified = (disqualifiedTop || []).slice(0, 3).map((d) => ({
-      code: d.code,
-      name: d.name,
-      baseScore: d.baseScore,
-      shortNote: d.shortNote,
-      netIncomePercent: d.netIncomePercent,
-      reason: d.reason,
-      breakdown: d.breakdown,
-      explanations: d.explanations,
-    }));
+    const compactDisqualified = (disqualifiedTop || [])
+      .slice(0, 5)
+      .map((d) => ({
+        code: d.code,
+        name: d.name,
+        baseScore: d.baseScore,
+        shortNote: d.shortNote,
+        netIncomePercent: d.netIncomePercent,
+        reason: d.reason,
+        breakdown: d.breakdown,
+        explanations: d.explanations,
+      }));
 
     const systemPrompt = `
 You are an expert relocation advisor.
-User is deciding where to relocate based on numeric scores from a country-matching engine.
+The user is deciding where to relocate based on numeric scores from a country-matching engine.
 
 You will receive:
 - A short profile of the user and what they care about.
-- Top matching countries (with scores and explanations).
+- A list of top matching countries (with scores and explanations).
 - "Disqualified" strong options that were removed because of non-negotiables (e.g. LGBT, safety, realistic residency).
 
 Your job:
-1. Write ONE short overall summary (2–4 sentences) comparing the top matches and explaining the main tradeoffs.
+1. Carefully consider the user's profile and the numeric scores.
+2. From the "topMatches" list, choose up to THREE winner countries that you think are the best fit overall.
+   - You MAY reorder the numeric ranking if you think another country is a better overall fit for this user.
+   - The "winners" array MUST be in order from strongest match (index 0) to weaker matches (index 1, 2).
+   - Do NOT invent countries; only use country codes that appear in "topMatches".
+3. Write ONE short overall summary (2–4 sentences) comparing these winner countries and explaining the main tradeoffs.
    - Be concrete: mention country names and why each one fits (taxes, climate, LGBT, culture, etc).
    - Talk in friendly, clear language (no bullet points, no headings).
-2. For each winner country, write 1–2 sentences focusing on WHY this specific country matches this user.
-3. For each disqualified country, write 1–2 sentences explaining why it *almost* fit, and what rule killed it.
+4. For each winner country, write 1–2 sentences focusing on WHY this specific country matches this user.
+5. For each disqualified country, write 1–2 sentences explaining why it *almost* fit, and what rule killed it.
 
 Return STRICT JSON in this exact format and nothing else:
 {
@@ -158,6 +165,8 @@ Return STRICT JSON in this exact format and nothing else:
     ...
   ]
 }
+- "winners" MUST be in your recommended ranking order (best to weaker).
+- Only use country codes that exist in the input.
 No extra keys, no markdown, no prose outside JSON.
 `;
 
@@ -170,21 +179,21 @@ No extra keys, no markdown, no prose outside JSON.
       }),
     };
 
-    const completionRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1", // you can change this to gpt-4.1 or other model if you prefer
-        messages: [
-          { role: "system", content: systemPrompt },
-          userPrompt,
-        ],
-        temperature: 0.7,
-      }),
-    });
+    const completionRes = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1", // you can change this to another model if you prefer
+          messages: [{ role: "system", content: systemPrompt }, userPrompt],
+          temperature: 0.7,
+        }),
+      }
+    );
 
     if (!completionRes.ok) {
       console.error("AI explain API error status:", completionRes.status);
@@ -216,7 +225,7 @@ No extra keys, no markdown, no prose outside JSON.
       const fallback: AIExplainData = {
         overallSummary:
           "Here are your top country matches based on your answers. The engine balanced taxes, cost of living, safety, lifestyle, climate and LGBT fit according to what you said matters.",
-        winners: compactMatches.map((m) => ({
+        winners: compactMatches.slice(0, 3).map((m) => ({
           code: m.code,
           aiComment: `Good fit overall: strong score of ${m.totalScore.toFixed(
             1
