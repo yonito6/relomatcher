@@ -278,6 +278,26 @@ function AdaptiveQuizForm({
     }
   }, []);
 
+  // 🔁 NEW EFFECT: when quiz is clearly "fresh" (step 0 & no data),
+  // reset the submitted state so Next/Back appear again.
+  React.useEffect(() => {
+    const looksLikeFreshStart =
+      currentStep === 0 &&
+      !data.currentCountry &&
+      !data.ageRange &&
+      (!data.reasons || data.reasons.length === 0) &&
+      (!data.languagesSpoken || data.languagesSpoken.length === 0);
+
+    if (looksLikeFreshStart && hasSubmitted) {
+      setHasSubmitted(false);
+      setIsCollapsed(false);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(FORM_SUBMITTED_KEY);
+        window.localStorage.removeItem(FORM_COLLAPSED_KEY);
+      }
+    }
+  }, [currentStep, data.currentCountry, data.ageRange, data.reasons, data.languagesSpoken, hasSubmitted]);
+
   const toggleCollapsedPersisted = () => {
     setIsCollapsed((prev) => {
       const next = !prev;
