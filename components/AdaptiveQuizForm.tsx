@@ -359,12 +359,6 @@ function AdaptiveQuizForm({
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Safety guard: if already submitted and we're on the review step,
-    // ignore extra submits (button text will also change).
-    if (isLastStep && hasSubmitted) {
-      return;
-    }
-
     let error: string | null = null;
 
     if (currentStep === 0) {
@@ -524,8 +518,9 @@ function AdaptiveQuizForm({
     setValidationError(null);
 
     if (isLastStep) {
+      // First time we submit: store + collapse + trigger results
       setHasSubmitted(true);
-      setIsCollapsed(true); // auto-collapse after "See my matches"
+      setIsCollapsed(true);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(FORM_SUBMITTED_KEY, "true");
         window.localStorage.setItem(FORM_COLLAPSED_KEY, "true");
@@ -1659,17 +1654,13 @@ function AdaptiveQuizForm({
   const showBody = !(hasSubmitted && isCollapsed);
 
   // CTA text & behaviour:
+  // - Before submit on review step: "🔥 See my matches"
+  // - On other steps: "Next"
+  // - After submit: buttons are hidden completely (see render below)
   const isReviewStep = isLastStep;
-  const primaryCtaLabel = !isReviewStep
-    ? "Next"
-    : hasSubmitted
-    ? "Profile saved"
-    : "🔥 See my matches";
-
-  const primaryCtaType: "button" | "submit" =
-    !isReviewStep || !hasSubmitted ? "submit" : "button";
-
-  const primaryCtaDisabled = isReviewStep && hasSubmitted;
+  const primaryCtaLabel = !isReviewStep ? "Next" : "🔥 See my matches";
+  const primaryCtaType: "button" | "submit" = "submit";
+  const primaryCtaDisabled = false;
 
   return (
     <form
@@ -1712,7 +1703,8 @@ function AdaptiveQuizForm({
         </p>
       )}
 
-      {showBody && (
+      {/* Navigation/footer: hidden entirely after submitting */}
+      {showBody && !hasSubmitted && (
         <div className="flex items-center justify-between pt-2 mt-2">
           <button
             type="button"
@@ -1726,10 +1718,6 @@ function AdaptiveQuizForm({
             <p className="hidden xs:block text-[11px] text-slate-500">
               Question {currentStep + 1} of {totalSteps}
             </p>
-            {/* Primary CTA:
-                - Before submit: "Next" / "🔥 See my matches"
-                - After submit on last step: "Profile saved" (non-submitting, disabled)
-             */}
             <button
               type={primaryCtaType}
               disabled={primaryCtaDisabled}
@@ -1796,7 +1784,9 @@ function getStepContext(
     if (has("lower_taxes")) bits.push("lower taxes");
     if (has("lower_cost_of_living")) bits.push("lower cost of living");
     if (bits.length) {
-      return `We’ll keep ${bits.join(" & ")} in mind. Next, I want to understand how calm and safe you want your future country to feel.`;
+      return `We’ll keep ${bits.join(
+        " & "
+      )} in mind. Next, I want to understand how calm and safe you want your future country to feel.`;
     }
     return "Now I want to understand how calm and safe you want your future country to feel.";
   }
