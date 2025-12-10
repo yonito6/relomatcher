@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import type { QuizData, RelocationReasonId } from "@/lib/types";
 
 type Props = {
@@ -14,20 +14,11 @@ type Props = {
   onSubmit: () => void;
 };
 
-// Subset of RelocationReasonId we actually show as “headline” reasons
-type PrimaryReasonId = Extract<
-  RelocationReasonId,
-  | "lower_taxes"
-  | "lower_cost_of_living"
-  | "better_weather"
-  | "career_growth"
-  | "remote_work"
-  | "dev_public_transport"
-  | "expat_community"
-  | "social_life"
->;
+// LocalStorage keys to persist state across page reloads / navigation
+const FORM_SUBMITTED_KEY = "relomatcher_form_submitted";
+const FORM_COLLAPSED_KEY = "relomatcher_form_collapsed";
 
-// Country list for autocomplete (use your full list)
+// Country list for autocomplete
 const COUNTRY_OPTIONS = [
   "Afghanistan",
   "Albania",
@@ -67,104 +58,164 @@ const COUNTRY_OPTIONS = [
   "China",
   "Colombia",
   "Comoros",
-  "Congo",
   "Costa Rica",
   "Croatia",
   "Cuba",
   "Cyprus",
   "Czech Republic",
+  "Democratic Republic of the Congo",
   "Denmark",
+  "Djibouti",
+  "Dominica",
   "Dominican Republic",
   "Ecuador",
   "Egypt",
   "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
   "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
   "Finland",
   "France",
+  "Gabon",
+  "Gambia",
   "Georgia",
   "Germany",
+  "Ghana",
   "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
   "Hungary",
   "Iceland",
   "India",
   "Indonesia",
+  "Iran",
+  "Iraq",
   "Ireland",
   "Israel",
   "Italy",
+  "Ivory Coast",
+  "Jamaica",
   "Japan",
   "Jordan",
   "Kazakhstan",
   "Kenya",
+  "Kiribati",
+  "Kosovo",
   "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
   "Latvia",
   "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
   "Lithuania",
   "Luxembourg",
+  "Madagascar",
+  "Malawi",
   "Malaysia",
+  "Maldives",
+  "Mali",
   "Malta",
+  "Mauritania",
+  "Mauritius",
   "Mexico",
   "Moldova",
   "Monaco",
+  "Mongolia",
   "Montenegro",
   "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
   "Netherlands",
   "New Zealand",
+  "Nicaragua",
+  "Niger",
   "Nigeria",
+  "North Korea",
+  "North Macedonia",
   "Norway",
   "Oman",
   "Pakistan",
   "Panama",
+  "Papua New Guinea",
   "Paraguay",
   "Peru",
   "Philippines",
   "Poland",
   "Portugal",
   "Qatar",
+  "Republic of the Congo",
   "Romania",
   "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "Sao Tome and Principe",
   "Saudi Arabia",
+  "Senegal",
   "Serbia",
+  "Seychelles",
+  "Sierra Leone",
   "Singapore",
   "Slovakia",
   "Slovenia",
+  "Solomon Islands",
+  "Somalia",
   "South Africa",
   "South Korea",
+  "South Sudan",
   "Spain",
   "Sri Lanka",
+  "Sudan",
+  "Suriname",
   "Sweden",
   "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
   "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
   "Tunisia",
   "Turkey",
+  "Turkmenistan",
+  "Uganda",
   "Ukraine",
   "United Arab Emirates",
   "United Kingdom",
   "United States",
   "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
   "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe",
+  "Other / not listed",
 ];
 
-// High-level reasons shown as checkboxes – all valid RelocationReasonId
-const REASON_LABELS: Record<PrimaryReasonId, string> = {
-  lower_taxes: "Lower taxes",
-  lower_cost_of_living: "Lower cost of living",
-  better_weather: "Better weather",
-  career_growth: "Better career & income opportunities",
-  remote_work: "Remote-work friendly",
-  dev_public_transport: "Better public transport & infrastructure",
-  expat_community: "Strong expat / international community",
-  social_life: "Better lifestyle & social life",
-};
-
-const WORK_SITUATION_OPTIONS = [
-  "Remote employee",
-  "Remote freelancer / contractor",
-  "Business owner",
-  "Local employee",
-  "Student",
-  "Not working yet",
-];
-
+// Widely used languages in relocation hotspots
 const LANGUAGE_OPTIONS = [
   "English",
   "Spanish",
@@ -173,43 +224,24 @@ const LANGUAGE_OPTIONS = [
   "German",
   "Italian",
   "Dutch",
-  "Hebrew",
-  "Arabic",
+  "Greek",
+  "Romanian",
+  "Bulgarian",
+  "Polish",
+  "Czech",
+  "Hungarian",
   "Russian",
+  "Ukrainian",
+  "Turkish",
+  "Arabic",
+  "Hebrew",
+  "Thai",
   "Chinese (Mandarin)",
   "Japanese",
   "Korean",
-  "Other",
 ];
 
-const AGE_RANGES = [
-  "18–24",
-  "25–29",
-  "30–34",
-  "35–39",
-  "40–44",
-  "45–49",
-  "50+",
-];
-
-const FAMILY_STATUS_OPTIONS = [
-  "Single",
-  "In a relationship (no kids)",
-  "Married / long-term (no kids)",
-  "Family with kids",
-];
-
-const RELOCATING_WITH_OPTIONS = [
-  "Just me",
-  "Partner",
-  "Partner + kids",
-  "Kids only",
-  "Friends / co-founders",
-];
-
-const incomeCurrencyFallbackLabel = "your currency";
-
-const AdaptiveQuizForm: React.FC<Props> = ({
+function AdaptiveQuizForm({
   currentStep,
   totalSteps,
   data,
@@ -218,707 +250,1713 @@ const AdaptiveQuizForm: React.FC<Props> = ({
   onNext,
   onBack,
   onSubmit,
-}) => {
-  const [countryQuery, setCountryQuery] = useState("");
-  const [passportCountryQuery, setPassportCountryQuery] = useState("");
-  const [secondPassportCountryQuery, setSecondPassportCountryQuery] =
-    useState("");
+}: Props) {
+  const reasons = (data.reasons ?? []) as RelocationReasonId[];
+  const languagesSpoken = data.languagesSpoken || [];
+  const [validationError, setValidationError] =
+    React.useState<string | null>(null);
 
-  // Did the user click "See my results" already?
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  // After "See my matches" we mark submitted and collapse the form.
+  // These are now persisted via localStorage so they survive reloads/navigation.
+  const [hasSubmitted, setHasSubmitted] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
-  // For collapsing the "My profile" after submit
-  const [isProfileCollapsed, setIsProfileCollapsed] = useState(false);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  const progressPercent = useMemo(
-    () => Math.round((currentStep / totalSteps) * 100),
-    [currentStep, totalSteps]
-  );
+    const submitted = window.localStorage.getItem(FORM_SUBMITTED_KEY);
+    const collapsed = window.localStorage.getItem(FORM_COLLAPSED_KEY);
 
-  const incomeCurrencyLabel =
-    originCurrencyLabel || incomeCurrencyFallbackLabel;
-
-  // Detect "fresh start" (restart quiz) and re-enable navigation buttons
-  useEffect(() => {
-    const looksLikeInitial =
-      currentStep === 1 &&
-      !data.ageRange &&
-      !data.currentCountry &&
-      !data.familyStatus &&
-      !data.passportCountry &&
-      !data.monthlyIncome &&
-      (!data.reasons || data.reasons.length === 0);
-
-    if (looksLikeInitial && hasSubmitted) {
-      setHasSubmitted(false);
-      setIsProfileCollapsed(false);
+    if (submitted === "true") {
+      setHasSubmitted(true);
+      // Default to collapsed if we don't have a stored value
+      if (collapsed === "true" || collapsed === null) {
+        setIsCollapsed(true);
+      } else if (collapsed === "false") {
+        setIsCollapsed(false);
+      }
     }
-  }, [currentStep, data, hasSubmitted]);
+  }, []);
 
-  const handleCheckboxToggle = (reason: RelocationReasonId) => {
-    const currentReasons = data.reasons || [];
-    const exists = currentReasons.includes(reason);
-    const nextReasons = exists
-      ? currentReasons.filter((r) => r !== reason)
-      : [...currentReasons, reason];
-
-    onUpdate({ reasons: nextReasons });
+  const toggleCollapsedPersisted = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(FORM_COLLAPSED_KEY, next ? "true" : "false");
+      }
+      return next;
+    });
   };
 
-  const handleWorkSituationToggle = (option: string) => {
-    const current = data.workSituation || [];
-    const exists = current.includes(option);
-    const next = exists
-      ? current.filter((w) => w !== option)
-      : [...current, option];
-    onUpdate({ workSituation: next });
+  // mobile-friendly custom country suggestion instead of <datalist>
+  const [countryQuery, setCountryQuery] = React.useState(
+    data.currentCountry || ""
+  );
+  const [showCountryDropdown, setShowCountryDropdown] =
+    React.useState<boolean>(false);
+
+  const filteredCountries = React.useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return COUNTRY_OPTIONS.slice(0, 15);
+    return COUNTRY_OPTIONS.filter((c) =>
+      c.toLowerCase().includes(q)
+    ).slice(0, 15);
+  }, [countryQuery]);
+
+  const handleCountrySelect = (country: string) => {
+    setCountryQuery(country);
+    onUpdate({ currentCountry: country });
+    setShowCountryDropdown(false);
   };
 
-  const handleLanguageToggle = (lang: string) => {
-    const current = data.languagesSpoken || [];
-    const exists = current.includes(lang);
+  // "knobs" – numeric sliders stored on the profile
+  const anyData = data as any;
+  const taxImportance =
+    typeof anyData.taxImportance === "number" ? anyData.taxImportance : 7;
+  const colImportance =
+    typeof anyData.colImportance === "number" ? anyData.colImportance : 7;
+  const climateImportance =
+    typeof anyData.climateImportance === "number"
+      ? anyData.climateImportance
+      : 7;
+
+  const isLastStep = currentStep === totalSteps - 1;
+
+  const hasReason = (key: RelocationReasonId) => reasons.includes(key);
+
+  const setReason = (key: RelocationReasonId, enabled: boolean) => {
+    const without = reasons.filter((r) => r !== key);
+    const next: RelocationReasonId[] = enabled ? [...without, key] : without;
+    onUpdate({ reasons: next });
+  };
+
+  const setExclusiveReason = (
+    groupKeys: RelocationReasonId[],
+    chosenKey: RelocationReasonId | null
+  ) => {
+    const withoutGroup = reasons.filter((r) => !groupKeys.includes(r));
+    const next: RelocationReasonId[] = chosenKey
+      ? [...withoutGroup, chosenKey]
+      : withoutGroup;
+    onUpdate({ reasons: next });
+  };
+
+  const toggleLanguage = (lang: string) => {
+    const exists = languagesSpoken.includes(lang);
     const next = exists
-      ? current.filter((l) => l !== lang)
-      : [...current, lang];
+      ? languagesSpoken.filter((l) => l !== lang)
+      : [...languagesSpoken, lang];
     onUpdate({ languagesSpoken: next });
   };
 
-  const handleSubmitClick = () => {
-    // mark as submitted → hide Next/Back
-    setHasSubmitted(true);
-    // collapse profile after submit
-    setIsProfileCollapsed(true);
-    onSubmit();
-  };
+  const stepContext = getStepContext(
+    currentStep,
+    data,
+    reasons,
+    languagesSpoken
+  );
 
-  const filteredCurrentCountryOptions = useMemo(() => {
-    if (!countryQuery.trim()) return COUNTRY_OPTIONS.slice(0, 8);
-    const q = countryQuery.toLowerCase();
-    return COUNTRY_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(
-      0,
-      12
-    );
-  }, [countryQuery]);
+  function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
 
-  const filteredPassportCountryOptions = useMemo(() => {
-    if (!passportCountryQuery.trim()) return COUNTRY_OPTIONS.slice(0, 8);
-    const q = passportCountryQuery.toLowerCase();
-    return COUNTRY_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(
-      0,
-      12
-    );
-  }, [passportCountryQuery]);
+    let error: string | null = null;
 
-  const filteredSecondPassportCountryOptions = useMemo(() => {
-    if (!secondPassportCountryQuery.trim()) return COUNTRY_OPTIONS.slice(0, 8);
-    const q = secondPassportCountryQuery.toLowerCase();
-    return COUNTRY_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(
-      0,
-      12
-    );
-  }, [secondPassportCountryQuery]);
+    if (currentStep === 0) {
+      if (!data.currentCountry || !data.ageRange) {
+        error =
+          "Please tell us where you're based and your age range before continuing.";
+      } else if (!COUNTRY_OPTIONS.includes(data.currentCountry)) {
+        error = "Please pick your current country from the suggestion list.";
+      }
+    } else if (currentStep === 1) {
+      const hasLang = languagesSpoken.length > 0;
+      const hasImportance = (
+        [
+          "language_must_have",
+          "language_nice_to_have",
+          "language_flexible",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
+      if (!hasLang) {
+        error =
+          "Please select at least one language you can live your daily life in.";
+      } else if (!hasImportance) {
+        error =
+          "Please tell us how important it is that your new country uses one of these languages.";
+      }
+    } else if (currentStep === 2) {
+      const taxMatters = hasReason("lower_taxes");
+      const taxNotPriority = hasReason("tax_not_important");
+      const colMatters = hasReason("lower_cost_of_living");
+      const colNotPriority = hasReason("col_not_important");
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Basic profile</h2>
-              <p className="text-sm text-slate-500">
-                This helps us match you with countries that fit your stage of
-                life.
-              </p>
-            </div>
+      if (!taxMatters && !taxNotPriority) {
+        error =
+          "Please tell us if paying lower taxes than you do today matters to you or not.";
+      } else if (!colMatters && !colNotPriority) {
+        error =
+          "Please tell us if a lower cost of living is a priority for you or not.";
+      }
+    } else if (currentStep === 3) {
+      const anySafetyIntensity = (
+        [
+          "safety_importance_high",
+          "safety_importance_medium",
+          "safety_not_important",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Age range
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  value={data.ageRange || ""}
-                  onChange={(e) => onUpdate({ ageRange: e.target.value })}
-                >
-                  <option value="">Select your age range</option>
-                  {AGE_RANGES.map((range) => (
-                    <option key={range} value={range}>
-                      {range}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      if (!anySafetyIntensity) {
+        error =
+          "Please tell us how important safety and stability are for you.";
+      } else {
+        const safetyNotImportant = hasReason("safety_not_important");
+        if (!safetyNotImportant) {
+          const anySafetyFollowup = (
+            [
+              "personal_safety",
+              "personal_safety_low_priority",
+              "political_stability",
+              "political_stability_low_priority",
+              "low_corruption",
+              "low_corruption_low_priority",
+            ] as RelocationReasonId[]
+          ).some((r) => reasons.includes(r));
+          if (!anySafetyFollowup) {
+            error =
+              "Please choose at least one thing you care about inside safety (street, politics or institutions).";
+          }
+        }
+      }
+    } else if (currentStep === 4) {
+      const climateMatters = hasReason("better_weather");
+      const climateNotPriority = hasReason("climate_dont_care");
+      const climatePrefChosen = (
+        [
+          "climate_pref_cold",
+          "climate_pref_mild",
+          "climate_pref_warm",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Family status
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  value={data.familyStatus || ""}
-                  onChange={(e) => onUpdate({ familyStatus: e.target.value })}
-                >
-                  <option value="">Select your situation</option>
-                  {FAMILY_STATUS_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        );
+      if (!climateMatters && !climateNotPriority) {
+        error =
+          "Please tell us if climate and weather matter to you or not.";
+      } else if (climateMatters && !climatePrefChosen) {
+        error = "Please choose what kind of climate sounds best for you.";
+      }
+    } else if (currentStep === 5) {
+      const anyHealth = (
+        [
+          "healthcare_strong_public",
+          "healthcare_mixed",
+          "healthcare_private",
+          "healthcare_not_important",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
+      if (!anyHealth) {
+        error =
+          "Please choose what kind of healthcare system sounds best to you.";
+      }
+    } else if (currentStep === 6) {
+      const anyLgbt = (
+        [
+          "lgbt_full_rights",
+          "lgbt_friendly",
+          "lgbt_dont_care",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
+      if (!anyLgbt) {
+        error =
+          "Please choose how much LGBTQ+ rights matter where you live.";
+      }
+    } else if (currentStep === 7) {
+      const anyCulture = (
+        [
+          "culture_northern_europe",
+          "culture_mediterranean",
+          "culture_north_america",
+          "culture_latin_america",
+          "culture_asia",
+          "culture_not_important",
+        ] as RelocationReasonId[]
+      ).some((r) => reasons.includes(r));
+      if (!anyCulture) {
+        error =
+          "Please tell us which cultures you feel pulled to, or that you don't mind.";
+      }
+    } else if (currentStep === 8) {
+      const devCareYes = hasReason("development_care_yes");
+      const devCareSome = hasReason("development_care_some");
+      const devNotImportant = hasReason("development_not_important");
+      const caresDev = devCareYes || devCareSome;
 
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Where are you now?
-              </h2>
-              <p className="text-sm text-slate-500">
-                We use this to estimate tax and cost-of-living impact.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Current country
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                placeholder="Start typing your country..."
-                value={data.currentCountry || countryQuery}
-                onChange={(e) => {
-                  setCountryQuery(e.target.value);
-                  onUpdate({ currentCountry: e.target.value });
-                }}
-              />
-              {filteredCurrentCountryOptions.length > 0 && (
-                <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm shadow-lg">
-                  {filteredCurrentCountryOptions.map((country) => (
-                    <button
-                      key={country}
-                      type="button"
-                      className="block w-full px-3 py-2 text-left hover:bg-slate-50"
-                      onClick={() => {
-                        onUpdate({ currentCountry: country });
-                        setCountryQuery(country);
-                      }}
-                    >
-                      {country}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Who is relocating?</h2>
-              <p className="text-sm text-slate-500">
-                Are you moving solo or with others?
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Relocating with
-                </label>
-                <select
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  value={data.relocatingWith || ""}
-                  onChange={(e) =>
-                    onUpdate({ relocatingWith: e.target.value })
-                  }
-                >
-                  <option value="">Select an option</option>
-                  {RELOCATING_WITH_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Passports & citizenship
-              </h2>
-              <p className="text-sm text-slate-500">
-                This affects visas, tax rules and where you can easily live or
-                work.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Main passport
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="Start typing your passport country..."
-                  value={data.passportCountry || passportCountryQuery}
-                  onChange={(e) => {
-                    setPassportCountryQuery(e.target.value);
-                    onUpdate({ passportCountry: e.target.value });
-                  }}
-                />
-                {filteredPassportCountryOptions.length > 0 && (
-                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm shadow-lg">
-                    {filteredPassportCountryOptions.map((country) => (
-                      <button
-                        key={country}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left hover:bg-slate-50"
-                        onClick={() => {
-                          onUpdate({ passportCountry: country });
-                          setPassportCountryQuery(country);
-                        }}
-                      >
-                        {country}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Second passport (optional)
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="If you have a second passport"
-                  value={
-                    data.secondPassportCountry || secondPassportCountryQuery
-                  }
-                  onChange={(e) => {
-                    setSecondPassportCountryQuery(e.target.value);
-                    onUpdate({ secondPassportCountry: e.target.value });
-                  }}
-                />
-                {filteredSecondPassportCountryOptions.length > 0 && (
-                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white text-sm shadow-lg">
-                    {filteredSecondPassportCountryOptions.map((country) => (
-                      <button
-                        key={country}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left hover:bg-slate-50"
-                        onClick={() => {
-                          onUpdate({ secondPassportCountry: country });
-                          setSecondPassportCountryQuery(country);
-                        }}
-                      >
-                        {country}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Work situation</h2>
-              <p className="text-sm text-slate-500">
-                How you earn money will heavily influence your best countries.
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {WORK_SITUATION_OPTIONS.map((option) => {
-                const selected = data.workSituation?.includes(option);
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleWorkSituationToggle(option)}
-                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
-                      selected
-                        ? "border-sky-500 bg-sky-50"
-                        : "border-slate-200 hover:border-sky-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span>{option}</span>
-                    <span
-                      className={`h-4 w-4 rounded-full border ${
-                        selected
-                          ? "border-sky-500 bg-sky-500"
-                          : "border-slate-300"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-
-      case 6:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Monthly income</h2>
-              <p className="text-sm text-slate-500">
-                Rough ranges are enough – this is just to compare your budget
-                across countries.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Approximate monthly net income (
-                  {incomeCurrencyLabel})
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder={`Your monthly income in ${incomeCurrencyLabel}`}
-                  value={data.monthlyIncome || ""}
-                  onChange={(e) => onUpdate({ monthlyIncome: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Income currency
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                  placeholder="USD, EUR, ILS..."
-                  value={data.incomeCurrency || ""}
-                  onChange={(e) => onUpdate({ incomeCurrency: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 7:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Languages you speak
-              </h2>
-              <p className="text-sm text-slate-500">
-                We prioritize places where you can function in daily life.
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              {LANGUAGE_OPTIONS.map((lang) => {
-                const selected = data.languagesSpoken?.includes(lang);
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => handleLanguageToggle(lang)}
-                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
-                      selected
-                        ? "border-sky-500 bg-sky-50"
-                        : "border-slate-200 hover:border-sky-300 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span>{lang}</span>
-                    <span
-                      className={`h-4 w-4 rounded-full border ${
-                        selected
-                          ? "border-sky-500 bg-sky-500"
-                          : "border-slate-300"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-
-      // Taxes & cost-of-living importance
-      case 8:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Taxes & cost of living priority
-              </h2>
-              <p className="text-sm text-slate-500">
-                Tell us how much these money factors should influence your
-                matches (1 = not important, 10 = absolutely key).
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">Lower taxes</label>
-                  <span className="text-xs text-slate-500">
-                    {data.taxImportance ?? 5}/10
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={data.taxImportance ?? 5}
-                  onChange={(e) =>
-                    onUpdate({ taxImportance: Number(e.target.value) })
-                  }
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>Not important</span>
-                  <span>Very important</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">
-                    Lower cost of living
-                  </label>
-                  <span className="text-xs text-slate-500">
-                    {data.colImportance ?? 5}/10
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={data.colImportance ?? 5}
-                  onChange={(e) =>
-                    onUpdate({ colImportance: Number(e.target.value) })
-                  }
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>Not important</span>
-                  <span>Very important</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      // Climate & LGBT importance
-      case 9:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Climate & lifestyle priorities
-              </h2>
-              <p className="text-sm text-slate-500">
-                Let us know how much climate and LGBT-friendliness matter to
-                you. We&apos;ll bake this directly into your scores.
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">
-                    Climate & weather match
-                  </label>
-                  <span className="text-xs text-slate-500">
-                    {data.climateImportance ?? 5}/10
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={data.climateImportance ?? 5}
-                  onChange={(e) =>
-                    onUpdate({ climateImportance: Number(e.target.value) })
-                  }
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>I&apos;m flexible</span>
-                  <span>Climate is critical</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">
-                    LGBT-friendliness importance
-                  </label>
-                  <span className="text-xs text-slate-500">
-                    {data.lgbtImportance ?? 5}/10
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={data.lgbtImportance ?? 5}
-                  onChange={(e) =>
-                    onUpdate({ lgbtImportance: Number(e.target.value) })
-                  }
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>Don&apos;t really care</span>
-                  <span>Must be very LGBT-friendly</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      // Final step: headline reasons
-      case 10:
-      default:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">
-                Why do you want to relocate?
-              </h2>
-              <p className="text-sm text-slate-500">
-                Pick as many as you like – this shapes how we score each
-                country.
-              </p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(Object.keys(REASON_LABELS) as PrimaryReasonId[]).map(
-                (reason) => {
-                  const selected = data.reasons?.includes(
-                    reason as RelocationReasonId
-                  );
-                  return (
-                    <button
-                      key={reason}
-                      type="button"
-                      onClick={() =>
-                        handleCheckboxToggle(reason as RelocationReasonId)
-                      }
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
-                        selected
-                          ? "border-sky-500 bg-sky-50"
-                          : "border-slate-200 hover:border-sky-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>{REASON_LABELS[reason]}</span>
-                      <span
-                        className={`h-4 w-4 rounded-md border ${
-                          selected
-                            ? "border-sky-500 bg-sky-500"
-                            : "border-slate-300"
-                        }`}
-                      />
-                    </button>
-                  );
-                }
-              )}
-            </div>
-          </div>
-        );
+      if (!devCareYes && !devCareSome && !devNotImportant) {
+        error =
+          "Please tell us how much you care about how developed the country should feel.";
+      } else if (caresDev) {
+        const anyDevDetail = (
+          [
+            "dev_public_transport",
+            "dev_digital_services",
+            "dev_infrastructure_clean",
+            "dev_everyday_services",
+          ] as RelocationReasonId[]
+        ).some((r) => reasons.includes(r));
+        if (!anyDevDetail) {
+          error =
+            "Please choose at least one thing that matters to you here (transport, digital services, or how things look and work).";
+        }
+      }
     }
-  };
 
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
-      {/* Top: Progress + “My profile” header that we collapse after submit */}
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Where should I relocate? – Quiz
-            </span>
-            <span className="text-xs font-medium text-slate-500">
-              Step {currentStep} of {totalSteps}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-sky-500 transition-all"
-              style={{ width: `${progressPercent}%` }}
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+
+    setValidationError(null);
+
+    if (isLastStep) {
+      // First time we submit: store + collapse + trigger results
+      setHasSubmitted(true);
+      setIsCollapsed(true);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(FORM_SUBMITTED_KEY, "true");
+        window.localStorage.setItem(FORM_COLLAPSED_KEY, "true");
+      }
+      onSubmit();
+    } else {
+      onNext();
+    }
+  }
+
+  let stepContent: React.ReactNode = null;
+
+  //
+  // STEP 0 – Basics
+  //
+  if (currentStep === 0) {
+    stepContent = (
+      <SectionCard
+        emoji="🧭"
+        title="First, a few basics"
+        subtitle="We start with simple details so we can compare new places to where you live now."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>Where are you currently based?</Label>
+          <div className="relative w-full">
+            <input
+              type="text"
+              autoComplete="off"
+              className="w-full max-w-full rounded-2xl bg-white px-3 py-2.5 text-[16px] sm:text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              placeholder="Start typing your country…"
+              value={countryQuery}
+              onFocus={() => setShowCountryDropdown(true)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCountryQuery(value);
+                onUpdate({ currentCountry: value });
+                setShowCountryDropdown(true);
+              }}
             />
+            {showCountryDropdown && filteredCountries.length > 0 && (
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-2xl bg-white shadow-lg">
+                {filteredCountries.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="block w-full px-3 py-1.5 text-left text-[12px] sm:text-[11px] text-slate-800 hover:bg-slate-100"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleCountrySelect(c);
+                    }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-[12px] sm:text-[11px] text-slate-500">
+            We won&apos;t suggest {data.currentCountry || "your current country"} as a
+            match.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>How old are you?</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {["18–24", "25–29", "30–34", "35–39", "40–49", "50+"].map(
+              (range) => (
+                <ChoiceCard
+                  key={range}
+                  label={range}
+                  selected={data.ageRange === range}
+                  onClick={() => onUpdate({ ageRange: range })}
+                />
+              )
+            )}
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 1 – Languages
+  //
+  else if (currentStep === 1) {
+    const langGroup: RelocationReasonId[] = [
+      "language_must_have",
+      "language_nice_to_have",
+      "language_flexible",
+    ];
+    const langMust = hasReason("language_must_have");
+    const langNice = hasReason("language_nice_to_have");
+    const langFlexible = hasReason("language_flexible");
+
+    stepContent = (
+      <SectionCard
+        emoji="🗣️"
+        title="Languages"
+        subtitle="Places where you can speak easily will feel more like home."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>Which languages can you live your daily life in?</Label>
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+            Work, friends, and basic paperwork. Pick all that apply.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {LANGUAGE_OPTIONS.map((lang) => (
+              <ChoiceCard
+                key={lang}
+                label={lang}
+                selected={languagesSpoken.includes(lang)}
+                onClick={() => toggleLanguage(lang)}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Collapsible profile toggle – auto-collapsed after submit */}
-        <button
-          type="button"
-          onClick={() => setIsProfileCollapsed((v) => !v)}
-          className="hidden rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-sky-400 hover:text-sky-600 md:inline-flex md:items-center md:gap-1.5"
-        >
-          <span>{isProfileCollapsed ? "Show my profile" : "Hide my profile"}</span>
-          <span className="text-slate-400">
-            {isProfileCollapsed ? "▾" : "▴"}
+        <div className="space-y-1.5">
+          <Label>
+            How important is it that your new country uses one of these languages a
+            lot?
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <ChoiceCard
+              label="Very important – I want to rely on my languages"
+              selected={langMust}
+              onClick={() => {
+                setExclusiveReason(langGroup, "language_must_have");
+              }}
+            />
+            <ChoiceCard
+              label="Helpful, but not critical"
+              selected={langNice}
+              onClick={() => {
+                setExclusiveReason(langGroup, "language_nice_to_have");
+              }}
+            />
+            <DoesntMatterCard
+              selected={langFlexible}
+              onClick={() => {
+                setExclusiveReason(langGroup, "language_flexible");
+              }}
+            >
+              I don&apos;t really mind – I can adapt
+            </DoesntMatterCard>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 2 – Money (taxes + cost of living) with sliders
+  //
+  else if (currentStep === 2) {
+    const taxMatters = hasReason("lower_taxes");
+    const taxNotPriority = hasReason("tax_not_important");
+
+    const colMatters = hasReason("lower_cost_of_living");
+    const colNotPriority = hasReason("col_not_important");
+
+    const handleTaxPriority = (matters: boolean) => {
+      const without = reasons.filter(
+        (r) => !["lower_taxes", "tax_not_important"].includes(r)
+      );
+      const base: RelocationReasonId[] = without;
+      if (matters) {
+        onUpdate({
+          reasons: [...base, "lower_taxes"],
+          taxImportance: taxImportance || 7,
+        } as any);
+      } else {
+        onUpdate({
+          reasons: [...base, "tax_not_important"],
+          taxImportance: 0,
+        } as any);
+      }
+    };
+
+    const handleColPriority = (matters: boolean) => {
+      const without = reasons.filter(
+        (r) => !["lower_cost_of_living", "col_not_important"].includes(r)
+      );
+      const base: RelocationReasonId[] = without;
+      if (matters) {
+        onUpdate({
+          reasons: [...base, "lower_cost_of_living"],
+          colImportance: colImportance || 7,
+        } as any);
+      } else {
+        onUpdate({
+          reasons: [...base, "col_not_important"],
+          colImportance: 0,
+        } as any);
+      }
+    };
+
+    stepContent = (
+      <SectionCard
+        emoji="💸"
+        title="Money priorities"
+        subtitle="We only ask how much you care, not how much you earn."
+        context={stepContext}
+      >
+        {/* Taxes */}
+        <div className="space-y-2">
+          <Label>Does paying lower taxes matter to you?</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ChoiceCard
+              label="Yes, it matters"
+              selected={taxMatters}
+              onClick={() => handleTaxPriority(true)}
+            />
+            <DoesntMatterCard
+              selected={taxNotPriority}
+              onClick={() => handleTaxPriority(false)}
+            >
+              Not a priority for me
+            </DoesntMatterCard>
+          </div>
+
+          {taxMatters && (
+            <div className="mt-1.5 space-y-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
+                How hard should we optimise for lower taxes?{" "}
+                <span className="font-semibold text-amber-600">
+                  {taxImportance}/10
+                </span>
+              </p>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={taxImportance || 7}
+                onChange={(e) =>
+                  onUpdate({
+                    taxImportance: Number(e.target.value),
+                  } as any)
+                }
+                className="w-full accent-amber-400"
+              />
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>1 = small bonus if taxes are lower</span>
+                <span>10 = we strongly prioritise low-tax realistic options</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Cost of living */}
+        <div className="space-y-2 pt-2.5">
+          <Label>
+            Does having a lower cost of living than{" "}
+            {data.currentCountry || "where you live now"} matter to you?
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ChoiceCard
+              label="Yes, it matters"
+              selected={colMatters}
+              onClick={() => handleColPriority(true)}
+            />
+            <DoesntMatterCard
+              selected={colNotPriority}
+              onClick={() => handleColPriority(false)}
+            >
+              Not a priority for me
+            </DoesntMatterCard>
+          </div>
+
+          {colMatters && (
+            <div className="mt-1.5 space-y-1">
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
+                How hard should we optimise for cheaper everyday life?{" "}
+                <span className="font-semibold text-amber-600">
+                  {colImportance}/10
+                </span>
+              </p>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={colImportance || 7}
+                onChange={(e) =>
+                  onUpdate({
+                    colImportance: Number(e.target.value),
+                  } as any)
+                }
+                className="w-full accent-amber-400"
+              />
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>1 = small bonus if it&apos;s cheaper</span>
+                <span>10 = we heavily reward cheaper destinations</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 3 – Safety & stability
+  //
+  else if (currentStep === 3) {
+    const safetyGroup: RelocationReasonId[] = [
+      "safety_importance_high",
+      "safety_importance_medium",
+      "safety_not_important",
+    ];
+    const safetyHigh = hasReason("safety_importance_high");
+    const safetyMedium = hasReason("safety_importance_medium");
+    const safetyNone = hasReason("safety_not_important");
+
+    const caresSafety = safetyHigh || safetyMedium;
+
+    const safetyPersonal = hasReason("personal_safety");
+    const safetyPersonalLow = hasReason("personal_safety_low_priority");
+    const safetyPolitical = hasReason("political_stability");
+    const safetyPoliticalLow = hasReason("political_stability_low_priority");
+    const safetyCorruption = hasReason("low_corruption");
+    const safetyCorruptionLow = hasReason("low_corruption_low_priority");
+
+    const streetGroup: RelocationReasonId[] = [
+      "personal_safety",
+      "personal_safety_low_priority",
+    ];
+    const politicsGroup: RelocationReasonId[] = [
+      "political_stability",
+      "political_stability_low_priority",
+    ];
+    const corruptionGroup: RelocationReasonId[] = [
+      "low_corruption",
+      "low_corruption_low_priority",
+    ];
+
+    stepContent = (
+      <SectionCard
+        emoji="🛡️"
+        title="Safety & stability"
+        subtitle="This includes safety in the street, politics and how serious institutions feel."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>How important is safety and stability for you?</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <ChoiceCard
+              label="Very important – I want a safe, calm place"
+              selected={safetyHigh}
+              onClick={() => {
+                const without = reasons.filter((r) => !safetyGroup.includes(r));
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "safety_importance_high",
+                  "safety_stability_priority",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <ChoiceCard
+              label="Somewhat important – I prefer safe, but can trade off"
+              selected={safetyMedium}
+              onClick={() => {
+                const without = reasons.filter((r) => !safetyGroup.includes(r));
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "safety_importance_medium",
+                  "safety_stability_priority",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <DoesntMatterCard
+              selected={safetyNone}
+              onClick={() => {
+                const without = reasons.filter(
+                  (r) =>
+                    ![
+                      ...safetyGroup,
+                      "safety_stability_priority",
+                      "personal_safety",
+                      "personal_safety_low_priority",
+                      "political_stability",
+                      "political_stability_low_priority",
+                      "low_corruption",
+                      "low_corruption_low_priority",
+                    ].includes(r)
+                );
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "safety_not_important",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            >
+              Not a big factor for me
+            </DoesntMatterCard>
+          </div>
+        </div>
+
+        {caresSafety && (
+          <div className="space-y-2.5 pt-1">
+            <div className="space-y-1">
+              <Label>Street safety</Label>
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+                Walking at night, public transport, general feeling on the street.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ChoiceCard
+                  label="I prefer low crime and a calm street feeling"
+                  selected={safetyPersonal}
+                  onClick={() =>
+                    setExclusiveReason(streetGroup, "personal_safety")
+                  }
+                />
+                <DoesntMatterCard
+                  selected={safetyPersonalLow}
+                  onClick={() =>
+                    setExclusiveReason(
+                      streetGroup,
+                      "personal_safety_low_priority"
+                    )
+                  }
+                >
+                  I can handle a bit more edge
+                </DoesntMatterCard>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Politics</Label>
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+                Protests, news drama, changes of government.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ChoiceCard
+                  label="I prefer calmer, more stable politics"
+                  selected={safetyPolitical}
+                  onClick={() =>
+                    setExclusiveReason(politicsGroup, "political_stability")
+                  }
+                />
+                <DoesntMatterCard
+                  selected={safetyPoliticalLow}
+                  onClick={() =>
+                    setExclusiveReason(
+                      politicsGroup,
+                      "political_stability_low_priority"
+                    )
+                  }
+                >
+                  I can live with noise if life is good
+                </DoesntMatterCard>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Institutions & corruption</Label>
+              <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+                How fair and &quot;serious&quot; the system feels (offices, police,
+                courts).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ChoiceCard
+                  label="I want low corruption and working institutions"
+                  selected={safetyCorruption}
+                  onClick={() =>
+                    setExclusiveReason(corruptionGroup, "low_corruption")
+                  }
+                />
+                <DoesntMatterCard
+                  selected={safetyCorruptionLow}
+                  onClick={() =>
+                    setExclusiveReason(
+                      corruptionGroup,
+                      "low_corruption_low_priority"
+                    )
+                  }
+                >
+                  I accept some chaos if the upside is strong
+                </DoesntMatterCard>
+              </div>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 4 – Climate & weather (with slider)
+  //
+  else if (currentStep === 4) {
+    const climateMatters = hasReason("better_weather");
+    const climateNotPriority = hasReason("climate_dont_care");
+
+    const climateCold = hasReason("climate_pref_cold");
+    const climateMild = hasReason("climate_pref_mild");
+    const climateWarm = hasReason("climate_pref_warm");
+
+    const selectClimatePriority = (matters: boolean) => {
+      if (matters) {
+        const without = reasons.filter((r) => r !== "climate_dont_care");
+        const base: RelocationReasonId[] = without.includes("better_weather")
+          ? without
+          : [...without, "better_weather"];
+        onUpdate({
+          reasons: base,
+          climateImportance: climateImportance || 7,
+        } as any);
+      } else {
+        const without = reasons.filter(
+          (r) =>
+            ![
+              "better_weather",
+              "climate_pref_cold",
+              "climate_pref_mild",
+              "climate_pref_warm",
+            ].includes(r)
+        );
+        const next: RelocationReasonId[] = [...without, "climate_dont_care"];
+        onUpdate({
+          reasons: next,
+          climateImportance: 0,
+        } as any);
+      }
+    };
+
+    const selectClimatePref = (pref: "cold" | "mild" | "warm") => {
+      if (!climateMatters) {
+        // ensure "matters" is true when they pick a climate
+        selectClimatePriority(true);
+      }
+      let base = reasons.filter(
+        (r) =>
+          ![
+            "climate_pref_cold",
+            "climate_pref_mild",
+            "climate_pref_warm",
+            "climate_dont_care",
+          ].includes(r)
+      );
+      if (pref === "cold") base.push("climate_pref_cold");
+      if (pref === "mild") base.push("climate_pref_mild");
+      if (pref === "warm") base.push("climate_pref_warm");
+      if (!base.includes("better_weather")) base.push("better_weather");
+      onUpdate({ reasons: base });
+    };
+
+    stepContent = (
+      <SectionCard
+        emoji="🌦️"
+        title="Climate & weather"
+        subtitle="We match your answer with typical climate in different cities."
+        context={stepContext}
+      >
+        {/* Does climate matter? */}
+        <div className="space-y-1.5">
+          <Label>
+            Does the climate and weather in your next country matter to you?
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ChoiceCard
+              label="Yes, it matters"
+              selected={climateMatters}
+              onClick={() => selectClimatePriority(true)}
+            />
+            <DoesntMatterCard
+              selected={climateNotPriority}
+              onClick={() => selectClimatePriority(false)}
+            >
+              Not a priority – I can live with different climates
+            </DoesntMatterCard>
+          </div>
+        </div>
+
+        {/* Climate preference only if it matters */}
+        {climateMatters && (
+          <>
+            <div className="space-y-1.5 pt-2">
+              <Label>What kind of climate sounds best for you?</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ChoiceCard
+                  label="❄️ Mostly cold – real winters, jackets, dark evenings"
+                  selected={climateCold}
+                  onClick={() => selectClimatePref("cold")}
+                />
+                <ChoiceCard
+                  label="🌤️ Mild mix – real seasons but not very extreme"
+                  selected={climateMild}
+                  onClick={() => selectClimatePref("mild")}
+                />
+                <ChoiceCard
+                  label="☀️ Mostly warm – a lot of sun, very light winters"
+                  selected={climateWarm}
+                  onClick={() => selectClimatePref("warm")}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-2">
+              <Label>
+                How important is it that your new place fits this climate?
+              </Label>
+              <p className="text-[12px] sm:text-[11px] text-slate-600">
+                We use this to decide how hard to avoid places with the opposite
+                weather.{" "}
+                <span className="font-semibold text-amber-600">
+                  {climateImportance}/10
+                </span>
+              </p>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={climateImportance || 7}
+                onChange={(e) =>
+                  onUpdate({
+                    climateImportance: Number(e.target.value),
+                  } as any)
+                }
+                className="w-full accent-amber-400"
+              />
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>1 = nice bonus if it matches</span>
+                <span>10 = we strongly avoid the opposite climate</span>
+              </div>
+            </div>
+          </>
+        )}
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 5 – Healthcare
+  //
+  else if (currentStep === 5) {
+    const healthGroup: RelocationReasonId[] = [
+      "healthcare_strong_public",
+      "healthcare_mixed",
+      "healthcare_private",
+      "healthcare_not_important",
+    ];
+
+    const strongPublic = hasReason("healthcare_strong_public");
+    const mixedSystem = hasReason("healthcare_mixed");
+    const mostlyPrivate = hasReason("healthcare_private");
+    const healthcareNoPref = hasReason("healthcare_not_important");
+
+    stepContent = (
+      <SectionCard
+        emoji="⚕️"
+        title="Healthcare"
+        subtitle="We care about how it feels in real life, not legal details."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>What kind of healthcare system sounds best to you?</Label>
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+            From more public to more private.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            <ChoiceCard
+              label="🇪🇺 Strong public system with low extra payments"
+              selected={strongPublic}
+              onClick={() =>
+                setExclusiveReason(healthGroup, "healthcare_strong_public")
+              }
+            />
+            <ChoiceCard
+              label="🩺 Mix – public / basic cover + strong private options"
+              selected={mixedSystem}
+              onClick={() =>
+                setExclusiveReason(healthGroup, "healthcare_mixed")
+              }
+            />
+            <ChoiceCard
+              label="💊 Mostly private – good quality, more out-of-pocket"
+              selected={mostlyPrivate}
+              onClick={() =>
+                setExclusiveReason(healthGroup, "healthcare_private")
+              }
+            />
+            <DoesntMatterCard
+              selected={healthcareNoPref}
+              onClick={() =>
+                setExclusiveReason(healthGroup, "healthcare_not_important")
+              }
+            >
+              I don&apos;t really mind, it&apos;s not a priority
+            </DoesntMatterCard>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 6 – LGBTQ+ rights
+  //
+  else if (currentStep === 6) {
+    const lgbtGroup: RelocationReasonId[] = [
+      "lgbt_full_rights",
+      "lgbt_friendly",
+      "lgbt_dont_care",
+    ];
+    const lgbtFull = hasReason("lgbt_full_rights");
+    const lgbtFriendly = hasReason("lgbt_friendly");
+    const lgbtDontCare = hasReason("lgbt_dont_care");
+
+    stepContent = (
+      <SectionCard
+        emoji="🏳️‍🌈"
+        title="LGBTQ+ rights"
+        subtitle="This can fully exclude some countries if you say it matters."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>How much do LGBTQ+ rights matter where you live?</Label>
+          <div className="grid grid-cols-1 gap-2">
+            <ChoiceCard
+              label="It matters: I want strong, modern LGBT protections"
+              selected={lgbtFull}
+              onClick={() => {
+                const without = reasons.filter((r) => !lgbtGroup.includes(r));
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "better_lgbtq",
+                  "lgbt_full_rights",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <ChoiceCard
+              label="It matters: I want clearly LGBT-friendly places, but I’m a bit flexible"
+              selected={lgbtFriendly}
+              onClick={() => {
+                const without = reasons.filter((r) => !lgbtGroup.includes(r));
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "better_lgbtq",
+                  "lgbt_friendly",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <DoesntMatterCard
+              selected={lgbtDontCare}
+              onClick={() => {
+                const without = reasons.filter(
+                  (r) => ![...lgbtGroup, "better_lgbtq"].includes(r)
+                );
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "lgbt_dont_care",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            >
+              It doesn&apos;t really matter to me
+            </DoesntMatterCard>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 7 – Culture & vibe
+  //
+  else if (currentStep === 7) {
+    const cultureNorth = hasReason("culture_northern_europe");
+    const cultureSouth = hasReason("culture_mediterranean");
+    const cultureNA = hasReason("culture_north_america");
+    const cultureLatAm = hasReason("culture_latin_america");
+    const cultureAsia = hasReason("culture_asia");
+    const cultureNoPref = hasReason("culture_not_important");
+    const cultureMust = hasReason("culture_must_have");
+
+    const anyCulture =
+      cultureNorth || cultureSouth || cultureNA || cultureLatAm || cultureAsia;
+
+    const toggleCulture = (key: RelocationReasonId) => {
+      if (key === "culture_not_important") {
+        const without = reasons.filter(
+          (r) =>
+            ![
+              "culture_northern_europe",
+              "culture_mediterranean",
+              "culture_north_america",
+              "culture_latin_america",
+              "culture_asia",
+              "culture_not_important",
+              "culture_must_have",
+            ].includes(r)
+        );
+        const next: RelocationReasonId[] = [...without, "culture_not_important"];
+        onUpdate({ reasons: next });
+      } else {
+        const withoutNot = reasons.filter((r) => r !== "culture_not_important");
+        const exists = withoutNot.includes(key);
+        const next: RelocationReasonId[] = exists
+          ? withoutNot.filter((r) => r !== key)
+          : [...withoutNot, key];
+        onUpdate({ reasons: next });
+      }
+    };
+
+    stepContent = (
+      <SectionCard
+        emoji="🎭"
+        title="Culture & vibe"
+        subtitle="Think about daily life, social style, and general feeling of the place."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>Which cultures do you feel pulled to?</Label>
+          <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+            You can pick more than one, or say you don&apos;t mind.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <ChoiceCard
+              label="🇩🇰 Northern Europe – calm, organized, more private"
+              selected={cultureNorth}
+              onClick={() => toggleCulture("culture_northern_europe")}
+            />
+            <ChoiceCard
+              label="🇮🇹 Mediterranean / Southern Europe – social, warm, later evenings"
+              selected={cultureSouth}
+              onClick={() => toggleCulture("culture_mediterranean")}
+            />
+            <ChoiceCard
+              label="🇺🇸 North American big-city feel"
+              selected={cultureNA}
+              onClick={() => toggleCulture("culture_north_america")}
+            />
+            <ChoiceCard
+              label="🇲🇽 Latin America – very lively and social"
+              selected={cultureLatAm}
+              onClick={() => toggleCulture("culture_latin_america")}
+            />
+            <ChoiceCard
+              label="🇹🇭 / 🇯🇵 / 🇰🇷 Asian mix – modern with strong traditions"
+              selected={cultureAsia}
+              onClick={() => toggleCulture("culture_asia")}
+            />
+            <DoesntMatterCard
+              selected={cultureNoPref}
+              onClick={() => toggleCulture("culture_not_important")}
+            >
+              I don&apos;t really mind the cultural style
+            </DoesntMatterCard>
+          </div>
+        </div>
+
+        {anyCulture && (
+          <div className="space-y-1.5">
+            <Label>Is this kind of culture a must-have?</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ChoiceCard
+                label="Yes – I want to really connect with the culture"
+                selected={cultureMust}
+                onClick={() => setReason("culture_must_have", true)}
+              />
+              <ChoiceCard
+                label="No – it’s a bonus, but not a strict rule"
+                selected={!cultureMust}
+                onClick={() => setReason("culture_must_have", false)}
+              />
+            </div>
+          </div>
+        )}
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 8 – Development & infrastructure
+  //
+  else if (currentStep === 8) {
+    const devCareYes = hasReason("development_care_yes");
+    const devCareSome = hasReason("development_care_some");
+    const devNotImportant = hasReason("development_not_important");
+    const caresDev = devCareYes || devCareSome;
+
+    const devPublic = hasReason("dev_public_transport");
+    const devDigital = hasReason("dev_digital_services");
+    const devInfra = hasReason("dev_infrastructure_clean");
+    const devServices = hasReason("dev_everyday_services");
+
+    const toggleDevDetail = (key: RelocationReasonId) => {
+      const exists = reasons.includes(key);
+      const without = reasons.filter((r) => r !== key);
+      const next: RelocationReasonId[] = exists ? without : [...without, key];
+      onUpdate({ reasons: next });
+    };
+
+    stepContent = (
+      <SectionCard
+        emoji="🏙️"
+        title="Development & infrastructure"
+        subtitle="Think about roads, services, public transport and how smooth daily life feels."
+        context={stepContext}
+      >
+        <div className="space-y-1.5">
+          <Label>Do you care about how developed your next country feels?</Label>
+          <div className="grid grid-cols-1 gap-2">
+            <ChoiceCard
+              label="Yes – I want a clearly developed country"
+              selected={devCareYes}
+              onClick={() => {
+                const without = reasons.filter(
+                  (r) =>
+                    ![
+                      "development_care_yes",
+                      "development_care_some",
+                      "development_not_important",
+                    ].includes(r)
+                );
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "development_care_yes",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <ChoiceCard
+              label="Somewhat – I prefer decent standards but I’m flexible"
+              selected={devCareSome}
+              onClick={() => {
+                const without = reasons.filter(
+                  (r) =>
+                    ![
+                      "development_care_yes",
+                      "development_care_some",
+                      "development_not_important",
+                    ].includes(r)
+                );
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "development_care_some",
+                ];
+                onUpdate({ reasons: next });
+              }}
+            />
+            <DoesntMatterCard
+              selected={devNotImportant}
+              onClick={() => {
+                const without = reasons.filter(
+                  (r) =>
+                    ![
+                      "development_care_yes",
+                      "development_care_some",
+                      "development_not_important",
+                      "dev_public_transport",
+                      "dev_digital_services",
+                      "dev_infrastructure_clean",
+                      "dev_everyday_services",
+                    ].includes(r)
+                );
+                const next: RelocationReasonId[] = [
+                  ...without,
+                  "development_not_important",
+                ];
+                onUpdate({
+                  reasons: next,
+                });
+              }}
+            >
+              I don&apos;t really mind this, as long as other things are good
+            </DoesntMatterCard>
+          </div>
+        </div>
+
+        {caresDev && (
+          <div className="space-y-1.5 pt-1.5">
+            <Label>What parts of this matter most to you?</Label>
+            <p className="text-[12px] sm:text-[11px] text-slate-500 mb-1">
+              Pick all that sound important. We’ll match you to cities that fit
+              this better.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ChoiceCard
+                label="🚆 Reliable public transport and easy to get around without a car"
+                selected={devPublic}
+                onClick={() => toggleDevDetail("dev_public_transport")}
+              />
+              <ChoiceCard
+                label="📱 Good digital services (apps, online payments, online government)"
+                selected={devDigital}
+                onClick={() => toggleDevDetail("dev_digital_services")}
+              />
+              <ChoiceCard
+                label="🧹 Relatively clean, maintained streets and buildings"
+                selected={devInfra}
+                onClick={() => toggleDevDetail("dev_infrastructure_clean")}
+              />
+              <ChoiceCard
+                label="📦 Easy everyday services (deliveries, shops, cafes, coworking)"
+                selected={devServices}
+                onClick={() => toggleDevDetail("dev_everyday_services")}
+              />
+            </div>
+          </div>
+        )}
+      </SectionCard>
+    );
+  }
+  //
+  // STEP 9 – Review profile
+  //
+  else if (currentStep === 9) {
+    stepContent = (
+      <SectionCard
+        emoji="📋"
+        title="Check your profile"
+        subtitle="If something looks wrong, you can go back and change it before we show matches."
+        context={stepContext}
+      >
+        <div className="space-y-3 text-[13px] sm:text-[11px] text-slate-800">
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+              Basics
+            </p>
+            <ul className="space-y-0.5">
+              <li>
+                <span className="font-semibold text-slate-900">
+                  Current country:
+                </span>{" "}
+                {data.currentCountry || "Not specified"}
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">Age:</span>{" "}
+                {data.ageRange || "Not specified"}
+              </li>
+              <li>
+                <span className="font-semibold text-slate-900">
+                  Languages you can live in:
+                </span>{" "}
+                {languagesSpoken.length > 0
+                  ? languagesSpoken.join(", ")
+                  : "Not specified"}
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold mb-1">
+              Things we will focus on
+            </p>
+            <ul className="space-y-0.5 text-slate-800">
+              {hasReason("lower_taxes") && (
+                <li>• You care about lower taxes.</li>
+              )}
+              {hasReason("lower_cost_of_living") && (
+                <li>• You want a lower cost of living.</li>
+              )}
+              {hasReason("better_weather") && (
+                <li>• You have a preferred climate.</li>
+              )}
+              {hasReason("better_lgbtq") && (
+                <li>• LGBTQ+ rights matter to you.</li>
+              )}
+              {hasReason("language_must_have") && (
+                <li>• You want to rely on one of your languages.</li>
+              )}
+              {hasReason("safety_stability_priority") && (
+                <li>• Safety and stability are important to you.</li>
+              )}
+              {hasReason("healthcare_strong_public") && (
+                <li>• You prefer strong public healthcare.</li>
+              )}
+              {hasReason("healthcare_mixed") && (
+                <li>• You like a mix of public and private healthcare.</li>
+              )}
+              {hasReason("healthcare_private") && (
+                <li>• You are okay with mostly private healthcare.</li>
+              )}
+              {hasReason("culture_must_have") && (
+                <li>• You want to really connect with the local culture.</li>
+              )}
+              {hasReason("development_care_yes") && (
+                <li>• You want a clearly developed country.</li>
+              )}
+              {hasReason("development_care_some") && (
+                <li>
+                  • You prefer decent standards but accept some rough edges.
+                </li>
+              )}
+              {hasReason("development_not_important") && (
+                <li>
+                  • You are flexible about how developed the country feels.
+                </li>
+              )}
+              {hasReason("dev_public_transport") && (
+                <li>
+                  • Public transport and moving without a car matter to you.
+                </li>
+              )}
+              {hasReason("dev_digital_services") && (
+                <li>
+                  • You care about good digital services (apps, online
+                  services).
+                </li>
+              )}
+              {hasReason("dev_infrastructure_clean") && (
+                <li>
+                  • You like cleaner, more maintained streets and buildings.
+                </li>
+              )}
+              {hasReason("dev_everyday_services") && (
+                <li>
+                  • You want easy everyday services and modern city life.
+                </li>
+              )}
+              {reasons.length === 0 && (
+                <li>• You did not mark any strong priorities yet.</li>
+              )}
+            </ul>
+          </div>
+
+          <p className="text-[12px] sm:text-[11px] text-slate-600">
+            When you click{" "}
+            <span className="font-semibold text-slate-900">
+              See my matches
+            </span>
+            , we&apos;ll use this profile to rank countries and also show strong
+            options we had to reject because of your hard rules.
+          </p>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  // If submitted AND collapsed → only show the header bar, no content or buttons
+  const showBody = !(hasSubmitted && isCollapsed);
+
+  // CTA text & behaviour:
+  // - Before submit on review step: "🔥 See my matches"
+  // - On other steps: "Next"
+  // - After submit: buttons are hidden completely (see render below)
+  const isReviewStep = isLastStep;
+  const primaryCtaLabel = !isReviewStep ? "Next" : "🔥 See my matches";
+  const primaryCtaType: "button" | "submit" = "submit";
+  const primaryCtaDisabled = false;
+
+  return (
+    <form
+      onSubmit={handleFormSubmit}
+      className="w-full max-w-full bg-white rounded-2xl px-3.5 py-3.5 sm:px-4 sm:py-4 shadow-[0_18px_40px_rgba(0,0,0,0.08)] space-y-4 font-sans text-slate-900 overflow-x-hidden"
+    >
+      {/* Chat-like header pill */}
+      <div className="flex items-center justify-between gap-2 rounded-full bg-slate-900/90 px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-xs font-semibold text-slate-950">
+            🙋
           </span>
-        </button>
+          <span className="text-xs font-semibold text-slate-50 truncate">
+            My relocation profile
+          </span>
+        </div>
+        {hasSubmitted && (
+          <button
+            type="button"
+            onClick={toggleCollapsedPersisted}
+            className="text-[11px] text-slate-200 hover:text-white"
+          >
+            {isCollapsed ? "Tap to view answers" : "Tap to hide chat"}
+          </button>
+        )}
       </div>
 
-      {/* Form content – we just hide the inner content if collapsed, not the whole card */}
-      <div className={isProfileCollapsed ? "hidden" : ""}>{renderStep()}</div>
+      {showBody && (
+        <p className="text-[11px] text-slate-500 px-1">
+          I&apos;ll ask up to {totalSteps} quick questions, one theme at a time. You
+          can always go back if something doesn&apos;t feel right.
+        </p>
+      )}
 
-      {/* Navigation buttons – ONLY hidden after clicking "See my results" */}
-      {!hasSubmitted && (
-        <div className="mt-6 flex items-center justify-between gap-4">
+      {showBody && stepContent}
+
+      {showBody && validationError && (
+        <p className="text-[12px] sm:text-[11px] text-rose-800 bg-rose-50 rounded-xl px-3 py-2">
+          {validationError}
+        </p>
+      )}
+
+      {/* Navigation/footer: hidden entirely after submitting */}
+      {showBody && !hasSubmitted && (
+        <div className="flex items-center justify-between pt-2 mt-2">
           <button
             type="button"
             onClick={onBack}
-            disabled={currentStep === 1}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 hover:border-slate-300 hover:bg-slate-50"
+            className="px-3 py-1.5 rounded-full text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
           >
             ← Back
           </button>
 
-          {currentStep < totalSteps ? (
+          <div className="flex items-center gap-3">
+            <p className="hidden xs:block text-[11px] text-slate-500">
+              Question {currentStep + 1} of {totalSteps}
+            </p>
             <button
-              type="button"
-              onClick={onNext}
-              className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700"
+              type={primaryCtaType}
+              disabled={primaryCtaDisabled}
+              className={`px-5 py-2 rounded-full text-xs font-semibold tracking-wide
+                         border border-transparent
+                         shadow-[0_10px_25px_rgba(0,0,0,0.25)]
+                         transition-all duration-150
+                         focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1 focus:ring-offset-white
+                         ${
+                           primaryCtaDisabled
+                             ? "bg-slate-200 text-slate-500 cursor-default shadow-none"
+                             : "bg-amber-400 text-slate-950 hover:bg-amber-300 hover:shadow-[0_14px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]"
+                         }`}
             >
-              Next →
+              {primaryCtaLabel}
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmitClick}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-            >
-              See my results 🚀
-            </button>
-          )}
+          </div>
         </div>
       )}
+    </form>
+  );
+}
+
+/* ---------- Dynamic "what we've learned" context ---------- */
+
+function getStepContext(
+  currentStep: number,
+  data: QuizData,
+  reasons: RelocationReasonId[],
+  languagesSpoken: string[]
+): string | null {
+  const country = data.currentCountry;
+  const age = data.ageRange;
+  const langs =
+    languagesSpoken && languagesSpoken.length > 0
+      ? languagesSpoken.join(", ")
+      : null;
+
+  const has = (k: RelocationReasonId) => reasons.includes(k);
+
+  if (currentStep === 0) {
+    return null;
+  }
+
+  if (currentStep === 1) {
+    if (country && age) {
+      return `Got it – you're currently in ${country} and around ${age}. Now let's make sure we don't send you somewhere you can't actually live day-to-day.`;
+    }
+    if (country) {
+      return `We know you're currently based in ${country}. Next, let's check which languages feel natural for you.`;
+    }
+    return "Next, I want to understand which languages feel natural for your daily life.";
+  }
+
+  if (currentStep === 2) {
+    if (langs) {
+      return `So you can live your daily life in ${langs}. Now let's talk about money priorities: taxes and cost of living.`;
+    }
+    return "Now let's talk about money priorities: taxes and cost of living.";
+  }
+
+  if (currentStep === 3) {
+    const bits: string[] = [];
+    if (has("lower_taxes")) bits.push("lower taxes");
+    if (has("lower_cost_of_living")) bits.push("lower cost of living");
+    if (bits.length) {
+      return `We’ll keep ${bits.join(
+        " & "
+      )} in mind. Next, I want to understand how calm and safe you want your future country to feel.`;
+    }
+    return "Now I want to understand how calm and safe you want your future country to feel.";
+  }
+
+  if (currentStep === 4) {
+    if (has("safety_stability_priority")) {
+      return "You told me safety and stability matter. Climate is the other big thing that shapes how everyday life feels, so let's tune that.";
+    }
+    return "Climate shapes daily mood a lot. Let’s see what kind of weather actually feels good for you.";
+  }
+
+  if (currentStep === 5) {
+    if (has("better_weather")) {
+      return "We’ve locked in your climate preferences. Now let's decide what kind of healthcare system fits you best.";
+    }
+    return "Next up: the healthcare system – how you actually experience doctors, hospitals, and payments.";
+  }
+
+  if (currentStep === 6) {
+    return "Healthcare is on the map. Now I need to know how much LGBTQ+ rights should influence your matches.";
+  }
+
+  if (currentStep === 7) {
+    if (has("better_lgbtq")) {
+      return "You asked for modern, LGBT-friendly places. Let’s now look at which cultures and vibes feel most like ‘you’.";
+    }
+    return "Great – now let's talk about culture and social vibe so your new place actually feels like home.";
+  }
+
+  if (currentStep === 8) {
+    if (has("culture_northern_europe")) {
+      return "You’re drawn to more calm, organized cultures. Now let's make sure the level of development and infrastructure matches that.";
+    }
+    return "Culture and vibe are clear. Next, I want to understand how developed and smooth you want day-to-day life to be.";
+  }
+
+  if (currentStep === 9) {
+    return "Here’s a quick recap of what I’ve learned about you. If something feels off, you can go back before I calculate your matches.";
+  }
+
+  return null;
+}
+
+/* ---------- UI helpers ---------- */
+
+function SectionCard({
+  emoji,
+  title,
+  subtitle,
+  context,
+  children,
+}: {
+  emoji: string;
+  title: string;
+  subtitle: string;
+  context?: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3.5">
+      {/* Bot chat bubble */}
+      <div className="flex items-start gap-2 sm:gap-3">
+        <div className="mt-0.5 h-8 w-8 flex items-center justify-center rounded-full bg-slate-900 text-lg shrink-0 text-amber-300">
+          {emoji}
+        </div>
+        <div className="max-w-full rounded-3xl bg-slate-100 px-3.5 py-3 shadow-sm">
+          {context && (
+            <p className="text-[11px] sm:text-[10px] text-emerald-700 mb-1.5">
+              {context}
+            </p>
+          )}
+          <h2 className="text-[14px] sm:text-sm font-semibold text-slate-900 tracking-tight mb-0.5">
+            {title}
+          </h2>
+          <p className="text-[12px] sm:text-[11px] text-slate-600 mb-2">
+            {subtitle}
+          </p>
+          <div className="space-y-3">{children}</div>
+        </div>
+      </div>
     </div>
   );
-};
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[13px] sm:text-xs font-semibold text-slate-900 mb-0.5 tracking-tight">
+      {children}
+    </p>
+  );
+}
+
+/** Clickable answer card with clear states + no border */
+function ChoiceCard({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative flex items-start gap-2 text-left text-[13px] sm:text-[11px] px-3.5 py-2.5 rounded-2xl
+        w-full
+        transition-all duration-150 ease-out font-medium
+        ${
+          selected
+            ? "bg-amber-400 text-slate-950 shadow-md scale-[1.02]"
+            : "bg-white text-slate-900 hover:bg-amber-50 hover:shadow-sm hover:-translate-y-0.5"
+        }`}
+    >
+      <div
+        className={`mt-[2px] h-3.5 w-3.5 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0
+          ${selected ? "bg-slate-50" : "bg-slate-200 group-hover:bg-amber-300"}`}
+      >
+        {selected && (
+          <span className="block h-2 w-2 rounded-full bg-slate-950" />
+        )}
+      </div>
+      <span className="leading-snug pr-1 break-words">{label}</span>
+    </button>
+  );
+}
+
+/** “Doesn’t matter / not a priority” card with no border */
+function DoesntMatterCard({
+  children,
+  selected,
+  onClick,
+}: {
+  children: React.ReactNode;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative flex items-start gap-2 text-left text-[13px] sm:text-[11px] px-3.5 py-2.5 rounded-2xl
+        w-full
+        transition-all duration-150 ease-out
+        ${
+          selected
+            ? "bg-slate-900 text-slate-50 shadow-md scale-[1.03]"
+            : "bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:-translate-y-0.5 hover:shadow-sm"
+        }`}
+    >
+      <div
+        className={`mt-[2px] h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold transition-all flex-shrink-0
+          ${
+            selected
+              ? "bg-slate-50 text-slate-950"
+              : "bg-slate-200 text-slate-600 group-hover:bg-slate-900 group-hover:text-slate-50"
+          }`}
+      >
+        ×
+      </div>
+
+      <div className="leading-snug break-words">
+        <span className="font-semibold mr-1 uppercase tracking-[0.14em] text-[10px]">
+          Not a priority:
+        </span>
+        <span className="text-[13px] sm:text-[11px]">{children}</span>
+      </div>
+    </button>
+  );
+}
 
 export default AdaptiveQuizForm;
