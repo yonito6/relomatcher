@@ -1,7 +1,8 @@
 import { FACTORS, ratingWeight } from "@/lib/factors";
 import type { CountryRecord, CultureCluster } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
-import type { CountryFit, Breakdown, ClimatePref, CulturePref, FactorId, Rating } from "@/lib/scoring/types";
+import type { CountryFit, Breakdown, ClimatePref, CulturePref, FactorId, Rating, Tier, MatchResult } from "@/lib/scoring/types";
+import { feasibilityTier } from "@/lib/feasibility/tier";
 
 // ---------------------------------------------------------------------------
 // Culture adjacency map
@@ -192,4 +193,187 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
   });
 
   return { fit, breakdown };
+}
+
+// ---------------------------------------------------------------------------
+// rankCountries helpers
+// ---------------------------------------------------------------------------
+
+/** Tier → integer rank for ordering (easy=0 … very_hard=3). */
+function tierRank(tier: Tier): number {
+  switch (tier) {
+    case "easy":      return 0;
+    case "doable":    return 1;
+    case "hard":      return 2;
+    case "very_hard": return 3;
+  }
+}
+
+/** Feasibility soft penalty subtracted from fit for ranking purposes. */
+function feasibilityPenalty(tier: Tier): number {
+  switch (tier) {
+    case "easy":      return 0;
+    case "doable":    return 3;
+    case "hard":      return 8;
+    case "very_hard": return 15;
+  }
+}
+
+/**
+ * Field name on CountryRecord that corresponds to a filter factor's score.
+ * Only the three filter factors (safety, lgbt, healthcare) have a floor.
+ */
+const FILTER_FIELD: Partial<Record<string, string>> = {
+  safety:     "safetyScore",
+  lgbt:       "lgbtScore",
+  healthcare: "healthcareScore",
+};
+
+/** Build one tradeoff line from the breakdown: "Weakest on <label>" for the
+ *  lowest-scoring kept factor (by raw score), or a generic line if empty. */
+function buildTradeoff(breakdown: Breakdown[]): string {
+  if (breakdown.length === 0) return "No specific factors rated — consider adding priorities.";
+  const worst = breakdown.reduce((a, b) => (a.score <= b.score ? a : b));
+  const factor = FACTORS.find((f) => f.id === worst.id);
+  const label = factor?.label ?? worst.id;
+  return `Weakest on ${label}`;
+}
+
+// ---------------------------------------------------------------------------
+// rankCountries — main export
+// ---------------------------------------------------------------------------
+
+export type RankResult = {
+  top: MatchResult[];
+  moonshot: MatchResult | null;
+  disqualified: MatchResult[];
+  relaxedFilters: boolean;
+};
+
+export function rankCountries(profile: QuizData, countries: CountryRecord[]): RankResult {
+  const p = profile as any;
+  const factorRatings: Partial<Record<string, string>> = p.factorRatings ?? {};
+
+  // --- Identify hard must-have filters ---
+  // Factors that are: role=filter, rated "must", and have a floor.must defined.
+  type MustFilter = { field: string; floor: number };
+  const mustFilters: MustFilter[] = [];
+  for (const factor of FACTORS) {
+    if (factor.role !== "filter") continue;
+    if (factorRatings[factor.id] !== "must") continue;
+    if (factor.floor?.must === undefined) continue;
+    const field = FILTER_FIELD[factor.id];
+    if (!field) continue;
+    mustFilters.push({ field, floor: factor.floor.must });
+  }
+
+  /** Returns true if country passes all must-filters. */
+  function passesHardFilters(c: CountryRecord): boolean {
+    return mustFilters.every(({ field, floor }) => ((c as any)[field] ?? 0) >= floor);
+  }
+
+  // Compute how many countries pass the hard filters
+  const passingCount = countries.filter(passesHardFilters).length;
+  const relaxedFilters = mustFilters.length > 0 && passingCount < 3;
+
+  // --- Score + tier every country ---
+  type Candidate = {
+    country: CountryRecord;
+    rawFit: number;
+    breakdown: Breakdown[];
+    tier: Tier;
+    reason: string;
+    adjustedFit: number;
+    failed: boolean; // failed hard filters (only relevant when relaxedFilters=false)
+  };
+
+  const candidates: Candidate[] = countries.map((c) => {
+    const { fit: rawFit, breakdown } = scoreCountry(profile, c);
+    const { tier, reason } = feasibilityTier(profile, c);
+    const failed = mustFilters.length > 0 && !passesHardFilters(c);
+
+    let adjustedFit = rawFit - feasibilityPenalty(tier);
+
+    if (relaxedFilters && failed) {
+      // Soft penalty: for each failed filter, subtract proportionally to how far below floor
+      let softPenalty = 0;
+      for (const { field, floor } of mustFilters) {
+        const score = (c as any)[field] ?? 0;
+        if (score < floor) {
+          // deficit as a fraction of the floor, scaled to a heavy penalty (max 40 per filter)
+          const deficit = (floor - score) / floor;
+          softPenalty += 40 * deficit;
+        }
+      }
+      adjustedFit -= softPenalty;
+    }
+
+    // Clamp adjusted fit
+    adjustedFit = Math.max(-50, adjustedFit);
+
+    return { country: c, rawFit, breakdown, tier, reason, adjustedFit, failed };
+  });
+
+  // --- Split passing vs disqualified (only meaningful when relaxedFilters=false) ---
+  const passing = relaxedFilters
+    ? candidates
+    : candidates.filter((c) => !c.failed);
+  const disqualifiedCandidates = relaxedFilters
+    ? []
+    : candidates.filter((c) => c.failed);
+
+  // Sort passing by adjustedFit descending
+  const sorted = [...passing].sort((a, b) => b.adjustedFit - a.adjustedFit);
+
+  // --- Build top 3 MatchResults ---
+  const topCandidates = sorted.slice(0, 3);
+  const top: MatchResult[] = topCandidates.map((c) => ({
+    country:   c.country,
+    fit:       Math.max(0, Math.min(100, c.adjustedFit)),
+    rawFit:    c.rawFit,
+    tier:      c.tier,
+    reason:    c.reason,
+    tradeoff:  buildTradeoff(c.breakdown),
+    breakdown: c.breakdown,
+  }));
+
+  // --- Moonshot: highest rawFit country NOT in top whose tier-rank is strictly
+  //     greater than the max tier-rank of the top 3. ---
+  let moonshot: MatchResult | null = null;
+  if (top.length > 0) {
+    const topCodes = new Set(top.map((m) => m.country.code));
+    const maxTopTierRank = Math.max(...top.map((m) => tierRank(m.tier)));
+
+    // Consider all candidates (passing + failed, since moonshot is aspirational)
+    const moonshotCandidates = candidates
+      .filter((c) => !topCodes.has(c.country.code) && tierRank(c.tier) > maxTopTierRank)
+      .sort((a, b) => b.rawFit - a.rawFit);
+
+    if (moonshotCandidates.length > 0) {
+      const mc = moonshotCandidates[0];
+      moonshot = {
+        country:   mc.country,
+        fit:       Math.max(0, Math.min(100, mc.adjustedFit)),
+        rawFit:    mc.rawFit,
+        tier:      mc.tier,
+        reason:    mc.reason,
+        tradeoff:  buildTradeoff(mc.breakdown),
+        breakdown: mc.breakdown,
+        moonshot:  true,
+      };
+    }
+  }
+
+  // --- Disqualified MatchResults ---
+  const disqualified: MatchResult[] = disqualifiedCandidates.map((c) => ({
+    country:   c.country,
+    fit:       Math.max(0, Math.min(100, c.adjustedFit)),
+    rawFit:    c.rawFit,
+    tier:      c.tier,
+    reason:    c.reason,
+    tradeoff:  buildTradeoff(c.breakdown),
+    breakdown: c.breakdown,
+  }));
+
+  return { top, moonshot, disqualified, relaxedFilters };
 }

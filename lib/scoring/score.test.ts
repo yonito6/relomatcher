@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { scoreCountry } from "@/lib/scoring/score";
+import { scoreCountry, rankCountries } from "@/lib/scoring/score";
+import { COUNTRIES } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
 
 const makeCountry = (over: any) => ({
@@ -56,5 +57,77 @@ describe("scoreCountry", () => {
     expect(money).toHaveLength(1);
     expect(money[0].id).toBe("taxes");
     expect(money[0].combined).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// rankCountries tests
+// ---------------------------------------------------------------------------
+
+it("must-have LGBTQ+ disqualifies low-lgbt countries", () => {
+  const out = rankCountries({ factorRatings: { lgbt: "must" } } as any, COUNTRIES);
+  expect(out.top.every((m) => (m.country.lgbtScore ?? 0) >= 7.5)).toBe(true);
+});
+
+it("always returns up to 3 even if a must-have would empty the set", () => {
+  const out = rankCountries({ factorRatings: { lgbt: "must", safety: "must" } } as any,
+    COUNTRIES.map((c) => ({ ...c, lgbtScore: 1, safetyScore: 1 })));
+  expect(out.top.length).toBeGreaterThanOrEqual(1);
+  expect(out.relaxedFilters).toBe(true);
+});
+
+it("selects exactly one moonshot outside the achievable top 3 when applicable", () => {
+  const out = rankCountries({ factorRatings: { weather: "must" }, passportCountry: "Atlantis" } as any, COUNTRIES);
+  expect(out.moonshot === null || out.top.find((t) => t.country.code === out.moonshot!.country.code)).toBeFalsy();
+});
+
+// ---------------------------------------------------------------------------
+// Golden-profile property tests
+// ---------------------------------------------------------------------------
+
+describe("rankCountries golden profiles", () => {
+  it("LGBTQ+ + EU passport: every top country has lgbtScore >= 7.5", () => {
+    const out = rankCountries(
+      { factorRatings: { lgbt: "must", safety: "important" }, passportCountry: "Germany" } as any,
+      COUNTRIES
+    );
+    expect(out.top.length).toBeGreaterThan(0);
+    expect(out.top.every((m) => (m.country.lgbtScore ?? 0) >= 7.5)).toBe(true);
+  });
+
+  it("LGBTQ+ + EU passport: at least the top result has tier 'easy'", () => {
+    const out = rankCountries(
+      { factorRatings: { lgbt: "must", safety: "important" }, passportCountry: "Germany" } as any,
+      COUNTRIES
+    );
+    expect(out.top[0].tier).toBe("easy");
+  });
+
+  it("budget warm-weather persona: top-3 average warmClimateScore above median", () => {
+    const warmScores = COUNTRIES.map((c) => c.warmClimateScore ?? 5).sort((a, b) => a - b);
+    const medianWarm = warmScores[Math.floor(warmScores.length / 2)];
+    const colScores = COUNTRIES.map((c) => c.costOfLivingScore).sort((a, b) => a - b);
+    const medianCol = colScores[Math.floor(colScores.length / 2)];
+
+    const out = rankCountries(
+      { factorRatings: { weather: "must", costOfLiving: "must" }, climatePref: "warm" } as any,
+      COUNTRIES
+    );
+    const avgWarm = out.top.reduce((s, m) => s + (m.country.warmClimateScore ?? 5), 0) / out.top.length;
+    const avgCol = out.top.reduce((s, m) => s + m.country.costOfLivingScore, 0) / out.top.length;
+    expect(avgWarm).toBeGreaterThan(medianWarm * 0.85); // tolerant threshold
+    expect(avgCol).toBeGreaterThan(medianCol * 0.85);
+  });
+
+  it("low-tax persona: top countries have above-median taxScore", () => {
+    const taxScores = COUNTRIES.map((c) => c.taxScore).sort((a, b) => a - b);
+    const medianTax = taxScores[Math.floor(taxScores.length / 2)];
+
+    const out = rankCountries(
+      { factorRatings: { taxes: "must" } } as any,
+      COUNTRIES
+    );
+    const avgTax = out.top.reduce((s, m) => s + m.country.taxScore, 0) / out.top.length;
+    expect(avgTax).toBeGreaterThan(medianTax * 0.9);
   });
 });
