@@ -1,9 +1,7 @@
 "use client";
 
-// TODO(Task 11): full implementation — suspenseful "calculating your matches" reveal with POST to /api/quiz
-
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import type { QuizData } from "@/lib/types";
 import type { MatchResult } from "@/lib/scoring/types";
 
@@ -47,7 +45,7 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Request failed: ${res.status}`);
+          throw new Error((body as { error?: string }).error || `Request failed: ${res.status}`);
         }
         const json = (await res.json()) as QuizApiResponse;
         if (!cancelled) onComplete(json);
@@ -77,6 +75,9 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
     return () => clearInterval(id);
   }, []);
 
+  // Fake progress bar that advances through steps
+  const progressPct = Math.min(((msgIdx + 1) / messages.length) * 88 + 4, 92);
+
   return (
     <div className="relo-reveal">
       <motion.div
@@ -94,18 +95,31 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
             >
               🌍
             </motion.div>
+
             <h2 className="relo-reveal__title">Your matches are loading{dots}</h2>
-            <motion.p
-              key={msgIdx}
-              className="relo-reveal__msg"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {messages[msgIdx]}
-            </motion.p>
-            <p className="relo-reveal__note">Full reveal animation — Task 11</p>
+
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={msgIdx}
+                className="relo-reveal__msg"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.3 }}
+              >
+                {messages[msgIdx]}
+              </motion.p>
+            </AnimatePresence>
+
+            {/* Progress bar */}
+            <div className="relo-reveal__progress-track" aria-hidden="true">
+              <motion.div
+                className="relo-reveal__progress-fill"
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.9, ease: "easeInOut" }}
+              />
+              <div className="relo-reveal__progress-shimmer" />
+            </div>
           </>
         ) : (
           <>
@@ -146,17 +160,42 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
         .relo-reveal__msg {
           font-size: 0.875rem;
           color: rgba(255,255,255,0.6);
-          margin: 0 0 0.75rem;
+          margin: 0 0 1.25rem;
           min-height: 1.4em;
         }
-        .relo-reveal__note {
-          font-size: 0.7rem;
-          color: #ff6b35;
-          font-weight: 600;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          margin-top: 1rem;
+
+        /* Progress bar */
+        .relo-reveal__progress-track {
+          position: relative;
+          width: 100%;
+          height: 4px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 100px;
+          overflow: hidden;
+          margin-top: 0.25rem;
         }
+        .relo-reveal__progress-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          background: linear-gradient(90deg, #ff6b35, #f7931e);
+          border-radius: 100px;
+        }
+        .relo-reveal__progress-shimmer {
+          position: absolute;
+          top: 0;
+          left: -60%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+          animation: relo-shimmer 1.6s ease-in-out infinite;
+        }
+        @keyframes relo-shimmer {
+          0%   { left: -60%; }
+          100% { left: 140%; }
+        }
+
         .relo-reveal__back {
           margin-top: 1.5rem;
           padding: 0.7rem 1.4rem;
@@ -167,6 +206,11 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
           font-size: 0.875rem;
           cursor: pointer;
           font-family: inherit;
+          min-height: 44px;
+        }
+        .relo-reveal__back:hover {
+          border-color: rgba(255,255,255,0.4);
+          color: rgba(255,255,255,0.9);
         }
       `}</style>
     </div>
