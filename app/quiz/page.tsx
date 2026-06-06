@@ -1,308 +1,284 @@
-// app/quiz/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import AdaptiveQuizForm from "@/components/AdaptiveQuizForm";
+import { useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { QuizData } from "@/lib/types";
+import Hook from "./steps/Hook";
+import Basics from "./steps/Basics";
+import SwipeDeck from "./steps/SwipeDeck";
+import Refine from "./steps/Refine";
+import Reveal from "./steps/Reveal";
+import Results from "./steps/Results";
+import type { QuizApiResponse } from "./steps/Reveal";
 
-const TOTAL_STEPS = 3; // ⬅️ was 4
+// ─── Step machine ────────────────────────────────────────────────────────────
+
+type Step = "hook" | "basics" | "swipe" | "refine" | "reveal" | "results";
+
+const STEPS: Step[] = ["hook", "basics", "swipe", "refine", "reveal", "results"];
+
+const STEP_LABELS: Record<Step, string> = {
+  hook:    "Welcome",
+  basics:  "The basics",
+  swipe:   "What matters",
+  refine:  "Fine-tune",
+  reveal:  "Matching…",
+  results: "Your matches",
+};
+
+// Progress-bar encouragement messages — always forward-momentum
+const PROGRESS_MESSAGES: Partial<Record<Step, string>> = {
+  basics:  "Getting warmer…",
+  swipe:   "Narrowing it down…",
+  refine:  "Almost there…",
+  reveal:  "Finding your top 3…",
+  results: "Here they are!",
+};
 
 const initialData: QuizData = {
-  ageRange: "",
-  currentCountry: "",
-  familyStatus: "",
-  relocatingWith: "",
-  passportCountry: "",
-  secondPassportCountry: "",
-  workSituation: [],
-  monthlyIncome: "",
+  ageRange: undefined,
+  currentCountry: undefined,
+  familyStatus: undefined,
+  relocatingWith: undefined,
+  passportCountry: undefined,
+  secondPassportCountry: undefined,
+  monthlyIncome: undefined,
+  incomeCurrency: "USD",
   languagesSpoken: [],
-  reasons: [],
+  factorRatings: undefined,
+  climatePref: undefined,
+  culturePref: undefined,
+  mobilityRights: undefined,
 };
 
-type DimensionBreakdown = {
-  tax: number;
-  costOfLiving: number;
-  incomeGrowth: number;
-  remoteFriendly: number;
-  safety: number;
-  lifestyle: number;
-};
-
-type DimensionExplanations = {
-  tax: string;
-  costOfLiving: string;
-  incomeGrowth: string;
-  remoteFriendly: string;
-  safety: string;
-  lifestyle: string;
-};
-
-type CountryMatch = {
-  code: string;
-  name: string;
-  totalScore: number;
-  breakdown: DimensionBreakdown;
-  explanations: DimensionExplanations;
-  shortNote: string;
-  netIncomePercent: number;
-};
-
-type DisqualifiedCountry = {
-  code: string;
-  name: string;
-  baseScore: number;
-  breakdown: DimensionBreakdown;
-  explanations: DimensionExplanations;
-  shortNote: string;
-  netIncomePercent: number;
-  reason: string;
-};
-
-type QuizApiResponse = {
-  ok: boolean;
-  message: string;
-  simpleScore: number;
-  bestMatch: CountryMatch | null;
-  topMatches: CountryMatch[];
-  disqualifiedTop?: DisqualifiedCountry[];
-  receivedData: QuizData;
-};
+// ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 export default function QuizPage() {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [step, setStep] = useState<Step>("hook");
   const [data, setData] = useState<QuizData>(initialData);
-  const [originCurrencyLabel, setOriginCurrencyLabel] = useState("your currency");
+  const [results, setResults] = useState<QuizApiResponse | null>(null);
 
-  const [submittedProfile, setSubmittedProfile] = useState<QuizData | null>(null);
-  const [result, setResult] = useState<QuizApiResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Infer default currency from country
-  useEffect(() => {
-    const map: Record<string, string> = {
-      Israel: "ILS",
-      Cyprus: "EUR",
-      Portugal: "EUR",
-      Spain: "EUR",
-      Romania: "RON",
-      Bulgaria: "BGN",
-      Georgia: "GEL",
-      Thailand: "THB",
-      Netherlands: "EUR",
-      Germany: "EUR",
-      Malta: "EUR",
-      "United Arab Emirates": "AED",
-      Greece: "EUR",
-      "United Kingdom": "GBP",
-      "United States": "USD",
-      Canada: "CAD",
-      Mexico: "MXN",
-    };
-
-    if (data.currentCountry && map[data.currentCountry]) {
-      setOriginCurrencyLabel(map[data.currentCountry]);
-    } else {
-      setOriginCurrencyLabel("your currency");
-    }
-  }, [data.currentCountry]);
-
-  function handleUpdate(values: Partial<QuizData>) {
+  const update = useCallback((values: Partial<QuizData>) => {
     setData((prev) => ({ ...prev, ...values }));
+  }, []);
+
+  function next() {
+    setStep((current) => {
+      const idx = STEPS.indexOf(current);
+      return STEPS[Math.min(idx + 1, STEPS.length - 1)];
+    });
   }
 
-  function handleNext() {
-    setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
+  function back() {
+    setStep((current) => {
+      const idx = STEPS.indexOf(current);
+      return STEPS[Math.max(idx - 1, 0)];
+    });
   }
 
-  function handleBack() {
-    setCurrentStep((s) => Math.max(s - 1, 0));
+  function restart() {
+    setData(initialData);
+    setResults(null);
+    setStep("hook");
   }
 
-  async function handleSubmit() {
-    setSubmittedProfile(data);
-    setLoading(true);
-    setErrorMsg(null);
-    setResult(null);
-
-    try {
-      const res = await fetch("/api/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Request failed with ${res.status}`);
-      }
-
-      const json = (await res.json()) as QuizApiResponse;
-      setResult(json);
-    } catch (err: any) {
-      console.error("Quiz submit error:", err);
-      setErrorMsg(err.message || "Something went wrong while scoring your matches.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const progress = ((currentStep + 1) / TOTAL_STEPS) * 100;
+  const stepIndex = STEPS.indexOf(step);
+  // Progress: hook = 0%, results = 100%
+  const progressPct = step === "hook" ? 0 : Math.round(((stepIndex) / (STEPS.length - 1)) * 100);
+  const showProgress = step !== "hook";
+  const progressMsg = PROGRESS_MESSAGES[step];
 
   return (
-    <main className="min-h-screen bg-white text-slate-900 flex items-start justify-center py-10 px-4">
-      <div className="w-full max-w-6xl">
-        {/* Top hero with logo */}
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-          <div className="flex items-center gap-4">
-            <img
-              src="https://i.ibb.co/d4D8806r/relomatcher.jpg"
-              alt="Relomatcher logo"
-              className="h-16 w-auto object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
-            />
-            <div>
-              <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 leading-tight">
-                The <span className="text-amber-500">dating app</span> for your next
-                country.
-              </h1>
-              <p className="text-sm md:text-base text-slate-600 mt-1">
-                Tell us who you are and what you care about. We&apos;ll match you with
-                countries like it&apos;s Tinder for relocation.
-              </p>
-            </div>
-          </div>
-          <div className="self-start md:self-auto">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-800">
-              Relomatcher · Beta
-            </span>
-          </div>
-        </header>
-
-        {/* Main layout: left explainer, right form + matches */}
-        <div className="grid gap-10 lg:grid-cols-[1.1fr_1.2fr] items-start">
-          {/* Left side explainer / benefits */}
-          <section className="space-y-6">
-            <div className="space-y-3">
-              <h2 className="text-xl md:text-2xl font-semibold text-slate-900">
-                Stop scrolling random Reddit threads.
-              </h2>
-              <p className="text-sm md:text-base text-slate-600">
-                Most people research relocation backwards: they start with a country and
-                then try to see if it fits. Relomatcher flips it – we start with{" "}
-                <span className="font-semibold text-amber-600">you</span> and only then
-                talk about countries.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Bullet icon="🧠" title="Adaptive questions">
-                We only go deep on the things you say you care about – if you don&apos;t
-                care about taxes, we won&apos;t interrogate you about taxes.
-              </Bullet>
-              <Bullet icon="🏳️‍🌈" title="Identity-aware">
-                Mark LGBTQ+ safety, language and lifestyle as non-negotiable and we&apos;ll
-                avoid places that clearly don&apos;t fit.
-              </Bullet>
-              <Bullet icon="🌦️" title="Climate & vibe first">
-                Prefer cold cities with nightlife, or warm laid-back islands? We treat
-                vibe as seriously as numbers.
-              </Bullet>
-              <Bullet icon="💸" title="Built for online earners">
-                Tuned for remote workers, e-com owners and people whose income isn&apos;t
-                locked to one country.
-              </Bullet>
-            </div>
-
-            <p className="text-xs text-slate-500 max-w-lg">
-              Today this is still a beta. The engine already ranks countries for you and
-              explains why they fit – and also shows strong options it had to reject
-              because of your non-negotiables (like LGBT or residency realism).
-            </p>
-          </section>
-
-          {/* Right side: step indicator + form + results */}
-          <section className="space-y-4">
-            {/* Step indicator */}
-            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 font-semibold">
-                Step {currentStep + 1} of {TOTAL_STEPS}
-              </p>
-              <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
-                <div
-                  className="h-full rounded-full bg-amber-400 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-
-            <AdaptiveQuizForm
-              currentStep={currentStep}
-              totalSteps={TOTAL_STEPS}
-              data={data}
-              originCurrencyLabel={originCurrencyLabel}
-              onUpdate={handleUpdate}
-              onNext={handleNext}
-              onBack={handleBack}
-              onSubmit={handleSubmit}
-            />
-
-            {loading && (
-              <div className="mt-2 text-xs text-slate-500">
-                Calculating your matches…
-              </div>
-            )}
-            {errorMsg && (
-              <div className="mt-2 text-xs text-red-500">
-                {errorMsg}
-              </div>
-            )}
-
-            {result && result.topMatches && result.topMatches.length > 0 && (
-              <ResultsPanel
-                result={result}
-                profile={submittedProfile}
-                originCurrencyLabel={originCurrencyLabel}
+    <div className="relo-quiz-root">
+      {/* ── Progress bar (hidden on hook screen) ── */}
+      <AnimatePresence>
+        {showProgress && (
+          <motion.div
+            className="relo-quiz-progress"
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.35 }}
+          >
+            {/* Logo mark */}
+            <div className="relo-quiz-progress__logo">
+              <img
+                src="https://i.ibb.co/d4D8806r/relomatcher.jpg"
+                alt="Relomatcher"
+                className="relo-quiz-progress__logo-img"
               />
-            )}
+            </div>
 
-            {submittedProfile && (
-              <div className="text-[11px] text-slate-500 pt-3 border-t border-slate-200 mt-4">
-                <p className="mb-1 font-semibold text-slate-800">
-                  Debug: profile payload sent to the matcher
-                </p>
-                <pre className="max-h-44 overflow-auto bg-slate-50 border border-slate-200 rounded-lg p-3 text-[10px] whitespace-pre-wrap text-slate-800">
-                  {JSON.stringify(submittedProfile, null, 2)}
-                </pre>
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
-    </main>
-  );
-}
+            {/* Step label + message */}
+            <div className="relo-quiz-progress__info">
+              <span className="relo-quiz-progress__step-label">
+                {STEP_LABELS[step]}
+              </span>
+              {progressMsg && (
+                <motion.span
+                  key={step}
+                  className="relo-quiz-progress__msg"
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {progressMsg}
+                </motion.span>
+              )}
+            </div>
 
-function Bullet({
-  icon,
-  title,
-  children,
-}: {
-  icon: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-3">
-      <div className="mt-1 h-7 w-7 flex items-center justify-center rounded-full bg-amber-50 border border-amber-100 text-lg">
-        {icon}
+            {/* Bar */}
+            <div className="relo-quiz-progress__bar-wrap">
+              <motion.div
+                className="relo-quiz-progress__bar-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Step content ── */}
+      <div className={`relo-quiz-step-wrap ${showProgress ? "has-progress" : ""}`}>
+        <AnimatePresence mode="wait">
+          {step === "hook" && (
+            <motion.div key="hook" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <Hook onStart={next} />
+            </motion.div>
+          )}
+          {step === "basics" && (
+            <motion.div key="basics" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <Basics data={data} update={update} onNext={next} onBack={back} />
+            </motion.div>
+          )}
+          {step === "swipe" && (
+            <motion.div key="swipe" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <SwipeDeck data={data} update={update} onNext={next} onBack={back} />
+            </motion.div>
+          )}
+          {step === "refine" && (
+            <motion.div key="refine" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <Refine data={data} update={update} onNext={next} onBack={back} />
+            </motion.div>
+          )}
+          {step === "reveal" && (
+            <motion.div key="reveal" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <Reveal
+                data={data}
+                onComplete={(r) => {
+                  setResults(r);
+                  next();
+                }}
+                onBack={back}
+              />
+            </motion.div>
+          )}
+          {step === "results" && results && (
+            <motion.div key="results" className="relo-quiz-step" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <Results results={results} profile={data} onRestart={restart} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div>
-        <p className="font-semibold text-slate-900">{title}</p>
-        <p className="text-sm text-slate-600">{children}</p>
-      </div>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        .relo-quiz-root {
+          min-height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          font-family: 'DM Sans', system-ui, sans-serif;
+        }
+
+        /* Progress bar */
+        .relo-quiz-progress {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 50;
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+          padding: 0.6rem 1.25rem 0;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .relo-quiz-progress__logo {
+          flex-shrink: 0;
+        }
+
+        .relo-quiz-progress__logo-img {
+          height: 28px;
+          width: auto;
+          object-fit: contain;
+          border-radius: 6px;
+        }
+
+        .relo-quiz-progress__info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.05rem;
+        }
+
+        .relo-quiz-progress__step-label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: #1a1040;
+          text-transform: uppercase;
+          letter-spacing: 0.07em;
+          line-height: 1;
+        }
+
+        .relo-quiz-progress__msg {
+          font-size: 0.7rem;
+          color: #ff6b35;
+          font-weight: 600;
+          line-height: 1;
+        }
+
+        .relo-quiz-progress__bar-wrap {
+          width: 80px;
+          height: 4px;
+          background: #f3f4f6;
+          border-radius: 100px;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        .relo-quiz-progress__bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #ff6b35, #f7931e);
+          border-radius: 100px;
+        }
+
+        /* Step wrapper — after the sticky progress bar */
+        .relo-quiz-step-wrap {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .relo-quiz-step-wrap.has-progress {
+          padding-top: 52px;
+        }
+
+        .relo-quiz-step {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .relo-quiz-step > * {
+          flex: 1;
+        }
+      `}</style>
     </div>
   );
 }
-
-/* ResultsPanel, MatchCard, DisqualifiedPanel stay EXACTLY as you already have them */
