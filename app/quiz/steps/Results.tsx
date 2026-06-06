@@ -3,15 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { QuizData } from "@/lib/types";
-import type { MatchResult } from "@/lib/scoring/types";
+import type { ReportPayload } from "@/lib/scoring/types";
 import type { QuizApiResponse } from "./Reveal";
 import CountryCard from "./CountryCard";
-
-type ReportPayload = {
-  profile: QuizData;
-  matches: MatchResult[];
-  relaxedFilters: boolean;
-};
 
 interface ResultsProps {
   results: QuizApiResponse;

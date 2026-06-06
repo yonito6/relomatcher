@@ -2,8 +2,7 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import OpenAI from "openai";
-import type { QuizData } from "@/lib/types";
-import type { MatchResult, Breakdown, FactorId } from "@/lib/scoring/types";
+import type { MatchResult, Breakdown, FactorId, ReportPayload } from "@/lib/scoring/types";
 import { FACTORS } from "@/lib/factors";
 
 export const runtime = "nodejs";
@@ -32,11 +31,7 @@ type AIReport = {
 
 export async function POST(req: Request) {
   try {
-    const { profile, matches, relaxedFilters } = (await req.json()) as {
-      profile: QuizData;
-      matches: MatchResult[];
-      relaxedFilters: boolean;
-    };
+    const { profile, matches, relaxedFilters } = (await req.json()) as ReportPayload;
 
     if (!matches || !Array.isArray(matches) || matches.length === 0) {
       return NextResponse.json(
@@ -83,7 +78,7 @@ function factorEmoji(id: FactorId): string {
 }
 
 async function buildAIReport(
-  profile: QuizData,
+  profile: ReportPayload["profile"],
   matches: MatchResult[],
   relaxedFilters: boolean
 ): Promise<AIReport> {
@@ -278,7 +273,7 @@ function tierLabel(tier: MatchResult["tier"]): string {
 }
 
 async function buildPdf(
-  profile: QuizData,
+  profile: ReportPayload["profile"],
   matches: MatchResult[],
   relaxedFilters: boolean,
   aiReport: AIReport
@@ -472,7 +467,7 @@ async function buildPdf(
     let rightY = y;
 
     /* ---- Left: factor breakdown bars ---- */
-    page.drawText("Factor scores (0–100)", {
+    page.drawText("Factor scores (0–10)", {
       x: leftX,
       y: leftY,
       size: 12,
@@ -643,7 +638,7 @@ async function buildPdf(
 /*                           TEXT / DRAW HELPERS                               */
 /* -------------------------------------------------------------------------- */
 
-function buildProfileSummaryLines(profile: QuizData, relaxedFilters: boolean): string[] {
+function buildProfileSummaryLines(profile: ReportPayload["profile"], relaxedFilters: boolean): string[] {
   const lines: string[] = [];
 
   lines.push("Your profile snapshot:");

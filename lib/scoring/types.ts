@@ -1,4 +1,5 @@
 import type { CountryRecord, CultureCluster } from "@/lib/countriesDb";
+import type { QuizData } from "@/lib/types";
 
 export type FactorId =
   | "weather" | "safety" | "lgbt" | "language" | "jobs"
@@ -26,4 +27,12 @@ export type MatchResult = {
   note?: string;          // optional AI-polished blurb
   breakdown: Breakdown[];
   moonshot?: boolean;
+};
+
+// Shared payload written to sessionStorage before Stripe redirect and
+// consumed by /premium/success and /api/report.
+export type ReportPayload = {
+  profile: QuizData;
+  matches: MatchResult[];
+  relaxedFilters: boolean;
 };

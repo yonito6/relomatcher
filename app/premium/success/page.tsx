@@ -3,14 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { QuizData } from "@/lib/types";
-import type { MatchResult } from "@/lib/scoring/types";
-
-type ReportPayload = {
-  profile: QuizData;
-  matches: MatchResult[];
-  relaxedFilters: boolean;
-};
+import type { ReportPayload } from "@/lib/scoring/types";
 
 export default function PremiumSuccessPage({
   searchParams,
@@ -41,7 +34,24 @@ export default function PremiumSuccessPage({
         return;
       }
 
-      const payload: ReportPayload = JSON.parse(stored);
+      let payload: ReportPayload;
+      try {
+        payload = JSON.parse(stored);
+      } catch {
+        setStatus("missing");
+        setErrorMessage(
+          "We couldn't read your answers. Please run the matcher again to regenerate your report."
+        );
+        return;
+      }
+
+      if (!payload?.matches?.length) {
+        setStatus("missing");
+        setErrorMessage(
+          "We couldn't find your answers. Please run the matcher again to regenerate your report."
+        );
+        return;
+      }
 
       const res = await fetch("/api/report", {
         method: "POST",
