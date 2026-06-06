@@ -106,7 +106,6 @@ export async function POST(req: Request) {
       ageRange: profile.ageRange,
       currentCountry: profile.currentCountry,
       languagesSpoken: profile.languagesSpoken,
-      reasons: profile.reasons,
     };
 
     const compactMatches = topMatches.slice(0, 10).map((m) => ({

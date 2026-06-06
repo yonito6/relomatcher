@@ -5,9 +5,11 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAI(): OpenAI {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY not configured");
+  return new OpenAI({ apiKey: key });
+}
 
 type MatchInput = {
   name: string;
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
     const pdfBytes = await buildPdf(profile, topMatches, aiReport);
 
     // Wrap Uint8Array in a Blob so TS is happy
-    const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+    const pdfBlob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
 
     return new Response(pdfBlob, {
       status: 200,
@@ -208,6 +210,7 @@ Return ONLY this JSON, no markdown, no commentary.
 `.trim();
 
   // Use classic chat completions; no response_format to avoid TS issues
+  const openai = getOpenAI();
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
     messages: [
