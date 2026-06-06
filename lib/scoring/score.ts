@@ -1,7 +1,7 @@
 import { FACTORS, ratingWeight } from "@/lib/factors";
 import type { CountryRecord, CultureCluster } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
-import type { CountryFit, Breakdown, ClimatePref, CulturePref } from "@/lib/scoring/types";
+import type { CountryFit, Breakdown, ClimatePref, CulturePref, FactorId, Rating } from "@/lib/scoring/types";
 
 // ---------------------------------------------------------------------------
 // Culture adjacency map
@@ -23,7 +23,9 @@ const ADJACENT: Partial<Record<CultureCluster, CultureCluster[]>> = {
 };
 
 function culturalScore(country: CountryRecord, culturePref: CulturePref | undefined): number {
-  if (culturePref == null) return 6; // neutral when no pref
+  // No pref → deliberately slightly-positive default (per spec: users who skip
+  // culture preference shouldn't be penalised; 6 is a mild positive signal).
+  if (culturePref == null) return 6;
   const clusters = (country as any).cultureClusters as CultureCluster[] | undefined;
   if (!clusters || clusters.length === 0) return 2;
   if (clusters.includes(culturePref)) return 10;
@@ -64,18 +66,19 @@ function resolveFactorScore(
     return culturalScore(country, profile.culturePref as CulturePref | undefined);
   }
 
-  // field-based resolution
+  // Taxes gets special treatment: `taxes.fields` lists ["taxScore","netIncomePercentTypical"]
+  // but netIncomePercentTypical is a 0–100 percentage, not a 0–10 score, so we can't use
+  // the generic field-average path. Instead we normalise it by dividing by 10 here.
   if (factorId === "taxes") {
-    // special: mean of taxScore and netIncomePercentTypical / 10
     const a = (country as any).taxScore as number | undefined;
     const b = (country as any).netIncomePercentTypical as number | undefined;
     const vals: number[] = [];
     if (a !== undefined) vals.push(a);
-    if (b !== undefined) vals.push(b / 10);
+    if (b !== undefined) vals.push(b / 10); // convert 0–100 percentage → 0–10 scale
     return mean(vals);
   }
 
-  // generic: mean of the factor's field values
+  // generic: mean of the factor's field values (undefined fields treated as 0)
   const nums = factor.fields.map((field) => {
     const v = (country as any)[field] as number | undefined;
     return v !== undefined ? v : 0;
@@ -90,8 +93,16 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
   const p = profile as any;
   const factorRatings: Partial<Record<string, string>> = p.factorRatings ?? {};
 
-  // Determine kept factors (rating exists and is not "dont_care")
-  type KeptEntry = { id: string; score: number; weight: number; role: string; floor?: any };
+  // Determine kept factors (rating exists and is not "dont_care").
+  // Store floor directly from FactorDef so the bonus loop needs no second FACTORS.find.
+  type KeptEntry = {
+    id: FactorId;
+    score: number;
+    weight: number;
+    role: string;
+    floor?: Partial<Record<Rating, number>>;
+    combined?: true;
+  };
   const kept: KeptEntry[] = [];
 
   for (const factor of FACTORS) {
@@ -101,38 +112,38 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
     if (factor.id === "costOfLiving" || factor.id === "taxes") continue;
 
     const score = resolveFactorScore(factor.id, country, p);
-    const weight = ratingWeight(rating as any);
-    kept.push({ id: factor.id, score, weight, role: factor.role, floor: factor.floor });
+    const weight = ratingWeight(rating as Rating);
+    kept.push({ id: factor.id as FactorId, score, weight, role: factor.role, floor: factor.floor });
   }
 
-  // Money bundle: collapse costOfLiving + taxes into one entry
+  // Money bundle: collapse costOfLiving + taxes into one combined entry.
+  // Money is always treated as a differentiator bundle regardless of original roles.
   const colRating = factorRatings["costOfLiving"];
   const taxRating = factorRatings["taxes"];
   const colKept = colRating && colRating !== "dont_care";
   const taxKept = taxRating && taxRating !== "dont_care";
 
-  let moneyEntry: (KeptEntry & { combined: true }) | null = null;
+  let moneyEntry: KeptEntry | null = null;
   if (colKept || taxKept) {
     const scores: number[] = [];
     const weights: number[] = [];
     if (colKept) {
       scores.push(resolveFactorScore("costOfLiving", country, p));
-      weights.push(ratingWeight(colRating as any));
+      weights.push(ratingWeight(colRating as Rating));
     }
     if (taxKept) {
       scores.push(resolveFactorScore("taxes", country, p));
-      weights.push(ratingWeight(taxRating as any));
+      weights.push(ratingWeight(taxRating as Rating));
     }
     const bundleScore = mean(scores);
     const bundleWeight = Math.max(...weights);
     // Deterministic id: use "costOfLiving" if it's kept, else "taxes"
-    const bundleId = colKept ? "costOfLiving" : "taxes";
+    const bundleId: FactorId = colKept ? "costOfLiving" : "taxes";
     moneyEntry = {
       id: bundleId,
       score: bundleScore,
       weight: bundleWeight,
-      role: "differentiator",
-      floor: undefined,
+      role: "differentiator", // money is always a differentiator bundle
       combined: true,
     };
   }
@@ -143,7 +154,7 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
     return { fit: 50, breakdown: [] };
   }
 
-  // Weighted average of all contribution scores
+  // Weighted average of all contribution scores → 0–10
   let totalWeightedScore = 0;
   let totalWeight = 0;
   for (const c of allContributions) {
@@ -152,14 +163,16 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
   }
   const weightedAvg = totalWeightedScore / totalWeight; // 0–10
 
-  // Floor bonus for filter factors
+  // Floor bonus for filter factors: rewards countries that clear their floor threshold.
+  // Each per-filter bonus is capped at 0.5; total bonusSum capped at 1.0 to prevent
+  // stacking multiple must-filters from compressing the top of the scale.
+  // Final rawScore range: weightedAvg (0–10) + bonusSum (0–1.0), so max ≈ 11 before ×10 clamp.
   let bonusSum = 0;
   for (const c of kept) {
     if (c.role !== "filter" || !c.floor) continue;
-    const factorDef = FACTORS.find((f) => f.id === c.id);
-    if (!factorDef?.floor) continue;
-    const rating = factorRatings[c.id] as any;
-    const floorVal = factorDef.floor[rating as keyof typeof factorDef.floor];
+    const rating = factorRatings[c.id] as Rating | undefined;
+    if (!rating) continue;
+    const floorVal = c.floor[rating];
     if (floorVal === undefined) continue;
     const diff = c.score - floorVal;
     if (diff <= 0) continue;
@@ -167,13 +180,14 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
     const bonus = denominator > 0 ? 0.5 * (diff / denominator) : 0;
     bonusSum += Math.min(0.5, Math.max(0, bonus));
   }
+  bonusSum = Math.min(bonusSum, 1.0); // cap total bonus
 
-  const rawScore = weightedAvg + bonusSum; // still roughly 0–10 range
+  const rawScore = weightedAvg + bonusSum; // 0–10 weighted avg + up to 1.0 bonus
   const fit = Math.min(100, Math.max(0, rawScore * 10));
 
   const breakdown: Breakdown[] = allContributions.map((c) => {
-    const entry: Breakdown = { id: c.id as any, score: c.score, weight: c.weight };
-    if ((c as any).combined) entry.combined = true;
+    const entry: Breakdown = { id: c.id, score: c.score, weight: c.weight };
+    if (c.combined) entry.combined = true;
     return entry;
   });
 
