@@ -78,7 +78,17 @@ it("always returns up to 3 even if a must-have would empty the set", () => {
 
 it("selects exactly one moonshot outside the achievable top 3 when applicable", () => {
   const out = rankCountries({ factorRatings: { weather: "must" }, passportCountry: "Atlantis" } as any, COUNTRIES);
-  expect(out.moonshot === null || out.top.find((t) => t.country.code === out.moonshot!.country.code)).toBeFalsy();
+  if (out.moonshot !== null) {
+    expect(out.top.some((t) => t.country.code === out.moonshot!.country.code)).toBe(false);
+  }
+});
+
+it("handles an empty country list", () => {
+  const out = rankCountries({ factorRatings: { weather: "must" } } as any, []);
+  expect(out.top).toEqual([]);
+  expect(out.moonshot).toBeNull();
+  expect(out.disqualified).toEqual([]);
+  expect(out.relaxedFilters).toBe(false);
 });
 
 // ---------------------------------------------------------------------------
@@ -152,12 +162,12 @@ describe("rankCountries golden profiles", () => {
     expect(out.top.every((m) => (m.country.lgbtScore ?? 0) >= 7.5)).toBe(true);
   });
 
-  it("LGBTQ+ + EU passport: at least the top result has tier 'easy'", () => {
+  it("LGBTQ+ + EU passport: all top results have tier 'easy' (EU passport → EU targets)", () => {
     const out = rankCountries(
       { factorRatings: { lgbt: "must", safety: "important" }, passportCountry: "Germany" } as any,
       COUNTRIES
     );
-    expect(out.top[0].tier).toBe("easy");
+    expect(out.top.every((m) => m.tier === "easy")).toBe(true);
   });
 
   it("budget warm-weather persona: top-3 average warmClimateScore above median", () => {

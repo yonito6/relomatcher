@@ -209,7 +209,12 @@ function tierRank(tier: Tier): number {
   }
 }
 
-/** Feasibility soft penalty subtracted from fit for ranking purposes. */
+/**
+ * Feasibility soft penalty subtracted from fit for ranking purposes (fit-points on the
+ * 0–100 scale). Tuned so a barely-viable easy-tier country stays ahead of a higher-raw-fit
+ * but much-harder-to-move-to country, while remaining bounded and monotonic.
+ *   easy=0, doable=−3, hard=−8, very_hard=−15
+ */
 function feasibilityPenalty(tier: Tier): number {
   switch (tier) {
     case "easy":      return 0;
@@ -308,7 +313,9 @@ export function rankCountries(profile: QuizData, countries: CountryRecord[]): Ra
       adjustedFit -= softPenalty;
     }
 
-    // Clamp adjusted fit
+    // Floor at −50: prevents a multi-filter-failing country from sinking arbitrarily
+    // low so the relaxed-fallback sort stays intuitive between failing countries.
+    // (The final UI fit is separately clamped to 0–100 when building MatchResults.)
     adjustedFit = Math.max(-50, adjustedFit);
 
     return { country: c, rawFit, breakdown, tier, reason, adjustedFit, failed };
