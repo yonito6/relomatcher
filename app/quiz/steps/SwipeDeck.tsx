@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 import type { QuizData } from "@/lib/types";
 import type { FactorId, FactorRatings } from "@/lib/scoring/types";
@@ -44,7 +44,6 @@ const cardVariants = {
 
 interface CardProps {
   factorIndex: number;
-  totalCards: number;
   stackDepth: number; // 0 = top, 1 = second, 2 = third
   exitDirection: "left" | "right";
   onSwipe: (direction: "left" | "right") => void;
@@ -53,7 +52,6 @@ interface CardProps {
 function SwipeCard({ factorIndex, stackDepth, exitDirection, onSwipe }: CardProps) {
   const factor = FACTORS[factorIndex];
   const x = useMotionValue(0);
-  const isDragging = useRef(false);
 
   // Rotation tied to x offset: max ±18deg
   const rawRotate = useTransform(x, [-220, 0, 220], [-18, 0, 18]);
@@ -78,7 +76,6 @@ function SwipeCard({ factorIndex, stackDepth, exitDirection, onSwipe }: CardProp
     } else if (offset.x < -threshold || velocity.x < -velocityThreshold) {
       onSwipe("left");
     }
-    isDragging.current = false;
   }
 
   if (stackDepth > 2) return null;
@@ -88,6 +85,7 @@ function SwipeCard({ factorIndex, stackDepth, exitDirection, onSwipe }: CardProp
     return (
       <motion.div
         className="relo-swipe__card"
+        aria-hidden="true"
         style={{
           scale: stackScale,
           y: stackY,
@@ -112,7 +110,6 @@ function SwipeCard({ factorIndex, stackDepth, exitDirection, onSwipe }: CardProp
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.8}
-      onDragStart={() => { isDragging.current = true; }}
       onDragEnd={handleDragEnd}
       variants={cardVariants}
       initial="enter"
@@ -187,6 +184,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         ratings[f.id] = nextDecisions[i] === "kept" ? "important" : "dont_care";
       });
       setTimeout(() => {
+        setIsAnimating(false);
         update({ factorRatings: ratings });
         onNext();
       }, 420);
@@ -257,7 +255,6 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
               <SwipeCard
                 key={factor.id}
                 factorIndex={factorIndex}
-                totalCards={FACTORS.length}
                 stackDepth={stackIdx}
                 exitDirection={exitDirection}
                 onSwipe={handleSwipe}

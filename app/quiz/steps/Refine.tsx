@@ -411,19 +411,8 @@ function RefineStyles() {
         flex-shrink: 0;
       }
 
-      /* Intensity segmented control */
-      .relo-refine__intensity {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
-
-      .relo-refine__intensity > *:first-child {
-        display: flex;
-        gap: 0.35rem;
-      }
-
-      /* Wrap the buttons in a flex row — they're rendered as siblings of filter-note */
+      /* Intensity segmented control — flex-wrap so the 3 buttons share a row
+         and the optional filter-note wraps below them as a full-width item */
       .relo-refine__intensity {
         display: flex;
         flex-wrap: wrap;
