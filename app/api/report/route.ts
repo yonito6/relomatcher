@@ -2,6 +2,9 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import OpenAI from "openai";
+import type { QuizData } from "@/lib/types";
+import type { MatchResult, Breakdown, FactorId } from "@/lib/scoring/types";
+import { FACTORS } from "@/lib/factors";
 
 export const runtime = "nodejs";
 
@@ -10,31 +13,6 @@ function getOpenAI(): OpenAI {
   if (!key) throw new Error("OPENAI_API_KEY not configured");
   return new OpenAI({ apiKey: key });
 }
-
-type MatchInput = {
-  name: string;
-  code: string;
-  shortNote?: string;
-  totalScore?: number;
-  netIncomePercent?: number;
-  breakdown?: {
-    tax?: number;
-    costOfLiving?: number;
-    safety?: number;
-    lifestyle?: number;
-    climateMatch?: number;
-    lgbtRights?: number;
-  };
-};
-
-type ProfileInput = {
-  currentCountry?: string;
-  ageRange?: string;
-  languagesSpoken?: string[];
-  reasons?: string[];
-  monthlyIncome?: number | string;
-  incomeCurrency?: string;
-};
 
 type AIReportCountry = {
   name: string;
@@ -54,12 +32,13 @@ type AIReport = {
 
 export async function POST(req: Request) {
   try {
-    const { profile, topMatches } = (await req.json()) as {
-      profile: ProfileInput;
-      topMatches: MatchInput[];
+    const { profile, matches, relaxedFilters } = (await req.json()) as {
+      profile: QuizData;
+      matches: MatchResult[];
+      relaxedFilters: boolean;
     };
 
-    if (!topMatches || !Array.isArray(topMatches) || topMatches.length === 0) {
+    if (!matches || !Array.isArray(matches) || matches.length === 0) {
       return NextResponse.json(
         { error: "No matches provided to generate a report." },
         { status: 400 }
@@ -67,10 +46,10 @@ export async function POST(req: Request) {
     }
 
     // 1) Ask ChatGPT for a structured relocation report for these matches
-    const aiReport = await buildAIReport(profile, topMatches);
+    const aiReport = await buildAIReport(profile, matches, relaxedFilters);
 
     // 2) Build a nicely formatted multi-page PDF
-    const pdfBytes = await buildPdf(profile, topMatches, aiReport);
+    const pdfBytes = await buildPdf(profile, matches, relaxedFilters, aiReport);
 
     // Wrap Uint8Array in a Blob so TS is happy
     const pdfBlob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
@@ -95,9 +74,18 @@ export async function POST(req: Request) {
 /*                            AI REPORT GENERATION                             */
 /* -------------------------------------------------------------------------- */
 
+function factorLabel(id: FactorId): string {
+  return FACTORS.find((f) => f.id === id)?.label ?? id;
+}
+
+function factorEmoji(id: FactorId): string {
+  return FACTORS.find((f) => f.id === id)?.emoji ?? "";
+}
+
 async function buildAIReport(
-  profile: ProfileInput,
-  topMatches: MatchInput[]
+  profile: QuizData,
+  matches: MatchResult[],
+  relaxedFilters: boolean
 ): Promise<AIReport> {
   // Fallback if no API key – still return something valid
   if (!process.env.OPENAI_API_KEY) {
@@ -106,11 +94,11 @@ async function buildAIReport(
         "Relomatcher could not access the AI engine, so this is a simplified report.",
       globalAdvice:
         "Once AI is connected, this section will contain tailored advice on how to plan your relocation and compare your top countries.",
-      countries: topMatches.map((m) => ({
-        name: m.name,
+      countries: matches.map((m) => ({
+        name: m.country.name,
         tagline: "Top relocation match based on your answers.",
         whyItFits:
-          "This country scored well across your key priorities such as taxes, safety, lifestyle and climate. Once AI is connected, this paragraph will explain the fit in more human language.",
+          "This country scored well across your key priorities. Once AI is connected, this paragraph will explain the fit in more human language.",
         visaOptions: [
           "Work visa – if you have a job offer or can find employment there.",
           "Business / entrepreneur route – if you run a company or can invest.",
@@ -135,24 +123,29 @@ async function buildAIReport(
     currentCountry: profile.currentCountry || null,
     ageRange: profile.ageRange || null,
     languagesSpoken: profile.languagesSpoken || [],
-    reasons: profile.reasons || [],
     monthlyIncome: profile.monthlyIncome || null,
     incomeCurrency: profile.incomeCurrency || null,
+    climatePref: profile.climatePref || null,
+    culturePref: profile.culturePref || null,
+    topFactors: Object.entries(profile.factorRatings ?? {})
+      .filter(([, r]) => r === "must" || r === "important")
+      .map(([id, r]) => `${factorLabel(id as FactorId)} (${r})`),
   };
 
-  const simpleMatches = topMatches.map((m) => ({
-    name: m.name,
-    shortNote: m.shortNote || "",
-    totalScore: m.totalScore ?? null,
-    netIncomePercent: m.netIncomePercent ?? null,
-    stats: {
-      tax: m.breakdown?.tax ?? null,
-      costOfLiving: m.breakdown?.costOfLiving ?? null,
-      safety: m.breakdown?.safety ?? null,
-      lifestyle: m.breakdown?.lifestyle ?? null,
-      climateMatch: m.breakdown?.climateMatch ?? null,
-      lgbtRights: m.breakdown?.lgbtRights ?? null,
-    },
+  const simpleMatches = matches.map((m) => ({
+    name: m.country.name,
+    fit: m.fit,
+    tier: m.tier,
+    reason: m.reason,
+    tradeoff: m.tradeoff,
+    shortNote: m.country.shortNote || "",
+    netIncomePercentTypical: m.country.netIncomePercentTypical ?? null,
+    moonshot: m.moonshot ?? false,
+    breakdown: m.breakdown.map((b: Breakdown) => ({
+      factor: `${factorEmoji(b.id)} ${factorLabel(b.id)}`,
+      score: b.score,
+      weight: b.weight,
+    })),
   }));
 
   const systemPrompt = `
@@ -165,14 +158,18 @@ The user wants:
 - Tone: clear, friendly, not overhyped. Assume the user is willing to research further.
 
 IMPORTANT:
-- Focus only on the countries provided.
-- If you don't know some detail about a country's visa, give generic but sensible advice (e.g. "look for digital nomad visa", "look into EU long-term residence via this or that").
+- Focus only on the countries provided. Do NOT invent or reorder them.
+- Each country has a "tier" (easy/doable/hard/very_hard) and a "reason" explaining feasibility — reference these honestly.
+- Each country has a "tradeoff" — the honest heads-up — include it in the caveats.
+- If you don't know some detail about a country's visa, give generic but sensible advice.
 - DO NOT invent fake visa names; you may mention categories like "work visa", "digital nomad visa", "EU residency routes", etc.
 `.trim();
 
   const userPrompt = `
 User profile (cleaned JSON):
 ${JSON.stringify(cleanedProfile, null, 2)}
+
+Relaxed filters applied: ${relaxedFilters}
 
 Top relocation matches (cleaned JSON):
 ${JSON.stringify(simpleMatches, null, 2)}
@@ -185,7 +182,7 @@ Produce a JSON object with:
     {
       "name": "Country name exactly as provided",
       "tagline": "A sharp 1-sentence slogan for this match.",
-      "whyItFits": "3–6 sentences explaining why this country fits the user, referencing taxes / safety / LGBT / climate etc. where relevant.",
+      "whyItFits": "3–6 sentences explaining why this country fits the user, referencing the feasibility tier, factor scores, climate, culture etc. where relevant.",
       "visaOptions": [
         "Short bullet phrase with 1 specific route or category",
         "Another realistic option if there is one",
@@ -201,7 +198,7 @@ Produce a JSON object with:
         "Main city 2 – short 3–6 word descriptor",
         "Optional third city"
       ],
-      "caveats": "2–4 sentences with realistic downsides or things to watch for (costs, visa bureaucracy, culture shock, etc.)."
+      "caveats": "2–4 sentences with realistic downsides or things to watch for (include the tradeoff provided for this country)."
     }
   ]
 }
@@ -209,7 +206,6 @@ Produce a JSON object with:
 Return ONLY this JSON, no markdown, no commentary.
 `.trim();
 
-  // Use classic chat completions; no response_format to avoid TS issues
   const openai = getOpenAI();
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
@@ -217,8 +213,6 @@ Return ONLY this JSON, no markdown, no commentary.
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    // If your SDK supports it you *could* add:
-    // response_format: { type: "json_object" }
   });
 
   const jsonText = completion.choices[0]?.message?.content ?? "{}";
@@ -228,7 +222,6 @@ Return ONLY this JSON, no markdown, no commentary.
     parsed = JSON.parse(jsonText);
   } catch (e) {
     console.error("Failed to parse AI report JSON, falling back:", e);
-    // Fallback to simpler non-AI structure
     return {
       intro:
         "We had trouble parsing the AI output, so this is a simplified report.",
@@ -265,10 +258,8 @@ Return ONLY this JSON, no markdown, no commentary.
   }
 
   // Keep only countries we actually matched
-  const allowedNames = new Set(topMatches.map((m) => m.name));
-  parsed.countries = parsed.countries.filter((c) =>
-    allowedNames.has(c.name)
-  );
+  const allowedNames = new Set(matches.map((m) => m.country.name));
+  parsed.countries = parsed.countries.filter((c) => allowedNames.has(c.name));
 
   return parsed;
 }
@@ -277,9 +268,19 @@ Return ONLY this JSON, no markdown, no commentary.
 /*                                PDF BUILDER                                 */
 /* -------------------------------------------------------------------------- */
 
+function tierLabel(tier: MatchResult["tier"]): string {
+  switch (tier) {
+    case "easy": return "Easy move";
+    case "doable": return "Doable";
+    case "hard": return "Hard";
+    case "very_hard": return "Very hard";
+  }
+}
+
 async function buildPdf(
-  profile: ProfileInput,
-  topMatches: MatchInput[],
+  profile: QuizData,
+  matches: MatchResult[],
+  relaxedFilters: boolean,
   aiReport: AIReport
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
@@ -287,9 +288,9 @@ async function buildPdf(
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // Optional: try to fetch and embed flags for each country
-  const flagImages: Record<string, any> = {};
-  for (const m of topMatches) {
-    const code = (m.code || "").toLowerCase();
+  const flagImages: Record<string, ReturnType<typeof pdfDoc.embedPng> extends Promise<infer T> ? T : never> = {};
+  for (const m of matches) {
+    const code = (m.country.code || "").toLowerCase();
     if (!code) continue;
     try {
       const flagUrl = `https://flagcdn.com/w160/${code}.png`;
@@ -297,7 +298,7 @@ async function buildPdf(
       if (res.ok) {
         const buf = await res.arrayBuffer();
         const img = await pdfDoc.embedPng(buf);
-        flagImages[m.code] = img;
+        flagImages[m.country.code] = img;
       }
     } catch {
       // No flag – ignore
@@ -332,7 +333,7 @@ async function buildPdf(
     y -= 30;
 
     // Short profile summary
-    const profileLines = buildProfileSummaryLines(profile);
+    const profileLines = buildProfileSummaryLines(profile, relaxedFilters);
     y = drawParagraph(page, profileLines, {
       x: 50,
       y,
@@ -374,7 +375,7 @@ async function buildPdf(
     y -= 18;
 
     const globalLines = wrapText(aiReport.globalAdvice || "", 90);
-    y = drawParagraph(page, globalLines, {
+    drawParagraph(page, globalLines, {
       x: 50,
       y,
       font: fontRegular,
@@ -390,8 +391,8 @@ async function buildPdf(
     aiCountryByName.set(c.name, c);
   }
 
-  for (const match of topMatches) {
-    const aiCountry = aiCountryByName.get(match.name);
+  for (const match of matches) {
+    const aiCountry = aiCountryByName.get(match.country.name);
     const page = pdfDoc.addPage();
     const { width, height } = page.getSize();
     let y = height - 60;
@@ -405,7 +406,7 @@ async function buildPdf(
       color: rgb(0.98, 0.93, 0.85), // soft amber
     });
 
-    page.drawText(match.name, {
+    page.drawText(match.country.name, {
       x: 50,
       y: height - 28,
       size: 16,
@@ -413,12 +414,8 @@ async function buildPdf(
       color: rgb(0.3, 0.2, 0.1),
     });
 
-    const score =
-      typeof match.totalScore === "number"
-        ? match.totalScore.toFixed(1)
-        : "–";
-
-    page.drawText(`Match score: ${score} / 10`, {
+    // fit is 0-100; show as X/100
+    page.drawText(`Match score: ${match.fit}/100`, {
       x: width - 200,
       y: height - 26,
       size: 11,
@@ -429,7 +426,7 @@ async function buildPdf(
     y = height - 70;
 
     // Flag image if available
-    const flagImg = match.code && flagImages[match.code];
+    const flagImg = match.country.code && flagImages[match.country.code];
     if (flagImg) {
       const flagW = 60;
       const flagH = (flagImg.height / flagImg.width) * flagW;
@@ -444,7 +441,7 @@ async function buildPdf(
     // Tagline
     const tagline =
       aiCountry?.tagline ||
-      match.shortNote ||
+      match.country.shortNote ||
       "Top relocation match based on your profile.";
     const taglineLines = wrapText(tagline, 70);
     y = drawParagraph(page, taglineLines, {
@@ -454,6 +451,18 @@ async function buildPdf(
       size: 12,
       lineGap: 4,
     });
+    y -= 6;
+
+    // Feasibility line
+    const feasLine = `Feasibility: ${tierLabel(match.tier)} — ${match.reason}`;
+    const feasLines = wrapText(feasLine, 90);
+    y = drawParagraph(page, feasLines, {
+      x: 50,
+      y,
+      font: fontRegular,
+      size: 10,
+      lineGap: 3,
+    });
     y -= 10;
 
     // Two-column layout: left stats, right visa/steps
@@ -462,8 +471,8 @@ async function buildPdf(
     let leftY = y;
     let rightY = y;
 
-    /* ---- Left: numeric stats as mini bars ---- */
-    page.drawText("Key scores (0–10)", {
+    /* ---- Left: factor breakdown bars ---- */
+    page.drawText("Factor scores (0–100)", {
       x: leftX,
       y: leftY,
       size: 12,
@@ -472,33 +481,22 @@ async function buildPdf(
     });
     leftY -= 16;
 
-    const statsToShow: { label: string; value?: number }[] = [
-      { label: "Taxes", value: match.breakdown?.tax },
-      { label: "Cost of living", value: match.breakdown?.costOfLiving },
-      { label: "Safety & stability", value: match.breakdown?.safety },
-      { label: "Lifestyle & culture", value: match.breakdown?.lifestyle },
-      { label: "Climate match", value: match.breakdown?.climateMatch },
-      { label: "LGBT protections", value: match.breakdown?.lgbtRights },
-    ];
-
-    for (const stat of statsToShow) {
-      if (stat.value == null) continue;
+    for (const b of match.breakdown) {
+      const label = `${factorEmoji(b.id)} ${factorLabel(b.id)}`;
       leftY = drawScoreBar(page, {
         x: leftX,
         y: leftY,
-        label: stat.label,
-        value: stat.value,
+        label,
+        value: b.score,    // score is 0–10 from engine
         fontLabel: fontRegular,
         fontBold,
       });
       leftY -= 4;
     }
 
-    if (typeof match.netIncomePercent === "number") {
+    if (typeof match.country.netIncomePercentTypical === "number") {
       leftY -= 8;
-      const text = `Approx. net income kept: ${match.netIncomePercent.toFixed(
-        1
-      )}%`;
+      const text = `Approx. net income kept: ${match.country.netIncomePercentTypical.toFixed(1)}%`;
       const lines = wrapText(text, 38);
       leftY = drawParagraph(page, lines, {
         x: leftX,
@@ -601,7 +599,7 @@ async function buildPdf(
     const cities =
       aiCountry?.recommendedCities && aiCountry.recommendedCities.length > 0
         ? aiCountry.recommendedCities
-        : [match.name + " main city"];
+        : [match.country.name + " main city"];
     rightY = drawBulletedList(page, cities, {
       x: rightX,
       y: rightY,
@@ -612,14 +610,16 @@ async function buildPdf(
     });
     rightY -= 8;
 
-    // Caveats
+    // Caveats (include tradeoff from match data)
     const caveatsTitle = "Caveats & things to watch";
+    const tradeoffLine = match.tradeoff ? ` Note: ${match.tradeoff}` : "";
     const caveatsText =
-      aiCountry?.caveats ||
-      "Visa rules, taxes and residency paths change often. Always cross-check with recent information before committing money or signing contracts.";
+      (aiCountry?.caveats ||
+        "Visa rules, taxes and residency paths change often. Always cross-check with recent information before committing money or signing contracts.") +
+      tradeoffLine;
     const caveatLines = wrapText(caveatsText, 90);
 
-    let caveatY = Math.min(leftY, rightY) - 12;
+    const caveatY = Math.min(leftY, rightY) - 12;
     page.drawText(caveatsTitle, {
       x: 50,
       y: caveatY,
@@ -627,10 +627,9 @@ async function buildPdf(
       font: fontBold,
       color: rgb(0.3, 0.1, 0.1),
     });
-    caveatY -= 14;
     drawParagraph(page, caveatLines, {
       x: 50,
-      y: caveatY,
+      y: caveatY - 14,
       font: fontRegular,
       size: 10,
       lineGap: 3,
@@ -644,7 +643,7 @@ async function buildPdf(
 /*                           TEXT / DRAW HELPERS                               */
 /* -------------------------------------------------------------------------- */
 
-function buildProfileSummaryLines(profile: ProfileInput): string[] {
+function buildProfileSummaryLines(profile: QuizData, relaxedFilters: boolean): string[] {
   const lines: string[] = [];
 
   lines.push("Your profile snapshot:");
@@ -657,12 +656,18 @@ function buildProfileSummaryLines(profile: ProfileInput): string[] {
   if (profile.languagesSpoken?.length) {
     lines.push(`• Languages: ${profile.languagesSpoken.join(", ")}`);
   }
+  if (profile.climatePref) {
+    lines.push(`• Climate preference: ${profile.climatePref}`);
+  }
+  if (profile.culturePref) {
+    lines.push(`• Culture preference: ${profile.culturePref}`);
+  }
 
-  if (profile.reasons?.length) {
-    const humanReasons = profile.reasons
-      .slice(0, 8)
-      .map((r) => humanizeReason(r));
-    lines.push(`• Priorities: ${humanReasons.join(", ")}`);
+  const importantFactors = Object.entries(profile.factorRatings ?? {})
+    .filter(([, r]) => r === "must" || r === "important")
+    .map(([id]) => factorLabel(id as FactorId));
+  if (importantFactors.length) {
+    lines.push(`• Top priorities: ${importantFactors.join(", ")}`);
   }
 
   if (profile.monthlyIncome) {
@@ -671,31 +676,11 @@ function buildProfileSummaryLines(profile: ProfileInput): string[] {
     lines.push(`• Monthly income (self-reported): ${income} ${currency}`);
   }
 
-  return lines;
-}
+  if (relaxedFilters) {
+    lines.push("• Note: some filters were relaxed to find these matches.");
+  }
 
-function humanizeReason(id: string): string {
-  const map: Record<string, string> = {
-    lower_taxes: "lower taxes",
-    personal_safety: "personal safety",
-    better_lgbtq: "LGBT+ protections",
-    climate: "better climate",
-    lower_cost_of_living: "lower cost of living",
-    language_fit: "language fit",
-    type_of_place: "city size & vibe",
-    community: "community / expats",
-    visa_ease: "visa & residency ease",
-    career_growth: "career & income growth",
-    safety_stability_priority: "political stability",
-    political_stability: "political stability",
-    low_corruption: "low corruption",
-    better_weather: "specific weather preference",
-    climate_pref_cold: "prefers colder climate",
-    development_care_yes: "wants clearly developed country",
-    dev_public_transport: "good public transport",
-    lgbt_full_rights: "full LGBT rights",
-  };
-  return map[id] || id.replace(/_/g, " ");
+  return lines;
 }
 
 function wrapText(text: string, maxCharsPerLine: number): string[] {
@@ -746,6 +731,7 @@ function drawScoreBar(page: any, args: {
   fontBold: any;
 }): number {
   const { x, y, label, value, fontLabel } = args;
+  // value is 0–10 from the scoring engine; display as X.X/10
   const clamped = Math.max(0, Math.min(10, value));
   const barWidth = 130;
   const barHeight = 6;

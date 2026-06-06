@@ -3,10 +3,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { QuizData } from "@/lib/types";
+import type { MatchResult } from "@/lib/scoring/types";
 
 type ReportPayload = {
-  profile: any;
-  topMatches: any[];
+  profile: QuizData;
+  matches: MatchResult[];
+  relaxedFilters: boolean;
 };
 
 export default function PremiumSuccessPage({

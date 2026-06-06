@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { QuizData } from "@/lib/types";
+import type { MatchResult } from "@/lib/scoring/types";
 import type { QuizApiResponse } from "./Reveal";
 import CountryCard from "./CountryCard";
+
+type ReportPayload = {
+  profile: QuizData;
+  matches: MatchResult[];
+  relaxedFilters: boolean;
+};
 
 interface ResultsProps {
   results: QuizApiResponse;
@@ -12,7 +19,7 @@ interface ResultsProps {
   onRestart: () => void;
 }
 
-export default function Results({ results, profile: _profile, onRestart }: ResultsProps) {
+export default function Results({ results, profile, onRestart }: ResultsProps) {
   const top = results.top ?? [];
   const moonshot = results.moonshot ?? null;
 
@@ -63,6 +70,13 @@ export default function Results({ results, profile: _profile, onRestart }: Resul
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {
+      const payload: ReportPayload = {
+        profile,
+        matches: [...results.top, ...(results.moonshot ? [results.moonshot] : [])],
+        relaxedFilters: results.relaxedFilters,
+      };
+      sessionStorage.setItem("relomatcherReportPayload", JSON.stringify(payload));
+
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
