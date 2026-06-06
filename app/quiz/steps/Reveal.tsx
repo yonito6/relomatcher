@@ -45,7 +45,8 @@ export default function Reveal({ data, onComplete, onBack }: RevealProps) {
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error((body as { error?: string }).error || `Request failed: ${res.status}`);
+          const b = body as { message?: string; error?: string };
+          throw new Error(b.message || b.error || `Request failed: ${res.status}`);
         }
         const json = (await res.json()) as QuizApiResponse;
         if (!cancelled) onComplete(json);

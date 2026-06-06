@@ -35,13 +35,13 @@ export async function POST(req: Request) {
     const successUrl =
       successUrlEnv && successUrlEnv.trim().length > 0
         ? successUrlEnv
-        : `${appUrl}/checkout/success`;
+        : `${appUrl}/premium/success`;
 
-    // If STRIPE_CANCEL_URL is set, use it; otherwise default to /?restore=1
+    // If STRIPE_CANCEL_URL is set, use it; otherwise return the user to the quiz.
     const cancelUrl =
       cancelUrlEnv && cancelUrlEnv.trim().length > 0
         ? cancelUrlEnv
-        : `${appUrl}/?restore=1`;
+        : `${appUrl}/quiz`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

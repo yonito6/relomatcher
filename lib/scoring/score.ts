@@ -322,6 +322,12 @@ export function rankCountries(profile: QuizData, countries: CountryRecord[]): Ra
   });
 
   // --- Split passing vs disqualified (only meaningful when relaxedFilters=false) ---
+  // Honesty note (relaxed-mode exception): when relaxedFilters=true, nothing cleared
+  // every hard must-filter, so we intentionally let Must-failing countries into the
+  // ranked set (with a heavy soft penalty above) rather than show an empty result.
+  // This is always disclosed to the user via the relaxedFilters banner in the UI.
+  // The invariant still holds where it matters most: a Must-failing country can NEVER
+  // become the aspirational moonshot (see the `!c.failed` guard below).
   const passing = relaxedFilters
     ? candidates
     : candidates.filter((c) => !c.failed);
