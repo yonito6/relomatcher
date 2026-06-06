@@ -33,7 +33,7 @@ export default function Results({ results, profile: _profile, onRestart }: Resul
     const params = new URLSearchParams();
     const slice = top.slice(0, 3);
     slice.forEach((m, i) => {
-      params.set(`c${i + 1}`, encodeURIComponent(m.country.name));
+      params.set(`c${i + 1}`, m.country.name);
       params.set(`s${i + 1}`, String((m.fit / 10).toFixed(1)));
     });
     return `${base}/api/share-story?${params.toString()}`;
@@ -154,7 +154,7 @@ export default function Results({ results, profile: _profile, onRestart }: Resul
           <button
             id="realistic-toggle"
             role="switch"
-            aria-pressed={realisticOnly}
+            aria-checked={realisticOnly}
             aria-label="Only realistic moves — filter to easy and doable tiers"
             className={`relo-results__toggle${realisticOnly ? " relo-results__toggle--on" : ""}`}
             onClick={() => setRealisticOnly((v) => !v)}

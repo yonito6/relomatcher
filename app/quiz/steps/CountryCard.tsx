@@ -31,9 +31,10 @@ interface RingProps {
   pct: number;        // 0–100
   isMoonshot: boolean;
   label: string;
+  gradId: string;
 }
 
-function FitRing({ pct, isMoonshot, label }: RingProps) {
+function FitRing({ pct, isMoonshot, label, gradId }: RingProps) {
   const [animated, setAnimated] = useState(false);
   const rafRef = useRef<number | null>(null);
 
@@ -73,7 +74,7 @@ function FitRing({ pct, isMoonshot, label }: RingProps) {
           cy={RING_CY}
           r={RING_R}
           fill="none"
-          stroke="url(#ringGrad)"
+          stroke={`url(#${gradId})`}
           strokeWidth={RING_STROKE}
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
@@ -85,7 +86,7 @@ function FitRing({ pct, isMoonshot, label }: RingProps) {
           }}
         />
         <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ff6b35" />
             <stop offset="100%" stopColor="#f7931e" />
           </linearGradient>
@@ -143,12 +144,14 @@ export default function CountryCard({
     ? `${displayPct}% raw fit (moonshot)`
     : `${displayPct}% fit`;
 
+  const gradId = `ringGrad-${match.country.code}`;
+
   return (
     <article className={`relo-card${moonshot ? " relo-card--moonshot" : ""}${rank === 1 ? " relo-card--hero" : ""}`}>
       {/* Header row */}
       <div className="relo-card__header">
         <div className="relo-card__ring-col">
-          <FitRing pct={displayPct} isMoonshot={moonshot} label={ringLabel} />
+          <FitRing pct={displayPct} isMoonshot={moonshot} label={ringLabel} gradId={gradId} />
         </div>
 
         <div className="relo-card__meta">
