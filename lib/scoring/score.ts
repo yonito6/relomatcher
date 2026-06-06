@@ -344,9 +344,10 @@ export function rankCountries(profile: QuizData, countries: CountryRecord[]): Ra
     const topCodes = new Set(top.map((m) => m.country.code));
     const maxTopTierRank = Math.max(...top.map((m) => tierRank(m.tier)));
 
-    // Consider all candidates (passing + failed, since moonshot is aspirational)
+    // Only consider countries that pass hard must-filters — never surface a
+    // disqualified country as an aspirational pick.
     const moonshotCandidates = candidates
-      .filter((c) => !topCodes.has(c.country.code) && tierRank(c.tier) > maxTopTierRank)
+      .filter((c) => !c.failed && !topCodes.has(c.country.code) && tierRank(c.tier) > maxTopTierRank)
       .sort((a, b) => b.rawFit - a.rawFit);
 
     if (moonshotCandidates.length > 0) {

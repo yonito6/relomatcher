@@ -82,6 +82,63 @@ it("selects exactly one moonshot outside the achievable top 3 when applicable", 
 });
 
 // ---------------------------------------------------------------------------
+// Regression: hard-disqualified country must never surface as moonshot
+// ---------------------------------------------------------------------------
+
+it("moonshot never surfaces a country that fails a hard must-filter (real COUNTRIES)", () => {
+  // Many countries have lgbtScore >= 7.5, so relaxedFilters should remain false
+  const out = rankCountries(
+    { factorRatings: { lgbt: "must" }, passportCountry: "Germany" } as any,
+    COUNTRIES
+  );
+  expect(out.relaxedFilters).toBe(false);
+  if (out.moonshot !== null) {
+    expect((out.moonshot.country.lgbtScore ?? 0) >= 7.5).toBe(true);
+  }
+});
+
+it("moonshot never surfaces a hard-disqualified country (synthetic array)", () => {
+  // Passport "Atlantis" = mid bucket (unknown passport → mid in passportBucket).
+  // With mid bucket: OPENNESS >= 2 → "doable", OPENNESS 1 → "hard", OPENNESS 0 → "very_hard".
+  // Strategy: fill 5 high-lgbt countries with real codes that have OPENNESS >= 1 (doable/hard tier)
+  // so they pass the lgbt:must filter and form the top-3.
+  // Decoy = real code "SG" (OPENNESS 0 → very_hard, strictly harder tier than doable/hard)
+  // with lgbtScore 2 (fails must-floor 7.5) but otherwise perfect stats so it would win rawFit.
+  // Before the fix the decoy's higher rawFit + harder tier makes it the moonshot — the bug.
+  // After the fix the decoy is excluded from moonshot consideration because it fails the hard filter.
+
+  // MX, TH, MY, CR, PA → all have OPENNESS 2 → "doable" tier with mid passport.
+  const highLgbt = (code: string) =>
+    makeCountry({ code, lgbtScore: 9.5, safetyScore: 9, taxScore: 9, costOfLivingScore: 9 });
+
+  // SG has OPENNESS 0 → "very_hard" tier; lgbtScore 2 → fails lgbt:must floor (7.5)
+  const lowLgbtDecoy = makeCountry({
+    code: "SG",
+    lgbtScore: 2,
+    taxScore: 10, costOfLivingScore: 10, safetyScore: 10,
+    incomeGrowthScore: 10, englishScore: 10,
+  });
+
+  const syntheticCountries = [
+    highLgbt("MX"), highLgbt("TH"), highLgbt("MY"), highLgbt("CR"), highLgbt("PA"),
+    lowLgbtDecoy,
+  ];
+
+  const out = rankCountries(
+    { factorRatings: { lgbt: "must" }, passportCountry: "Atlantis" } as any,
+    syntheticCountries as any
+  );
+
+  // Enough countries pass, so no relaxation needed
+  expect(out.relaxedFilters).toBe(false);
+  // The decoy must never be the moonshot
+  expect(out.moonshot?.country.code).not.toBe("SG");
+  if (out.moonshot !== null) {
+    expect((out.moonshot.country.lgbtScore ?? 0) >= 7.5).toBe(true);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Golden-profile property tests
 // ---------------------------------------------------------------------------
 
