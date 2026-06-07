@@ -34,6 +34,16 @@ export default function Hook({ onStart }: HookProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       >
+        {/* Logo */}
+        <motion.img
+          src="/logo.png"
+          alt="Relomatcher"
+          className="relo-hook__logo"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        />
+
         {/* Globe */}
         <motion.div
           className="relo-hook__globe"
@@ -205,6 +215,14 @@ export default function Hook({ onStart }: HookProps) {
           flex-direction: column;
           align-items: center;
           gap: 1rem;
+        }
+
+        .relo-hook__logo {
+          width: 200px;
+          max-width: 70%;
+          height: auto;
+          object-fit: contain;
+          filter: drop-shadow(0 6px 24px rgba(0, 0, 0, 0.35));
         }
 
         .relo-hook__globe {
