@@ -58,6 +58,11 @@ export const USD_PER_UNIT: Record<string, number> = {
   CLP: 0.00105,
   COP: 0.00024,
   PHP: 0.0179,
+  ISK: 0.0072,
+  MAD: 0.1,
+  AMD: 0.0026,
+  KZT: 0.0019,
+  ZAR: 0.055,
 };
 
 /**

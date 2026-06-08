@@ -681,6 +681,74 @@ describe("Americas & rest-Asia (rich model)", () => {
   });
 });
 
+describe("Iceland, Israel & emerging markets (rich model)", () => {
+  const IS = taxProfileFor("IS")!;
+  const HR = taxProfileFor("HR")!;
+  const IL = taxProfileFor("IL")!;
+  const MA = taxProfileFor("MA")!;
+  const AM = taxProfileFor("AM")!;
+  const KZ = taxProfileFor("KZ")!;
+  const ZA = taxProfileFor("ZA")!;
+
+  it("Iceland: three-band tax + pension lands mid-30s%", () => {
+    const e = estimateTax(IS, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+    expect(e.effectiveRate).toBeLessThan(0.45);
+  });
+
+  it("Croatia: heavy pension makes employees ~40%+", () => {
+    const e = estimateTax(HR, 80_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+    expect(e.effectiveRate).toBeLessThan(0.5);
+  });
+  it("Croatia: paušalni obrt lump-sum beats general rules for a small freelancer", () => {
+    const e = estimateTax(HR, 40_000, "freelancer", 40_000);
+    expect(e.regimeApplied).toMatch(/Pau[sš]alni/i);
+    expect(e.effectiveRate).toBeLessThan(0.2);
+  });
+
+  it("Israel: progressive + Bituach Leumi reaches mid-30s% for six figures", () => {
+    const e = estimateTax(IL, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+    expect(e.effectiveRate).toBeLessThan(0.45);
+  });
+  it("Israel: new-immigrant (Oleh) foreign income is exempt → keeps 100%", () => {
+    expect(estimateTax(IL, 80_000, "freelancer", 80_000).netPercent).toBe(100);
+  });
+
+  it("Morocco: auto-entrepreneur turnover tax is tiny for small earners", () => {
+    const e = estimateTax(MA, 18_000, "freelancer", 18_000);
+    expect(e.regimeApplied).toMatch(/Auto-entrepreneur/i);
+    expect(e.effectiveRate).toBeLessThan(0.08);
+  });
+
+  it("Armenia: micro-business turnover exemption keeps a small freelancer at 100%", () => {
+    const e = estimateTax(AM, 40_000, "freelancer", 40_000);
+    expect(e.regimeApplied).toMatch(/Micro-business/i);
+    expect(e.netPercent).toBe(100);
+  });
+  it("Armenia: salaried flat 20% + pension ≈ 25%", () => {
+    const e = estimateTax(AM, 50_000, "employed");
+    expect(e.effectiveRate).toBeCloseTo(0.25, 1);
+  });
+
+  it("Kazakhstan: simplified 3%-of-turnover beats the flat 10%", () => {
+    const e = estimateTax(KZ, 80_000, "freelancer", 80_000);
+    expect(e.regimeApplied).toMatch(/Simplified|3%/i);
+    expect(e.effectiveRate).toBeCloseTo(0.03, 2);
+  });
+  it("Kazakhstan: salaried flat 10% + OPV ≈ 20%", () => {
+    const e = estimateTax(KZ, 60_000, "employed");
+    expect(e.effectiveRate).toBeCloseTo(0.2, 1);
+  });
+
+  it("South Africa: progressive 18–45% + UIF reaches ~30% for six figures", () => {
+    const e = estimateTax(ZA, 60_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.4);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {

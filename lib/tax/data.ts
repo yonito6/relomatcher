@@ -350,10 +350,23 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   IS: {
+    // Verified 2025: combined state+municipal three-band system 31.49 / 37.95 /
+    // 46.28%. A personal tax credit (~ISK 50,792/mo) offsets tax → roughly the
+    // first ~ISK 1.9M/yr is effectively tax-free; modeled as a 0% band. Employee
+    // pension contribution 4%. ISK≈$0.0072.
     employed: { low: 0.26, mid: 0.36, high: 0.44 },
     selfEmployed: { low: 0.28, mid: 0.38, high: 0.46 },
+    brackets: [
+      { upTo: 13_900, rate: 0 },
+      { upTo: 38_546, rate: 0.3149 },
+      { upTo: 114_491, rate: 0.3795 },
+      { upTo: Infinity, rate: 0.4628 },
+    ],
+    standardSocial: { rate: 0.04 },
+    selfEmployedSocial: { rate: 0.04 },
+    regimes: [],
     vat: 24,
-    notes: "Two/three-band system + municipal; high cost economy.",
+    notes: "Three-band state+municipal tax 31.49/37.95/46.28%; a personal tax credit makes the first ~ISK 1.9M/yr effectively tax-free. High cost economy.",
     confidence: "medium",
   },
 
@@ -661,11 +674,32 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   HR: {
+    // Verified 2025: municipal-set PIT, two rates. Zagreb caps at 23.6% lower /
+    // 35.4% higher; we model the Zagreb 23% / 33% combo. Higher rate from
+    // €60,000/yr. Personal allowance €600/mo (€7,200/yr) → 0% band. Employee
+    // pension 20% (health 16.5% is employer). Paušalni obrt (lump-sum craft) is
+    // the cheap resident route for small earners. EUR≈$1.08.
     employed: { low: 0.2, mid: 0.28, high: 0.34 },
     selfEmployed: { low: 0.12, mid: 0.18, high: 0.26 },
-    remoteRegime: { rate: 0.0, label: "Digital Nomad Visa: foreign income tax-exempt", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 7_776, rate: 0 },
+      { upTo: 64_800, rate: 0.23 },
+      { upTo: Infinity, rate: 0.33 },
+    ],
+    standardSocial: { rate: 0.2 },
+    selfEmployedSocial: { rate: 0.365, capIncome: 90_000 },
+    regimes: [
+      {
+        label: "Paušalni obrt (lump-sum craft, ~10% all-in)",
+        activities: ["freelancer", "ecommerce"],
+        basis: "revenue",
+        rate: 0.1,
+        social: { rate: 0, minAnnual: 2_700 },
+        maxAnnualRevenue: 64_800, // €60k
+      },
+    ],
     vat: 25,
-    notes: "20/30% PIT; the digital-nomad residence permit exempts foreign-sourced income.",
+    notes: "Municipal PIT 23/33% (Zagreb); paušalni obrt lump-sum regime is cheap for small self-employed. The digital-nomad permit can exempt foreign-source income but is temporary (≤18mo) and bars Croatian clients.",
     confidence: "medium",
   },
   EE: {
@@ -762,10 +796,34 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ------------------------- Middle East / Other ----------------------- */
   IL: {
+    // Verified 2025: progressive 10/14/20/31/35/47% + 3% surtax on very high
+    // income (→ effective 50%). Bituach Leumi + health modeled as social, capped
+    // at the NI ceiling. The big relocator perk: a new immigrant (Oleh) gets a
+    // 10-year EXEMPTION on foreign-source income & gains. ILS≈$0.27.
     employed: { low: 0.18, mid: 0.3, high: 0.42 },
     selfEmployed: { low: 0.2, mid: 0.33, high: 0.46 },
+    brackets: [
+      { upTo: 22_712, rate: 0.1 },
+      { upTo: 32_594, rate: 0.14 },
+      { upTo: 52_326, rate: 0.2 },
+      { upTo: 72_706, rate: 0.31 },
+      { upTo: 151_276, rate: 0.35 },
+      { upTo: 194_821, rate: 0.47 },
+      { upTo: Infinity, rate: 0.5 },
+    ],
+    standardSocial: { rate: 0.12, capIncome: 164_000 },
+    selfEmployedSocial: { rate: 0.15, capIncome: 164_000 },
+    regimes: [
+      {
+        label: "New-immigrant (Oleh): 10-yr foreign-income exemption",
+        activities: ["freelancer", "ecommerce", "investor"],
+        basis: "profit",
+        rate: 0,
+        social: { rate: 0 },
+      },
+    ],
     vat: 18,
-    notes: "Progressive to 50% incl. surtax + Bituach Leumi; new-immigrant (Oleh) 10-yr foreign-income exemption.",
+    notes: "Progressive to 50% incl. surtax + Bituach Leumi; a new immigrant (Oleh) is exempt on foreign-source income & gains for 10 years.",
     confidence: "high",
   },
   AE: {
@@ -1577,38 +1635,141 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   MA: {
+    // Verified 2025 reform: tax-free up to MAD 40,000, then 10/20/30/34/37%
+    // (top cut from 38%). CNSS/AMO ~6.74% employee, capped. Auto-entrepreneur
+    // pays a tiny turnover tax: 1% on services (≤MAD 200k) or 0.5% on goods
+    // (≤MAD 500k). MAD≈$0.10.
     employed: { low: 0.1, mid: 0.22, high: 0.32 },
     selfEmployed: { low: 0.1, mid: 0.2, high: 0.3 },
-    remoteRegime: { rate: 0.05, label: "Auto-entrepreneur ~1–3% turnover tax (small)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 50_000 },
+    brackets: [
+      { upTo: 4_000, rate: 0 },
+      { upTo: 6_000, rate: 0.1 },
+      { upTo: 8_000, rate: 0.2 },
+      { upTo: 10_000, rate: 0.3 },
+      { upTo: 18_000, rate: 0.34 },
+      { upTo: Infinity, rate: 0.37 },
+    ],
+    standardSocial: { rate: 0.0674, capIncome: 7_200 },
+    selfEmployedSocial: { rate: 0.0674, capIncome: 7_200 },
+    regimes: [
+      {
+        label: "Auto-entrepreneur services (1% turnover)",
+        activities: ["freelancer"],
+        basis: "revenue",
+        rate: 0.01,
+        social: { rate: 0, minAnnual: 700 },
+        maxAnnualRevenue: 20_000, // MAD 200k
+      },
+      {
+        label: "Auto-entrepreneur goods (0.5% turnover)",
+        activities: ["ecommerce"],
+        basis: "revenue",
+        rate: 0.005,
+        social: { rate: 0, minAnnual: 700 },
+        maxAnnualRevenue: 50_000, // MAD 500k
+      },
+    ],
     vat: 20,
-    notes: "Progressive IR up to 38%; the auto-entrepreneur regime taxes only a tiny % of turnover.",
-    confidence: "low",
+    notes: "Progressive IR to 37% (2025 reform; tax-free to MAD 40k); the auto-entrepreneur regime taxes only 0.5–1% of turnover for small earners.",
+    confidence: "medium",
   },
 
   /* --------------------- Caucasus / Central Asia ----------------------- */
   AM: {
+    // Verified 2025: flat 20% PIT + mandatory funded-pension 5%. Micro-business
+    // (turnover ≤AMD 24M ≈ $62k) is turnover-tax EXEMPT; otherwise turnover tax
+    // 5% (services) or 10% (trade, raised from 5% in 2025), cap ~AMD 115M.
+    // AMD≈$0.0026.
     employed: { low: 0.2, mid: 0.2, high: 0.2 },
     selfEmployed: { low: 0.1, mid: 0.15, high: 0.2 },
-    remoteRegime: { rate: 0.05, label: "Micro-business / turnover tax ~5%", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 290_000 },
+    brackets: [{ upTo: Infinity, rate: 0.2 }],
+    standardSocial: { rate: 0.05 },
+    selfEmployedSocial: { rate: 0.05 },
+    regimes: [
+      {
+        label: "Micro-business: turnover-tax exempt (0%)",
+        activities: ["freelancer", "ecommerce"],
+        basis: "revenue",
+        rate: 0,
+        social: { rate: 0 },
+        maxAnnualRevenue: 62_400, // AMD 24M
+      },
+      {
+        label: "Turnover tax 5% (services)",
+        activities: ["freelancer"],
+        basis: "revenue",
+        rate: 0.05,
+        social: { rate: 0 },
+        maxAnnualRevenue: 299_000, // AMD 115M
+      },
+      {
+        label: "Turnover tax 10% (trade)",
+        activities: ["ecommerce"],
+        basis: "revenue",
+        rate: 0.1,
+        social: { rate: 0 },
+        maxAnnualRevenue: 299_000,
+      },
+    ],
     vat: 20,
-    notes: "Flat 20% income tax; micro-business and IT regimes cut this sharply for small/self earners.",
+    notes: "Flat 20% income tax; micro-business (≤AMD 24M turnover) is exempt and the turnover-tax regime (5% services / 10% trade) cuts the rate sharply for small self-employed.",
     confidence: "medium",
   },
   KZ: {
+    // Verified 2025: flat 10% PIT + OPV funded-pension 10% (capped). Simplified
+    // declaration = 3% of turnover (1.5% IIT + 1.5% social); patent regime = 1%
+    // of income for the smallest businesses. KZT≈$0.0019.
     employed: { low: 0.1, mid: 0.1, high: 0.1 },
     selfEmployed: { low: 0.05, mid: 0.05, high: 0.05 },
-    remoteRegime: { rate: 0.03, label: "Simplified declaration ~3% of turnover", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    standardSocial: { rate: 0.1, capIncome: 90_000 },
+    selfEmployedSocial: { rate: 0.1, capIncome: 90_000 },
+    regimes: [
+      {
+        label: "Patent: 1% of income",
+        activities: ["freelancer", "ecommerce"],
+        basis: "revenue",
+        rate: 0.01,
+        social: { rate: 0 },
+        maxAnnualRevenue: 30_000,
+      },
+      {
+        label: "Simplified declaration: 3% of turnover",
+        activities: ["freelancer", "ecommerce"],
+        basis: "revenue",
+        rate: 0.03,
+        social: { rate: 0 },
+        maxAnnualRevenue: 200_000,
+      },
+    ],
     vat: 12,
-    notes: "Flat 10% personal income tax; simplified 3% regime for small business.",
+    notes: "Flat 10% personal income tax; simplified 3%-of-turnover (or 1% patent) regime for small business.",
     confidence: "medium",
   },
 
   /* ----------------------- Africa / Indian Ocean ----------------------- */
   ZA: {
+    // Verified 2025/26 (SARS): seven brackets 18/26/31/36/39/41/45%. The primary
+    // rebate (R17,235) lifts the tax-free threshold to ~R95,750, modeled as a 0%
+    // band. UIF 1% (capped) for employees; the self-employed are not liable for
+    // UIF. ZAR≈$0.055.
     employed: { low: 0.16, mid: 0.26, high: 0.35 },
     selfEmployed: { low: 0.17, mid: 0.27, high: 0.36 },
+    brackets: [
+      { upTo: 5_266, rate: 0 }, // ~R95,750 tax-free threshold
+      { upTo: 13_041, rate: 0.18 },
+      { upTo: 20_378, rate: 0.26 },
+      { upTo: 28_204, rate: 0.31 },
+      { upTo: 37_015, rate: 0.36 },
+      { upTo: 47_185, rate: 0.39 },
+      { upTo: 99_935, rate: 0.41 },
+      { upTo: Infinity, rate: 0.45 },
+    ],
+    standardSocial: { rate: 0.01, capIncome: 11_690 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 15,
-    notes: "Progressive up to 45% + UIF; foreign income can be partly exempt under the s10(1)(o)(ii) cap.",
+    notes: "Progressive 18–45% + UIF (employees only); the s10(1)(o)(ii) foreign-employment exemption helps residents working abroad, not relocators working inside SA.",
     confidence: "high",
   },
   MU: {
