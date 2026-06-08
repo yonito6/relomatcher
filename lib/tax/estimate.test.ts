@@ -99,12 +99,12 @@ describe("regime eligibility ceilings (legacy)", () => {
 
   it("does NOT apply France micro when revenue exceeds the cap (the $960k bug)", () => {
     const e = estimateTax(FR, 200_000, "freelancer", 960_000);
-    expect(e.regimeApplied).toBeNull();
+    expect(e.regimeApplied).not.toMatch(/Micro-entrepreneur/);
     expect(e.effectiveRate).toBeGreaterThan(0.3);
   });
 
   it("does NOT apply France micro when income alone exceeds the cap", () => {
-    expect(estimateTax(FR, 300_000, "freelancer").regimeApplied).toBeNull();
+    expect(estimateTax(FR, 300_000, "freelancer").regimeApplied).not.toMatch(/Micro-entrepreneur/);
   });
 });
 
@@ -213,6 +213,66 @@ describe("verified-core batch 3 (rich model)", () => {
     const PT = taxProfileFor("PT")!;
     expect(estimateTax(PT, 200_000, "freelancer").regimeApplied).toMatch(/IFICI/);
     expect(estimateTax(PT, 200_000, "ecommerce", 400_000).regimeApplied).not.toMatch(/IFICI/);
+  });
+});
+
+describe("Western Europe majors (rich model)", () => {
+  it("UK taxes a mid earner via real bands, not the legacy curve", () => {
+    const GB = taxProfileFor("GB")!;
+    const e = estimateTax(GB, 75_000, "employed");
+    // 20% to $63.8k + 40% above + 8% NI capped → ~30% effective.
+    expect(e.effectiveRate).toBeGreaterThan(0.25);
+    expect(e.effectiveRate).toBeLessThan(0.35);
+  });
+
+  it("UK freelancer pays income tax + lighter Class 4 NI", () => {
+    const GB = taxProfileFor("GB")!;
+    const e = estimateTax(GB, 50_000, "freelancer");
+    expect(e.regimeApplied).toMatch(/General rules/);
+  });
+
+  it("Ireland hits the 40% band early for a high earner", () => {
+    const IE = taxProfileFor("IE")!;
+    const e = estimateTax(IE, 120_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+  });
+
+  it("France micro-entrepreneur goods regime applies for a small ecommerce seller", () => {
+    const FR = taxProfileFor("FR")!;
+    const e = estimateTax(FR, 40_000, "ecommerce", 50_000);
+    expect(e.regimeApplied).toMatch(/Micro-entrepreneur goods/);
+  });
+
+  it("France micro is lost when ecommerce turnover exceeds the goods cap", () => {
+    const FR = taxProfileFor("FR")!;
+    const e = estimateTax(FR, 200_000, "ecommerce", 960_000);
+    expect(e.regimeApplied).not.toMatch(/Micro-entrepreneur/);
+  });
+
+  it("France services freelancer uses the services micro (higher URSSAF)", () => {
+    const FR = taxProfileFor("FR")!;
+    const e = estimateTax(FR, 50_000, "freelancer", 55_000);
+    expect(e.regimeApplied).toMatch(/Micro-entrepreneur services/);
+  });
+
+  it("Germany trends toward the 42% band for a high earner", () => {
+    const DE = taxProfileFor("DE")!;
+    const e = estimateTax(DE, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+    expect(e.effectiveRate).toBeLessThan(0.5);
+  });
+
+  it("Netherlands 30% ruling beats general rules for a high-earning employee", () => {
+    const NL = taxProfileFor("NL")!;
+    const e = estimateTax(NL, 200_000, "employed");
+    expect(e.regimeApplied).toMatch(/30% ruling/);
+    expect(e.effectiveRate).toBeLessThan(0.4);
+  });
+
+  it("Netherlands self-employed does NOT get the 30% ruling", () => {
+    const NL = taxProfileFor("NL")!;
+    const e = estimateTax(NL, 200_000, "freelancer");
+    expect(e.regimeApplied).not.toMatch(/30% ruling/);
   });
 });
 

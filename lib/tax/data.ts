@@ -40,41 +40,101 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ------------------------ Western / North Europe --------------------- */
   GB: {
+    // Verified 2026: PA £12,570; 20%/40%/45% at £50,270/£125,140. NI: employee
+    // 8% (PT→UEL), self-employed Class 4 6% then 2%. GBP≈$1.27 USD-equiv.
     employed: { low: 0.18, mid: 0.28, high: 0.36 },
     selfEmployed: { low: 0.17, mid: 0.27, high: 0.37 },
+    brackets: [
+      { upTo: 15_964, rate: 0 },
+      { upTo: 63_843, rate: 0.2 },
+      { upTo: 158_928, rate: 0.4 },
+      { upTo: Infinity, rate: 0.45 },
+    ],
+    standardSocial: { rate: 0.08, capIncome: 63_843 },
+    selfEmployedSocial: { rate: 0.06, capIncome: 63_843 },
+    regimes: [],
     vat: 20,
     notes: "Income tax 20/40/45% + National Insurance; £12,570 personal allowance.",
     confidence: "high",
   },
   IE: {
+    // Verified 2026: 20% to €44,000 then 40%; USC 0.5/2/3/8%; PRSI 4.2%.
+    // Self-employed +3% USC surcharge over €100k. EUR≈$1.08 USD-equiv.
     employed: { low: 0.18, mid: 0.3, high: 0.4 },
     selfEmployed: { low: 0.2, mid: 0.33, high: 0.43 },
+    brackets: [
+      { upTo: 47_520, rate: 0.2 },
+      { upTo: Infinity, rate: 0.4 },
+    ],
+    standardSocial: { rate: 0.085 },
+    selfEmployedSocial: { rate: 0.095 },
+    regimes: [],
     vat: 23,
     notes: "20%/40% bands + USC + PRSI; high marginal rate kicks in early.",
-    confidence: "high",
+    confidence: "medium",
   },
   FR: {
+    // Verified 2026: 0/11/30/41/45% at €11,600/29,579/84,577/181,917.
+    // Micro-entrepreneur + versement libératoire = flat % of turnover (URSSAF
+    // social + 1–1.7% income tax). Caps €188.7k goods / €77.7k services.
     employed: { low: 0.2, mid: 0.3, high: 0.41 },
     selfEmployed: { low: 0.22, mid: 0.34, high: 0.45 },
-    remoteRegime: { rate: 0.22, label: "Micro-entrepreneur flat (~13–22% of turnover)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 220_000 },
+    brackets: [
+      { upTo: 12_528, rate: 0 },
+      { upTo: 31_945, rate: 0.11 },
+      { upTo: 91_343, rate: 0.3 },
+      { upTo: 196_470, rate: 0.41 },
+      { upTo: Infinity, rate: 0.45 },
+    ],
+    standardSocial: { rate: 0.22, capIncome: 200_000 },
+    selfEmployedSocial: { rate: 0.22, capIncome: 200_000 },
+    regimes: [
+      { label: "Micro-entrepreneur goods (versement libératoire): ~13.3% of turnover", activities: ["ecommerce"], basis: "revenue", rate: 0.133, maxAnnualRevenue: 203_796 },
+      { label: "Micro-entrepreneur services (versement libératoire): ~22.9% of turnover", activities: ["freelancer"], basis: "revenue", rate: 0.229, maxAnnualRevenue: 83_916 },
+    ],
     vat: 20,
     notes: "High social charges; auto-entrepreneur scheme caps social+tax low for small turnover.",
     confidence: "high",
   },
   DE: {
+    // Verified 2026: Grundfreibetrag €12,348; marginal 14→42% to €69,878,
+    // 42% to €277,825, 45% above. Social ~20% capped (~€90k); freelancers pay
+    // own health (~14% capped). EUR≈$1.08 USD-equiv.
     employed: { low: 0.22, mid: 0.33, high: 0.42 },
     selfEmployed: { low: 0.2, mid: 0.34, high: 0.44 },
+    brackets: [
+      { upTo: 13_336, rate: 0 },
+      { upTo: 18_838, rate: 0.14 },
+      { upTo: 73_960, rate: 0.3 },
+      { upTo: 300_051, rate: 0.42 },
+      { upTo: Infinity, rate: 0.45 },
+    ],
+    standardSocial: { rate: 0.2, capIncome: 97_000 },
+    selfEmployedSocial: { rate: 0.14, capIncome: 97_000 },
+    regimes: [],
     vat: 19,
     notes: "Progressive to 45% + solidarity + health/pension; freelancers skip some social if privately insured.",
-    confidence: "high",
+    confidence: "medium",
   },
   NL: {
+    // Verified 2026: Box 1 35.75% to €38,883, 37.56% to €78,426, 49.50% above
+    // (first band already bundles national insurance). ZVW healthcare ~4.85%
+    // capped. 30% ruling leaves ~30% of salary tax-free for skilled migrants.
     employed: { low: 0.22, mid: 0.34, high: 0.43 },
     selfEmployed: { low: 0.18, mid: 0.3, high: 0.42 },
-    remoteRegime: { rate: 0.27, label: "30% ruling (partial tax-free) for skilled migrants", appliesTo: ["employed"] },
+    brackets: [
+      { upTo: 41_994, rate: 0.3575 },
+      { upTo: 84_700, rate: 0.3756 },
+      { upTo: Infinity, rate: 0.495 },
+    ],
+    standardSocial: { rate: 0.0485, capIncome: 81_000 },
+    selfEmployedSocial: { rate: 0.0532, capIncome: 81_000 },
+    regimes: [
+      { label: "30% ruling: ~30% of salary tax-free (5 yrs)", activities: ["employed"], basis: "profit", rate: 0.34 },
+    ],
     vat: 21,
     notes: "Box 1 up to 49.5%; self-employed deductions help; 30% ruling for qualifying expats.",
-    confidence: "high",
+    confidence: "medium",
   },
   BE: {
     employed: { low: 0.26, mid: 0.4, high: 0.48 },
