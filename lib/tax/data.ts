@@ -1029,26 +1029,57 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "low",
   },
   AD: {
+    // Verified 2026: IRPF 0% to €24,000, ~5% €24,000–40,000 (via €800 bonification),
+    // 10% above €40,000 — flat 10% top. CASS social: employee 6.5%; self-employed
+    // pay a FIXED quota ~€563/mo ≈ $7,300/yr (reduced ~€318/mo first year).
+    // EUR≈$1.08 USD-equiv.
     employed: { low: 0.0, mid: 0.05, high: 0.1 },
     selfEmployed: { low: 0.0, mid: 0.05, high: 0.1 },
+    brackets: [
+      { upTo: 25_920, rate: 0 },
+      { upTo: 43_200, rate: 0.05 },
+      { upTo: Infinity, rate: 0.1 },
+    ],
+    standardSocial: { rate: 0.065 },
+    selfEmployedSocial: { rate: 0, minAnnual: 7_300 }, // fixed CASS autónomo quota
+    regimes: [],
     vat: 4.5,
-    notes: "Max 10% income tax (0% under €24k), 4.5% VAT — among the lowest in Europe.",
-    confidence: "medium",
+    notes: "Max 10% income tax (0% under €24k, ~5% €24–40k), 4.5% VAT — among the lowest in Europe. Self-employed pay a fixed CASS quota (~$7.3k/yr) regardless of profit.",
+    confidence: "high",
   },
   MC: {
+    // Verified 2026: no personal income tax for residents (French citizens excepted
+    // by 1963 treaty). Zero PIT across all activities.
     employed: { low: 0.0, mid: 0.0, high: 0.0 },
     selfEmployed: { low: 0.0, mid: 0.0, high: 0.0 },
-    remoteRegime: { rate: 0.0, label: "0% personal income tax (except French nationals)", appliesTo: ["employed", "self_employed", "remote_foreign"] },
+    brackets: [{ upTo: Infinity, rate: 0 }],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 20,
-    notes: "No personal income tax for residents (French citizens excepted by treaty).",
+    notes: "No personal income tax for residents (French citizens excepted by treaty) — keep 100% of income. 20% VAT (French system).",
     confidence: "high",
   },
   LI: {
+    // Verified 2026: national income tax 1% (from CHF 15k exempt) to 8% above
+    // CHF 200k, PLUS a municipal surcharge ~150–180% → combined effective ~2.5%
+    // (low) to ~22.4% (top). AHV/IV social ~4.7% employee, ~11% self-employed.
+    // CHF≈$1.10 USD-equiv. Brackets approximate the combined national+municipal rate.
     employed: { low: 0.05, mid: 0.1, high: 0.18 },
     selfEmployed: { low: 0.06, mid: 0.12, high: 0.2 },
+    brackets: [
+      { upTo: 16_500, rate: 0 },
+      { upTo: 22_000, rate: 0.025 },
+      { upTo: 88_000, rate: 0.1 },
+      { upTo: 220_000, rate: 0.17 },
+      { upTo: Infinity, rate: 0.2 },
+    ],
+    standardSocial: { rate: 0.047 },
+    selfEmployedSocial: { rate: 0.11 },
+    regimes: [],
     vat: 8.1,
-    notes: "Low national + communal income tax (to ~22.4% top) and very low VAT (Swiss system).",
-    confidence: "medium",
+    notes: "Low national + communal income tax (combined ~2.5% to ~22.4% top) and very low 8.1% VAT (Swiss system). Combined rate varies by municipality (150–180% surcharge).",
+    confidence: "low",
   },
 
   /* ----------------------------- Latin America ------------------------- */
@@ -1128,24 +1159,43 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* --------------------- Middle East / North Africa -------------------- */
   SA: {
+    // Verified 2026: no personal income tax on individuals. Expats pay 0% on
+    // salary and business income; GOSI social insurance applies to Saudi nationals
+    // only. Zakat applies to Saudi/GCC nationals, not foreign residents.
     employed: { low: 0.0, mid: 0.0, high: 0.0 },
     selfEmployed: { low: 0.0, mid: 0.0, high: 0.0 },
+    brackets: [{ upTo: Infinity, rate: 0 }],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 15,
-    notes: "No personal income tax on individuals (expats pay 0% on salary).",
+    notes: "No personal income tax on individuals (expats pay 0% on salary and business income). 15% VAT.",
     confidence: "high",
   },
   QA: {
+    // Verified 2026: no personal income tax and no VAT currently implemented.
     employed: { low: 0.0, mid: 0.0, high: 0.0 },
     selfEmployed: { low: 0.0, mid: 0.0, high: 0.0 },
+    brackets: [{ upTo: Infinity, rate: 0 }],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 0,
-    notes: "No personal income tax and no VAT currently implemented.",
+    notes: "No personal income tax and no VAT currently implemented — keep 100% of income.",
     confidence: "high",
   },
   BH: {
+    // Verified 2026: no personal income tax. Social insurance (SIO) applies to
+    // Bahraini nationals; expats pay only a small ~1% unemployment levy, treated
+    // as ~0% for a relocator.
     employed: { low: 0.0, mid: 0.0, high: 0.0 },
     selfEmployed: { low: 0.0, mid: 0.0, high: 0.0 },
+    brackets: [{ upTo: Infinity, rate: 0 }],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 10,
-    notes: "No personal income tax; only social insurance for nationals.",
+    notes: "No personal income tax; only social insurance for nationals (expats keep ~100%). 10% VAT.",
     confidence: "high",
   },
   MA: {

@@ -457,6 +457,43 @@ describe("CEE (rich model)", () => {
   });
 });
 
+describe("Gulf & microstates (rich model)", () => {
+  const SA = taxProfileFor("SA")!;
+  const QA = taxProfileFor("QA")!;
+  const BH = taxProfileFor("BH")!;
+  const MC = taxProfileFor("MC")!;
+  const AD = taxProfileFor("AD")!;
+  const LI = taxProfileFor("LI")!;
+
+  it("zero-PIT Gulf/Monaco keep 100% across activities", () => {
+    for (const p of [SA, QA, BH, MC]) {
+      expect(estimateTax(p, 200_000, "employed").netPercent).toBe(100);
+      expect(estimateTax(p, 200_000, "ecommerce", 500_000).netPercent).toBe(100);
+      expect(estimateTax(p, 200_000, "freelancer").effectiveRate).toBe(0);
+    }
+  });
+
+  it("Andorra: income under €24k pays only social (no income tax)", () => {
+    const e = estimateTax(AD, 20_000, "employed");
+    expect(e.effectiveRate).toBeLessThan(0.07);
+  });
+  it("Andorra: 10% top income tax + 6.5% social → mid-teens effective", () => {
+    const e = estimateTax(AD, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+    expect(e.effectiveRate).toBeLessThan(0.15);
+  });
+  it("Andorra: self-employed pays fixed CASS quota (~$7.3k)", () => {
+    const e = estimateTax(AD, 100_000, "freelancer");
+    expect(e.taxAmount).toBeGreaterThan(estimateTax(AD, 100_000, "employed").taxAmount);
+  });
+
+  it("Liechtenstein: combined national+municipal stays mid-teens at $100k", () => {
+    const e = estimateTax(LI, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+    expect(e.effectiveRate).toBeLessThan(0.2);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
