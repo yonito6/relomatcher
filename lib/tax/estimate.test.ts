@@ -182,6 +182,40 @@ describe("verified-core countries (rich model)", () => {
   });
 });
 
+describe("verified-core batch 3 (rich model)", () => {
+  it("Italy forfettario applies to a small ecommerce seller but not above €85k", () => {
+    const IT = taxProfileFor("IT")!;
+    expect(estimateTax(IT, 40_000, "ecommerce", 70_000).regimeApplied).toMatch(/forfettario/);
+    expect(estimateTax(IT, 300_000, "ecommerce", 960_000).regimeApplied).not.toMatch(/forfettario/);
+  });
+
+  it("Spain Beckham helps employees but NOT ecommerce self-employed", () => {
+    const ES = taxProfileFor("ES")!;
+    expect(estimateTax(ES, 300_000, "employed").regimeApplied).toMatch(/Beckham/);
+    expect(estimateTax(ES, 300_000, "ecommerce", 600_000).regimeApplied).not.toMatch(/Beckham/);
+  });
+
+  it("Estonia OÜ distribution route gives a 22% flat for a business owner", () => {
+    const EE = taxProfileFor("EE")!;
+    const e = estimateTax(EE, 300_000, "ecommerce", 600_000);
+    expect(e.regimeApplied).toMatch(/OÜ/);
+    expect(e.effectiveRate).toBeCloseTo(0.22, 1);
+  });
+
+  it("Malta non-dom keeps most income when foreign profit stays offshore", () => {
+    const MT = taxProfileFor("MT")!;
+    const e = estimateTax(MT, 300_000, "ecommerce", 600_000);
+    expect(e.regimeApplied).toMatch(/Non-dom/);
+    expect(e.effectiveRate).toBeLessThan(0.05); // €5k min tax on $300k
+  });
+
+  it("Portugal IFICI helps a freelancer but NOT an ecommerce-goods seller", () => {
+    const PT = taxProfileFor("PT")!;
+    expect(estimateTax(PT, 200_000, "freelancer").regimeApplied).toMatch(/IFICI/);
+    expect(estimateTax(PT, 200_000, "ecommerce", 400_000).regimeApplied).not.toMatch(/IFICI/);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {

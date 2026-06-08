@@ -145,35 +145,127 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* -------------------------- Southern Europe -------------------------- */
   PT: {
+    // Progressive IRS to 48%. IFICI ("NHR 2.0") = 20% flat on qualifying
+    // self-employment/employment income in high-value/innovation activities —
+    // NOT general ecommerce-goods selling. Self-employed social ~21.4% on 70%
+    // of income (effective ~15%, capped ~12 IAS). EUR≈$1.08.
     employed: { low: 0.2, mid: 0.32, high: 0.43 },
     selfEmployed: { low: 0.2, mid: 0.34, high: 0.45 },
-    remoteRegime: { rate: 0.2, label: "IFICI/'NHR 2.0' 20% flat on qualifying income", appliesTo: REMOTE_AND_SELF },
+    brackets: [
+      { upTo: 8_640, rate: 0.13 },
+      { upTo: 23_760, rate: 0.26 },
+      { upTo: 43_200, rate: 0.37 },
+      { upTo: 86_400, rate: 0.45 },
+      { upTo: Infinity, rate: 0.48 },
+    ],
+    selfEmployedSocial: { rate: 0.1498, capIncome: 81_000 },
+    regimes: [
+      {
+        label: "IFICI / NHR 2.0: 20% flat on qualifying income (innovation/services)",
+        activities: ["freelancer", "investor"],
+        basis: "profit",
+        rate: 0.2,
+        social: { rate: 0.1498, capIncome: 81_000 },
+      },
+    ],
     vat: 23,
-    notes: "Normal rates high (to 48%), but the new IFICI regime offers 20% flat for eligible skilled/remote workers.",
+    notes: "Normal IRS is high (to 48%). The IFICI/'NHR 2.0' regime gives 20% flat — but only for high-value/innovation activities and skilled professionals, NOT general ecommerce-goods selling. Self-employed also pay ~15% social (capped).",
     confidence: "medium",
   },
   ES: {
+    // Progressive IRPF 19–47%. Beckham law = 24% flat on the first €600k for
+    // qualifying EMPLOYEES / skilled migrants (most self-employed & ecommerce
+    // are excluded). Autónomo social = income-based RETA quota (~31%, capped).
+    // EUR≈$1.08.
     employed: { low: 0.19, mid: 0.31, high: 0.43 },
     selfEmployed: { low: 0.2, mid: 0.33, high: 0.45 },
-    remoteRegime: { rate: 0.24, label: "Beckham law 24% flat (first €600k, 6 yrs)", appliesTo: ["employed", "remote_foreign"] },
+    brackets: [
+      { upTo: 13_500, rate: 0.19 },
+      { upTo: 21_600, rate: 0.24 },
+      { upTo: 37_800, rate: 0.3 },
+      { upTo: 64_800, rate: 0.37 },
+      { upTo: 324_000, rate: 0.45 },
+      { upTo: Infinity, rate: 0.47 },
+    ],
+    standardSocial: { rate: 0.0635, capIncome: 63_600 },
+    selfEmployedSocial: { rate: 0.314, capIncome: 63_600, minAnnual: 2_900 },
+    regimes: [
+      {
+        label: "Beckham law: 24% flat (skilled employees, first €600k, 6 yrs)",
+        activities: ["employed", "investor"],
+        basis: "profit",
+        rate: 0.24,
+        maxAnnualIncome: 648_000,
+      },
+    ],
     vat: 21,
-    notes: "Progressive to ~47%; Beckham regime gives 24% flat to qualifying new arrivals incl. digital-nomad-visa holders.",
+    notes: "Progressive IRPF to 47%. Beckham regime gives 24% flat to qualifying employees / highly-skilled migrants (incl. some digital-nomad-visa holders) — but traditional freelancers and ecommerce sellers are generally excluded and pay full IRPF + autónomo social.",
     confidence: "high",
   },
   IT: {
+    // High IRPEF (23/35/43%). Regime forfettario = 15% (5% first 5 yrs) on a
+    // PROFITABILITY COEFFICIENT of revenue (≈40% goods, ≈78% services) → ~6%
+    // of revenue for ecommerce, ~12% for services; turnover cap €85k. INPS is
+    // NOT reduced by forfettario. EUR≈$1.08.
     employed: { low: 0.23, mid: 0.35, high: 0.45 },
     selfEmployed: { low: 0.15, mid: 0.27, high: 0.43 },
-    remoteRegime: { rate: 0.15, label: "Regime forfettario 5–15% flat (turnover < €85k)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 90_000 },
+    brackets: [
+      { upTo: 30_240, rate: 0.23 },
+      { upTo: 54_000, rate: 0.35 },
+      { upTo: Infinity, rate: 0.43 },
+    ],
+    selfEmployedSocial: { rate: 0.2623, capIncome: 130_000, minAnnual: 4_300 },
+    regimes: [
+      {
+        label: "Regime forfettario 15% (ecommerce/goods, turnover < €85k)",
+        activities: ["ecommerce"],
+        basis: "revenue",
+        rate: 0.06, // 15% of ~40% coefficient
+        social: { rate: 0.1, minAnnual: 4_300 },
+        maxAnnualRevenue: 91_800,
+      },
+      {
+        label: "Regime forfettario 15% (services, turnover < €85k)",
+        activities: ["freelancer"],
+        basis: "revenue",
+        rate: 0.117, // 15% of ~78% coefficient
+        social: { rate: 0.1, minAnnual: 4_300 },
+        maxAnnualRevenue: 91_800,
+      },
+    ],
     vat: 22,
-    notes: "High normal IRPEF, but flat-tax 'forfettario' is excellent for small self-employed/freelancers.",
+    notes: "High normal IRPEF (to 43%), but the flat-tax 'forfettario' is excellent for SMALL self-employed (turnover < €85k): ~6% of revenue for goods, ~12% for services + INPS. Above €85k turnover the regime is lost.",
     confidence: "medium",
   },
   GR: {
+    // Progressive 9–44% (top band from €60k in 2026). EFKA self-employed social
+    // is tiered (~€2.6k–€7k/yr), capped. New residents / digital-nomad-visa
+    // holders get a 50% income-tax exemption for 7 yrs (halves taxable income).
+    // EUR≈$1.08.
     employed: { low: 0.18, mid: 0.3, high: 0.42 },
     selfEmployed: { low: 0.2, mid: 0.33, high: 0.44 },
-    remoteRegime: { rate: 0.25, label: "50% income-tax exemption for new-resident workers (7 yrs)", appliesTo: ["employed", "remote_foreign"] },
+    brackets: [
+      { upTo: 10_800, rate: 0.09 },
+      { upTo: 21_600, rate: 0.2 },
+      { upTo: 32_400, rate: 0.26 },
+      { upTo: 43_200, rate: 0.34 },
+      { upTo: 64_800, rate: 0.39 },
+      { upTo: Infinity, rate: 0.44 },
+    ],
+    selfEmployedSocial: { rate: 0.1, capIncome: 60_000, minAnnual: 2_800 },
+    regimes: [
+      {
+        // The exemption halves taxable income; ~16% flat is an approximation of
+        // the resulting effective rate across typical incomes.
+        label: "50% new-resident exemption (7 yrs): ~½ taxable income",
+        activities: ["employed", "freelancer", "ecommerce", "investor"],
+        basis: "profit",
+        rate: 0.16,
+        social: { rate: 0.1, capIncome: 60_000, minAnnual: 2_800 },
+      },
+    ],
     vat: 24,
-    notes: "Progressive to 44% + solidarity; big 50% exemption for relocating professionals.",
+    notes: "Progressive 9–44% + EFKA social. Relocating professionals / digital-nomad-visa holders can get a 50% income-tax exemption for 7 years (the ~16% figure approximates the effective rate after halving taxable income). A separate €100k flat-tax non-dom regime exists for the wealthy.",
     confidence: "medium",
   },
   CY: {
@@ -206,11 +298,30 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   MT: {
+    // Progressive 0–35%. Non-dom remittance basis: foreign-source income is
+    // taxed ONLY if remitted to Malta; a €5,000 minimum tax applies when foreign
+    // income ≥ €35k. Self-employed social (Class 2) = 15%, capped ~€2,908/yr.
+    // EUR≈$1.08.
     employed: { low: 0.15, mid: 0.25, high: 0.32 },
     selfEmployed: { low: 0.15, mid: 0.26, high: 0.33 },
-    remoteRegime: { rate: 0.15, label: "Non-dom remittance basis / Nomad Residence 10% flat", appliesTo: REMOTE_AND_SELF },
+    brackets: [
+      { upTo: 12_960, rate: 0 },
+      { upTo: 17_280, rate: 0.15 },
+      { upTo: 64_800, rate: 0.25 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    selfEmployedSocial: { rate: 0.15, capIncome: 31_400 },
+    regimes: [
+      {
+        label: "Non-dom remittance basis: €5,000 min tax on unremitted foreign income",
+        activities: ["ecommerce", "freelancer", "investor"],
+        basis: "profit",
+        rate: 0,
+        social: { rate: 0, minAnnual: 5_400 }, // €5,000 flat minimum tax
+      },
+    ],
     vat: 18,
-    notes: "Foreign income taxed only if remitted; nomad permit holders pay 10% flat.",
+    notes: "Progressive 0–35% on Maltese-source/remitted income. Under non-dom status, foreign-source income kept OUTSIDE Malta is untaxed (only a €5,000 minimum tax if foreign income ≥ €35k) — great if you don't remit, but money you bring in to live on is taxed normally.",
     confidence: "medium",
   },
 
@@ -236,15 +347,18 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
       { upTo: 250_000, rate: 0.32 },
       { upTo: Infinity, rate: 0.36 },
     ],
-    // ZUS (~PLN 1,575/mo ≈ $4.7k/yr) + 9% health on the scale path.
-    selfEmployedSocial: { rate: 0.09, minAnnual: 4_700 },
+    // Scale path: big ZUS social (1,926.76 PLN/mo ≈ $5.8k/yr) + 9% health (min
+    // base = minimum wage). PLN≈$0.25. 2026 ZUS figures verified.
+    selfEmployedSocial: { rate: 0.09, minAnnual: 7_000 },
     regimes: [
       {
         label: "Ryczałt 3% of revenue (goods) + ZUS",
         activities: ["ecommerce"],
         basis: "revenue",
         rate: 0.03,
-        social: { rate: 0, minAnnual: 9_000 }, // ZUS + top-tier ryczałt health
+        // Ryczałt ZUS+health top revenue band (>PLN 300k rev) = 3,422 PLN/mo ≈
+        // $10.3k/yr. Smaller-revenue sellers pay less ($7.3k–$8.3k).
+        social: { rate: 0, minAnnual: 10_300 },
         maxAnnualRevenue: 2_000_000, // ~€2M ryczałt ceiling
       },
       {
@@ -252,7 +366,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
         activities: ["freelancer"],
         basis: "revenue",
         rate: 0.085,
-        social: { rate: 0, minAnnual: 8_500 },
+        social: { rate: 0, minAnnual: 10_300 },
         maxAnnualRevenue: 2_000_000,
       },
       {
@@ -260,12 +374,12 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
         activities: ["freelancer", "ecommerce", "investor"],
         basis: "profit",
         rate: 0.19,
-        social: { rate: 0.049, minAnnual: 6_000 }, // ZUS + 4.9% health
+        social: { rate: 0.049, minAnnual: 6_500 }, // big ZUS + 4.9% health
       },
     ],
     vat: 23,
-    notes: "Ecommerce (goods) can use ryczałt ~3% of revenue (revenue ≤ €2M) — often the cheapest; otherwise 19% flat on profit. All add fixed ZUS + health. ZUS/health figures approximated.",
-    confidence: "medium",
+    notes: "Ecommerce (goods) can use ryczałt ~3% of revenue (revenue ≤ €2M) — often the cheapest; otherwise 19% flat on profit. All add fixed ZUS (~$5.8k/yr) + health. Ryczałt ZUS+health is revenue-banded (~$7.3k–$10.3k/yr); high-revenue sellers hit the top band. 2026 figures verified.",
+    confidence: "high",
   },
   HU: {
     employed: { low: 0.28, mid: 0.3, high: 0.33 },
@@ -321,10 +435,27 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   EE: {
+    // Flat 22% PIT (2026), €700/mo tax-free. The famous route: an Estonian OÜ
+    // (e-Residency) pays 0% on RETAINED profit, 22% only on distribution. A
+    // sole-proprietor (FIE) instead pays 22% + 33% social tax. EUR≈$1.08.
     employed: { low: 0.18, mid: 0.2, high: 0.22 },
     selfEmployed: { low: 0.18, mid: 0.2, high: 0.22 },
-    vat: 22,
-    notes: "Flat 20% income tax; corporate tax deferred until profits distributed (e-Residency friendly).",
+    brackets: [
+      { upTo: 9_000, rate: 0 },
+      { upTo: Infinity, rate: 0.22 },
+    ],
+    standardSocial: { rate: 0.016 }, // employee unemployment; 33% social tax is employer-side
+    selfEmployedSocial: { rate: 0.33 }, // FIE sole-proprietor social tax
+    regimes: [
+      {
+        label: "Estonian OÜ: 0% on retained, 22% on distributed profit",
+        activities: ["ecommerce", "freelancer", "investor"],
+        basis: "profit",
+        rate: 0.22,
+      },
+    ],
+    vat: 24,
+    notes: "Flat 22% income tax (€700/mo tax-free). Corporate tax is deferred until profits are distributed, so an e-Residency OÜ pays 0% on retained profit and 22% on dividends — no social tax on distributions. Sole-proprietor (FIE) route is heavier (22% + 33% social).",
     confidence: "high",
   },
   LV: {
