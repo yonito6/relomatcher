@@ -739,20 +739,56 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   TH: {
+    // Verified 2026: progressive 5–35% (exempt under THB 150k). Foreign income
+    // taxed only if remitted to Thailand (2-yr-grace proposal NOT yet enacted);
+    // kept offshore = 0%. THB≈$0.029 USD-equiv.
     employed: { low: 0.08, mid: 0.17, high: 0.26 },
     selfEmployed: { low: 0.08, mid: 0.18, high: 0.28 },
-    remoteRegime: { rate: 0.0, label: "Foreign income not remitted same year often untaxed (LTR visa 0%)", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 4_350, rate: 0 },
+      { upTo: 8_700, rate: 0.05 },
+      { upTo: 14_500, rate: 0.1 },
+      { upTo: 21_750, rate: 0.15 },
+      { upTo: 29_000, rate: 0.2 },
+      { upTo: 58_000, rate: 0.25 },
+      { upTo: 145_000, rate: 0.3 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.05, maxAnnual: 320 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Foreign-sourced income kept offshore (not remitted): 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 7,
     notes: "Progressive to 35%; remittance rules + LTR visa can make foreign income tax-light.",
     confidence: "medium",
   },
   MY: {
+    // Verified 2026: progressive 0–30%; foreign-sourced personal income EXEMPT
+    // for residents (extended to 2036). SOCSO tiny; EPF is your own savings.
+    // MYR≈$0.225 USD-equiv.
     employed: { low: 0.08, mid: 0.18, high: 0.26 },
     selfEmployed: { low: 0.08, mid: 0.18, high: 0.28 },
-    remoteRegime: { rate: 0.0, label: "Foreign-sourced income exemption (extended) / DE Rantau nomad pass", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 1_125, rate: 0 },
+      { upTo: 4_500, rate: 0.01 },
+      { upTo: 7_875, rate: 0.03 },
+      { upTo: 11_250, rate: 0.06 },
+      { upTo: 15_750, rate: 0.11 },
+      { upTo: 22_500, rate: 0.19 },
+      { upTo: 90_000, rate: 0.25 },
+      { upTo: 135_000, rate: 0.26 },
+      { upTo: 450_000, rate: 0.28 },
+      { upTo: Infinity, rate: 0.3 },
+    ],
+    standardSocial: { rate: 0.005, maxAnnual: 300 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Foreign-sourced income exempt (to 2036): 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 8, // SST
     notes: "Progressive to 30%; foreign-sourced personal income generally exempt for individuals.",
-    confidence: "medium",
+    confidence: "high",
   },
   VN: {
     employed: { low: 0.1, mid: 0.2, high: 0.3 },
@@ -780,25 +816,64 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* -------------------------- Latin America ---------------------------- */
   CR: {
+    // Verified 2026: TERRITORIAL — only Costa Rica-source income taxed; foreign
+    // employment/pension/investment income fully exempt. Local employment 0–25%.
+    // CCSS ~10.5%. CRC≈$0.00193 USD-equiv.
     employed: { low: 0.1, mid: 0.16, high: 0.22 },
     selfEmployed: { low: 0.1, mid: 0.17, high: 0.24 },
-    remoteRegime: { rate: 0.0, label: "Digital Nomad Visa: foreign income tax-exempt", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 10_000, rate: 0 },
+      { upTo: 22_000, rate: 0.1 },
+      { upTo: 38_000, rate: 0.15 },
+      { upTo: 76_000, rate: 0.2 },
+      { upTo: Infinity, rate: 0.25 },
+    ],
+    standardSocial: { rate: 0.105, capIncome: 80_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Territorial: foreign-source income 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 13,
     notes: "Territorial system — only Costa Rica-source income taxed; nomad visa confirms 0% on foreign income.",
     confidence: "medium",
   },
   PA: {
+    // Verified 2026: strict TERRITORIAL — foreign-source income fully exempt.
+    // Local employment 0% to $11k, 15% to $50k, 25% above. CSS ~9.75% capped.
+    // PAB = USD 1:1.
     employed: { low: 0.08, mid: 0.15, high: 0.22 },
     selfEmployed: { low: 0.08, mid: 0.15, high: 0.24 },
-    remoteRegime: { rate: 0.0, label: "Territorial: foreign-source income 0%", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 11_000, rate: 0 },
+      { upTo: 50_000, rate: 0.15 },
+      { upTo: Infinity, rate: 0.25 },
+    ],
+    standardSocial: { rate: 0.0975, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Territorial: foreign-source income 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 7,
     notes: "Strict territorial taxation — income earned abroad is not taxed in Panama.",
     confidence: "high",
   },
   UY: {
+    // Verified 2026: largely territorial for labour income; new residents get a
+    // tax holiday on foreign income (then 12% on foreign capital under 2026 Law
+    // 20.446). Local IRPF progressive to 36%. BPS ~18%. UYU≈$0.025 USD-equiv.
     employed: { low: 0.1, mid: 0.2, high: 0.28 },
     selfEmployed: { low: 0.12, mid: 0.22, high: 0.3 },
-    remoteRegime: { rate: 0.0, label: "Tax holiday on foreign income for new residents (up to 11 yrs)", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 12_000, rate: 0 },
+      { upTo: 30_000, rate: 0.1 },
+      { upTo: 60_000, rate: 0.24 },
+      { upTo: Infinity, rate: 0.36 },
+    ],
+    standardSocial: { rate: 0.18, capIncome: 80_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "New-resident tax holiday: foreign income 0% (then ~12%)", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 22,
     notes: "IRPF progressive to 36%; new residents get a multi-year exemption on foreign investment income.",
     confidence: "medium",
@@ -944,9 +1019,21 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* -------------------------------- Asia ------------------------------- */
   ID: {
+    // Verified 2026: progressive 5/15/25/30/35%; residents (>183 days) taxed
+    // on WORLDWIDE income — foreign-source NOT broadly exempt (nomad/KITAS relief
+    // is narrow and uncertain, so not modeled). BPJS small. IDR≈$0.0000615.
     employed: { low: 0.1, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.2, high: 0.3 },
-    remoteRegime: { rate: 0.0, label: "Remote-worker visa: foreign-source income exempt", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 3_690, rate: 0.05 },
+      { upTo: 15_375, rate: 0.15 },
+      { upTo: 30_750, rate: 0.25 },
+      { upTo: 307_500, rate: 0.3 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.04, capIncome: 10_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 11,
     notes: "Progressive to 35%; the new remote-worker visa can exempt foreign-source income for qualifying nomads.",
     confidence: "medium",
@@ -1025,9 +1112,22 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   MU: {
+    // Verified 2026: progressive PIT 0–20% (from 1 Jul 2023). Foreign income is
+    // taxable for residents BUT income not remitted to Mauritius is exempt
+    // (Premium-visa friendly). CSG ~3%. MUR≈$0.022 USD-equiv.
     employed: { low: 0.1, mid: 0.13, high: 0.15 },
     selfEmployed: { low: 0.1, mid: 0.13, high: 0.15 },
-    remoteRegime: { rate: 0.0, label: "Premium visa: unremitted foreign income exempt", appliesTo: REMOTE_ONLY },
+    brackets: [
+      { upTo: 8_000, rate: 0 },
+      { upTo: 16_000, rate: 0.08 },
+      { upTo: 50_000, rate: 0.15 },
+      { upTo: Infinity, rate: 0.2 },
+    ],
+    standardSocial: { rate: 0.03 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Foreign income not remitted to Mauritius: 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 15,
     notes: "Flat 10–15% income tax; under the Premium nomad visa, foreign income not remitted to Mauritius is exempt.",
     confidence: "medium",

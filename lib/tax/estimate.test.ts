@@ -339,6 +339,59 @@ describe("Nordics (rich model)", () => {
   });
 });
 
+describe("territorial / foreign-exempt (rich model)", () => {
+  it("Panama keeps ~100% for a remote earner with foreign-source income", () => {
+    const PA = taxProfileFor("PA")!;
+    const e = estimateTax(PA, 120_000, "freelancer");
+    expect(e.regimeApplied).toMatch(/Territorial/);
+    expect(e.netPercent).toBe(100);
+  });
+
+  it("Panama taxes a LOCAL employee on the progressive scale", () => {
+    const PA = taxProfileFor("PA")!;
+    const e = estimateTax(PA, 80_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+  });
+
+  it("Malaysia exempts foreign-sourced ecommerce income but taxes a local job", () => {
+    const MY = taxProfileFor("MY")!;
+    expect(estimateTax(MY, 100_000, "ecommerce", 300_000).netPercent).toBe(100);
+    expect(estimateTax(MY, 100_000, "employed").effectiveRate).toBeGreaterThan(0.1);
+  });
+
+  it("Costa Rica is 0% on foreign income, taxed locally", () => {
+    const CR = taxProfileFor("CR")!;
+    expect(estimateTax(CR, 90_000, "freelancer").netPercent).toBe(100);
+    expect(estimateTax(CR, 90_000, "employed").effectiveRate).toBeGreaterThan(0.1);
+  });
+
+  it("Uruguay new-resident holiday keeps foreign income at ~100%", () => {
+    const UY = taxProfileFor("UY")!;
+    const e = estimateTax(UY, 120_000, "investor");
+    expect(e.regimeApplied).toMatch(/tax holiday/);
+    expect(e.netPercent).toBe(100);
+  });
+
+  it("Thailand keeps offshore-kept foreign income but taxes remitted/local pay", () => {
+    const TH = taxProfileFor("TH")!;
+    expect(estimateTax(TH, 100_000, "freelancer").netPercent).toBe(100);
+    expect(estimateTax(TH, 100_000, "employed").effectiveRate).toBeGreaterThan(0.1);
+  });
+
+  it("Indonesia does NOT broadly exempt foreign income (worldwide taxed)", () => {
+    const ID = taxProfileFor("ID")!;
+    const e = estimateTax(ID, 100_000, "freelancer");
+    expect(e.netPercent).toBeLessThan(100);
+    expect(e.effectiveRate).toBeGreaterThan(0.15);
+  });
+
+  it("Mauritius exempts unremitted foreign income, low flat tax locally", () => {
+    const MU = taxProfileFor("MU")!;
+    expect(estimateTax(MU, 100_000, "ecommerce", 200_000).netPercent).toBe(100);
+    expect(estimateTax(MU, 100_000, "employed").effectiveRate).toBeLessThan(0.2);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
