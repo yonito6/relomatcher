@@ -203,12 +203,48 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   PL: {
+    // Employed stays on the blended legacy curve; non-employed uses the verified
+    // regimes below (ryczałt by activity, 19% flat, all + fixed ZUS/health).
     employed: { low: 0.17, mid: 0.24, high: 0.3 },
     selfEmployed: { low: 0.12, mid: 0.17, high: 0.23 },
-    remoteRegime: { rate: 0.12, label: "Lump-sum (ryczałt) 8.5–12% for many IT/online services", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 2_000_000 },
+    // PIT scale (income tax only): ~30k PLN tax-free, 12% to 120k PLN, 32% above,
+    // +4% solidarity over ~1M PLN. In USD-equiv (PLN≈$0.25).
+    brackets: [
+      { upTo: 7_500, rate: 0 },
+      { upTo: 30_000, rate: 0.12 },
+      { upTo: 250_000, rate: 0.32 },
+      { upTo: Infinity, rate: 0.36 },
+    ],
+    // ZUS (~PLN 1,575/mo ≈ $4.7k/yr) + 9% health on the scale path.
+    selfEmployedSocial: { rate: 0.09, minAnnual: 4_700 },
+    regimes: [
+      {
+        label: "Ryczałt 3% of revenue (goods) + ZUS",
+        activities: ["ecommerce"],
+        basis: "revenue",
+        rate: 0.03,
+        social: { rate: 0, minAnnual: 9_000 }, // ZUS + top-tier ryczałt health
+        maxAnnualRevenue: 2_000_000, // ~€2M ryczałt ceiling
+      },
+      {
+        label: "Ryczałt 8.5% of revenue (services) + ZUS",
+        activities: ["freelancer"],
+        basis: "revenue",
+        rate: 0.085,
+        social: { rate: 0, minAnnual: 8_500 },
+        maxAnnualRevenue: 2_000_000,
+      },
+      {
+        label: "19% flat tax on profit + ZUS/health",
+        activities: ["freelancer", "ecommerce", "investor"],
+        basis: "profit",
+        rate: 0.19,
+        social: { rate: 0.049, minAnnual: 6_000 }, // ZUS + 4.9% health
+      },
+    ],
     vat: 23,
-    notes: "12%/32% PIT or 19% flat; lump-sum ryczałt is very low for IT/ecommerce services.",
-    confidence: "high",
+    notes: "Ecommerce (goods) can use ryczałt ~3% of revenue (revenue ≤ €2M) — often the cheapest; otherwise 19% flat on profit. All add fixed ZUS + health. ZUS/health figures approximated.",
+    confidence: "medium",
   },
   HU: {
     employed: { low: 0.28, mid: 0.3, high: 0.33 },

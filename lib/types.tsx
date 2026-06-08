@@ -1,7 +1,7 @@
 // lib/types.ts
 
 import type { FactorRatings, ClimatePref, CulturePref, MobilityRights } from "@/lib/scoring/types";
-import type { EarnerType } from "@/lib/tax/types";
+import type { EarnerType, EarnerActivity } from "@/lib/tax/types";
 
 export type ClimatePreference = "warm" | "mild" | "cold" | "no_preference";
 
@@ -39,6 +39,10 @@ export interface QuizData {
    *  "any" = absolute affordability. */
   costPreference?: "cheaper" | "any";
   /** How the user earns — drives the tax estimate (employed vs self-employed vs
-   *  remote/nomad). Defaults to "employed" when not set. */
+   *  remote/nomad). Defaults to "employed" when not set. Legacy; superseded by
+   *  workActivity for regime selection. */
   earnerType?: EarnerType;
+  /** What the user does — picks the right tax regime (ecommerce/goods vs
+   *  freelance services are taxed very differently). Defaults to "employed". */
+  workActivity?: EarnerActivity;
 }

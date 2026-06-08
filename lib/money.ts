@@ -8,7 +8,23 @@ import { COUNTRIES, type CountryRecord } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
 import { taxProfileFor } from "@/lib/tax/data";
 import { estimateTax } from "@/lib/tax/estimate";
-import type { TaxEstimate, EarnerType } from "@/lib/tax/types";
+import type { TaxEstimate, EarnerActivity } from "@/lib/tax/types";
+import { toUSD } from "@/lib/fx";
+
+/** Resolve the user's work activity (new field), falling back to the older
+ *  earnerType, then to employed. Drives which tax regime we apply. */
+export function activityFor(profile: QuizData): EarnerActivity {
+  if (profile.workActivity) return profile.workActivity;
+  switch (profile.earnerType) {
+    case "employed":
+      return "employed";
+    case "self_employed":
+    case "remote_foreign":
+      return "freelancer";
+    default:
+      return "employed";
+  }
+}
 
 /** Parse the self-reported monthly income into a positive number, or null. */
 export function parseMonthlyIncome(profile: QuizData): number | null {
@@ -70,10 +86,19 @@ export function estimateForCountry(
   if (monthly == null) return null;
   const taxProfile = taxProfileFor(country.code);
   if (!taxProfile) return null;
-  const earner: EarnerType = profile.earnerType ?? "employed";
-  // Revenue gates flat-regime eligibility; income drives the tax math.
-  const annualRevenue = parseAnnualRevenue(profile) ?? undefined;
-  return estimateTax(taxProfile, monthly * 12, earner, annualRevenue);
+  const activity = activityFor(profile);
+  const cur = profile.incomeCurrency;
+  const annualLocal = monthly * 12;
+  // Convert to USD so the income lands on the correct (USD-denominated) brackets.
+  const annualUSD = toUSD(annualLocal, cur);
+  const revLocal = parseAnnualRevenue(profile);
+  const revUSD = revLocal != null ? toUSD(revLocal, cur) : undefined;
+  const est = estimateTax(taxProfile, annualUSD, activity, revUSD);
+  // The effective rate is currency-agnostic; report the actual amounts back in
+  // the user's own currency so the UI shows their coin, not USD.
+  const taxAmount = Math.round(annualLocal * est.effectiveRate);
+  const netAmount = annualLocal - taxAmount;
+  return { ...est, taxAmount, netAmount };
 }
 
 /**

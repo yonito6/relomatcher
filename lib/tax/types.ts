@@ -20,6 +20,67 @@ export const EARNER_TYPES: { id: EarnerType; label: string; hint: string }[] = [
 ];
 
 /**
+ * What the user actually DOES — this picks the right tax regime, because
+ * ecommerce (selling goods) and freelance services are taxed very differently
+ * (e.g. in Poland 3% ryczałt on goods vs 8.5–12% on services). Drives regime
+ * selection in the estimator.
+ */
+export type EarnerActivity = "employed" | "freelancer" | "ecommerce" | "investor";
+
+export const EARNER_ACTIVITIES: { id: EarnerActivity; label: string; hint: string }[] = [
+  { id: "employed", label: "Employed", hint: "Salary from a local or remote employer" },
+  { id: "freelancer", label: "Freelancer / services", hint: "Sell your services: consulting, IT, design, agency" },
+  { id: "ecommerce", label: "Ecommerce / sell goods", hint: "Online store, dropshipping, retail, trading products" },
+  { id: "investor", label: "Investor / passive", hint: "Mostly dividends, rent, capital gains" },
+];
+
+/** Map the new activity to the legacy earner type used by un-migrated profiles. */
+export function activityToEarner(activity: EarnerActivity): EarnerType {
+  return activity === "employed" ? "employed" : "self_employed";
+}
+
+/** A single progressive income-tax bracket. `upTo` is annual USD-equiv income
+ *  (use Infinity for the top band); `rate` is the marginal rate (0..1). */
+export type Bracket = { upTo: number; rate: number };
+
+/**
+ * A mandatory social / health contribution layered ON TOP of income tax (e.g.
+ * Poland's ZUS + health). All amounts/thresholds are USD-equivalents.
+ */
+export type SocialCharge = {
+  /** Rate applied to income (0..1). */
+  rate: number;
+  /** Minimum annual amount payable regardless of income (e.g. fixed ZUS). */
+  minAnnual?: number;
+  /** Maximum annual amount of the charge itself (a hard cap on what you pay). */
+  maxAnnual?: number;
+  /** Income above which the rate stops applying (contribution ceiling). */
+  capIncome?: number;
+};
+
+/**
+ * An activity-specific tax regime option. The estimator considers every regime
+ * the user's activity qualifies for (within caps) and the standard rules, then
+ * picks whichever keeps the MOST money in their pocket.
+ */
+export type Regime = {
+  /** Short label shown to the user. */
+  label: string;
+  /** Which activities can use it. */
+  activities: EarnerActivity[];
+  /** Whether `rate` is charged on revenue/turnover or on profit/taxable income. */
+  basis: "revenue" | "profit";
+  /** Flat rate (0..1) on the chosen basis. */
+  rate: number;
+  /** Mandatory social/health charged on top of the regime (USD-equiv). */
+  social?: SocialCharge;
+  /** Max annual turnover (USD-equiv) to qualify, if revenue-capped. */
+  maxAnnualRevenue?: number;
+  /** Max annual income/profit (USD-equiv) to qualify, if profit-capped. */
+  maxAnnualIncome?: number;
+};
+
+/**
  * Effective all-in tax rate (income tax + mandatory social/health contributions)
  * as a fraction 0..1, captured at 3 annual-income anchors so we can interpolate
  * across the progressive curve without hand-coding full brackets per country.
@@ -73,6 +134,19 @@ export type TaxProfile = {
   notes: string;
   /** How confident we are in these figures. */
   confidence: "high" | "medium" | "low";
+
+  // ── Rich, verified model (present only on migrated countries) ──
+  // When `regimes` is present the country is "migrated": the estimator uses the
+  // explicit brackets/social/regimes below for non-employed earners instead of
+  // the blended legacy curves, and picks the cheapest qualifying option.
+  /** Progressive income-tax brackets (income tax only, USD-equiv). */
+  brackets?: Bracket[];
+  /** Standard employee social/health contribution (used with brackets). */
+  standardSocial?: SocialCharge;
+  /** Self-employed social/health contribution for the general-rules path. */
+  selfEmployedSocial?: SocialCharge;
+  /** Activity-aware regime options (ryczałt bands, flat-tax, etc.). */
+  regimes?: Regime[];
 };
 
 /** Output of an estimate — everything the UI/PDF needs to show it honestly. */

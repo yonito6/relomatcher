@@ -6,7 +6,7 @@ import type { QuizData } from "@/lib/types";
 import type { MobilityRights } from "@/lib/scoring/types";
 import { COUNTRIES } from "@/lib/countriesDb";
 import { currencyForCountry } from "@/lib/countryCurrency";
-import { EARNER_TYPES } from "@/lib/tax/types";
+import { EARNER_ACTIVITIES } from "@/lib/tax/types";
 
 // All country names from the DB + common origins not in DB
 const DB_NAMES = COUNTRIES.map((c) => c.name);
@@ -382,19 +382,19 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
             </select>
           </div>
 
-          {/* Earner type — drives the personalised tax estimate */}
+          {/* Work activity — picks the right tax regime (goods vs services differ a lot) */}
           <p className="relo-basics__hint" style={{ marginTop: "0.85rem" }}>
-            How do you earn? We estimate your real take-home tax differently for each.
+            What do you do? We pick the right tax regime for each — ecommerce and freelancing are taxed very differently.
           </p>
           <div className="relo-basics__earner-row">
-            {EARNER_TYPES.map((opt) => {
-              const selected = (data.earnerType ?? "employed") === opt.id;
+            {EARNER_ACTIVITIES.map((opt) => {
+              const selected = (data.workActivity ?? "employed") === opt.id;
               return (
                 <motion.button
                   key={opt.id}
                   type="button"
                   className={`relo-basics__earner-btn ${selected ? "is-selected" : ""}`}
-                  onClick={() => update({ earnerType: opt.id })}
+                  onClick={() => update({ workActivity: opt.id })}
                   whileTap={{ scale: 0.96 }}
                 >
                   <strong>{opt.label}</strong>
@@ -404,9 +404,9 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
             })}
           </div>
 
-          {/* Annual business revenue — only for self-employed / nomad, gates flat-regime eligibility */}
+          {/* Annual business revenue — only for non-employed, gates revenue-capped regimes */}
           <AnimatePresence>
-            {(data.earnerType === "self_employed" || data.earnerType === "remote_foreign") && (
+            {(data.workActivity === "ecommerce" || data.workActivity === "freelancer") && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
