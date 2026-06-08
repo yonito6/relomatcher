@@ -748,38 +748,125 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ------------------------------- Asia -------------------------------- */
   SG: {
+    // Verified 2026: graduated 0–24% (top only above S$1M). Foreigners pay NO CPF
+    // (it's citizens/PR only), so for a relocator there is no employee social tax —
+    // just the low income brackets. Foreign-sourced income received by individuals
+    // is generally not taxed (but work physically done in SG is SG-sourced).
+    // SGD≈$0.74 USD-equiv.
     employed: { low: 0.05, mid: 0.1, high: 0.16 },
     selfEmployed: { low: 0.05, mid: 0.11, high: 0.17 },
+    brackets: [
+      { upTo: 14_800, rate: 0 },
+      { upTo: 22_200, rate: 0.02 },
+      { upTo: 29_600, rate: 0.035 },
+      { upTo: 59_200, rate: 0.07 },
+      { upTo: 88_800, rate: 0.115 },
+      { upTo: 118_400, rate: 0.15 },
+      { upTo: 148_000, rate: 0.18 },
+      { upTo: 236_800, rate: 0.2 },
+      { upTo: 370_000, rate: 0.22 },
+      { upTo: 740_000, rate: 0.23 },
+      { upTo: Infinity, rate: 0.24 },
+    ],
+    standardSocial: { rate: 0 }, // foreigners pay no CPF
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 9,
-    notes: "Low progressive rates (to 24% only at very high income); territorial — foreign income often untaxed.",
+    notes: "Low graduated rates (24% only above S$1M); foreigners pay no CPF social tax — a true low all-in. 9% GST.",
     confidence: "high",
   },
   JP: {
+    // Verified 2026: national PIT 5–45% + ~10% local inhabitant tax + 2.1%
+    // reconstruction surtax → combined marginals ~15–55%. Social insurance
+    // (health+pension+employment) ~15% employee, capped. JPY≈$0.0064 USD-equiv.
+    // Brackets approximate national + local combined.
     employed: { low: 0.2, mid: 0.3, high: 0.4 },
     selfEmployed: { low: 0.2, mid: 0.32, high: 0.43 },
+    brackets: [
+      { upTo: 3_000, rate: 0 },
+      { upTo: 12_480, rate: 0.15 },
+      { upTo: 21_120, rate: 0.2 },
+      { upTo: 44_480, rate: 0.3 },
+      { upTo: 57_600, rate: 0.33 },
+      { upTo: 115_200, rate: 0.43 },
+      { upTo: 256_000, rate: 0.5 },
+      { upTo: Infinity, rate: 0.55 },
+    ],
+    standardSocial: { rate: 0.15, capIncome: 100_000 },
+    selfEmployedSocial: { rate: 0.15, capIncome: 100_000 },
+    regimes: [],
     vat: 10,
-    notes: "National + local 10% inhabitant tax + social insurance; progressive to 45%.",
+    notes: "National + ~10% local inhabitant tax + social insurance; combined progressive to ~55%.",
     confidence: "medium",
   },
   KR: {
+    // Verified 2026: national PIT 6–45% + 10% local income surtax (×1.1 on each
+    // rate) → combined ~6.6–49.5%. Social ~9% employee (pension 4.5 + health 3.5 +
+    // employment), partly capped. KRW≈$0.00073 USD-equiv. Brackets = combined.
     employed: { low: 0.15, mid: 0.26, high: 0.36 },
     selfEmployed: { low: 0.16, mid: 0.28, high: 0.4 },
+    brackets: [
+      { upTo: 10_220, rate: 0.066 },
+      { upTo: 36_500, rate: 0.165 },
+      { upTo: 64_240, rate: 0.264 },
+      { upTo: 109_500, rate: 0.385 },
+      { upTo: 219_000, rate: 0.418 },
+      { upTo: 365_000, rate: 0.462 },
+      { upTo: Infinity, rate: 0.495 },
+    ],
+    standardSocial: { rate: 0.09, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0.09, capIncome: 60_000 },
+    regimes: [],
     vat: 10,
-    notes: "Progressive to 45% + local surtax + national pension/health.",
+    notes: "Progressive to 45% + 10% local surtax (combined ~49.5%) + national pension/health.",
     confidence: "medium",
   },
   HK: {
+    // Verified 2026: salaries tax progressive 2–17% but CAPPED at the 15% standard
+    // rate (16% above HK$5M). Territorial — only HK-sourced income is taxed, so
+    // foreign-sourced earnings are 0%. MPF social 5% capped at HK$1,500/mo
+    // (~$2,300/yr). HKD≈$0.128 USD-equiv.
     employed: { low: 0.08, mid: 0.13, high: 0.15 },
     selfEmployed: { low: 0.08, mid: 0.13, high: 0.15 },
+    brackets: [
+      { upTo: 16_900, rate: 0 },
+      { upTo: 23_300, rate: 0.02 },
+      { upTo: 29_700, rate: 0.06 },
+      { upTo: 36_100, rate: 0.1 },
+      { upTo: 42_500, rate: 0.14 },
+      { upTo: Infinity, rate: 0.15 },
+    ],
+    standardSocial: { rate: 0.05, maxAnnual: 2_300 },
+    selfEmployedSocial: { rate: 0.05, maxAnnual: 2_300 },
+    regimes: [
+      { label: "Territorial: foreign-sourced income 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0 },
+    ],
     vat: 0,
-    notes: "Salaries tax capped at 15% standard rate; territorial, no VAT/sales tax.",
+    notes: "Salaries tax capped at 15% standard rate; territorial (foreign-sourced income untaxed), no VAT/sales tax. MPF social is tiny.",
     confidence: "high",
   },
   TW: {
+    // Verified 2026: progressive 5–40% (5 brackets). Foreign-sourced income falls
+    // under AMT only above ~TWD 7.5M (~$236k) basic-income threshold, so it's
+    // largely outside the net for typical relocators. Labour insurance + NHI ~5%
+    // employee. TWD≈$0.0315 USD-equiv.
     employed: { low: 0.08, mid: 0.16, high: 0.27 },
     selfEmployed: { low: 0.1, mid: 0.18, high: 0.3 },
+    brackets: [
+      { upTo: 6_800, rate: 0 },
+      { upTo: 25_400, rate: 0.05 },
+      { upTo: 48_700, rate: 0.12 },
+      { upTo: 90_600, rate: 0.2 },
+      { upTo: 163_700, rate: 0.3 },
+      { upTo: Infinity, rate: 0.4 },
+    ],
+    standardSocial: { rate: 0.05, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0.05, capIncome: 60_000 },
+    regimes: [
+      { label: "Foreign-sourced income below AMT threshold: 0%", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0, maxAnnualIncome: 236_000 },
+    ],
     vat: 5,
-    notes: "Progressive to 40%; foreign-sourced income largely outside the net for residents. Low VAT.",
+    notes: "Progressive to 40%; foreign-sourced income is largely outside the net (AMT only above ~$236k). Low 5% VAT.",
     confidence: "medium",
   },
   TH: {
@@ -844,17 +931,43 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ----------------------------- Oceania ------------------------------- */
   AU: {
+    // Verified 2026 (2024–25 scale): 0 to A$18,200, 16% to A$45k, 30% to A$135k,
+    // 37% to A$190k, 45% above + 2% Medicare levy. Super is employer-paid (not an
+    // employee tax). AUD≈$0.66 USD-equiv.
     employed: { low: 0.18, mid: 0.27, high: 0.36 },
     selfEmployed: { low: 0.18, mid: 0.28, high: 0.38 },
+    brackets: [
+      { upTo: 12_012, rate: 0 },
+      { upTo: 29_700, rate: 0.16 },
+      { upTo: 89_100, rate: 0.3 },
+      { upTo: 125_400, rate: 0.37 },
+      { upTo: Infinity, rate: 0.45 },
+    ],
+    standardSocial: { rate: 0.02 }, // Medicare levy
+    selfEmployedSocial: { rate: 0.02 },
+    regimes: [],
     vat: 10,
-    notes: "Progressive to 45% + 2% Medicare levy; $18,200 tax-free threshold.",
+    notes: "Progressive to 45% + 2% Medicare levy; A$18,200 tax-free threshold. Superannuation is employer-paid (not an employee tax).",
     confidence: "high",
   },
   NZ: {
+    // Verified 2026 (2024–25 scale): 10.5% to NZ$15,600, 17.5% to NZ$53,500, 30%
+    // to NZ$78,100, 33% to NZ$180,000, 39% above. No social-security payroll tax,
+    // no general CGT; small ACC earner levy ~1.6%. NZD≈$0.60 USD-equiv.
     employed: { low: 0.16, mid: 0.24, high: 0.32 },
     selfEmployed: { low: 0.16, mid: 0.25, high: 0.33 },
+    brackets: [
+      { upTo: 9_360, rate: 0.105 },
+      { upTo: 32_100, rate: 0.175 },
+      { upTo: 46_860, rate: 0.3 },
+      { upTo: 108_000, rate: 0.33 },
+      { upTo: Infinity, rate: 0.39 },
+    ],
+    standardSocial: { rate: 0.016 }, // ACC earner levy
+    selfEmployedSocial: { rate: 0.016 },
+    regimes: [],
     vat: 15,
-    notes: "Progressive to 39%; no social-security payroll tax, no capital gains tax.",
+    notes: "Progressive to 39%; no social-security payroll tax, no general capital gains tax (just a small ~1.6% ACC levy).",
     confidence: "high",
   },
 

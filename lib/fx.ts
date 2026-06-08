@@ -30,6 +30,30 @@ export const USD_PER_UNIT: Record<string, number> = {
   TRY: 0.025,
   PLN: 0.25,
   HUF: 0.0027,
+  // Asia-Pacific
+  HKD: 0.128,
+  TWD: 0.0315,
+  KRW: 0.00073,
+  NZD: 0.6,
+  MYR: 0.225,
+  IDR: 0.0000615,
+  // Nordics
+  DKK: 0.145,
+  SEK: 0.096,
+  NOK: 0.092,
+  // CEE / Balkans
+  CZK: 0.045,
+  RSD: 0.0093,
+  MKD: 0.0176,
+  MDL: 0.057,
+  UAH: 0.0238,
+  BAM: 0.55,
+  ALL: 0.0108,
+  // Latin America / Africa
+  UYU: 0.025,
+  MUR: 0.022,
+  CRC: 0.00193,
+  PAB: 1,
 };
 
 /**

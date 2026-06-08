@@ -551,6 +551,56 @@ describe("Balkans & CEE rest (rich model)", () => {
   });
 });
 
+describe("Asia-Pacific developed (rich model)", () => {
+  const SG = taxProfileFor("SG")!;
+  const HK = taxProfileFor("HK")!;
+  const TW = taxProfileFor("TW")!;
+  const JP = taxProfileFor("JP")!;
+  const KR = taxProfileFor("KR")!;
+  const AU = taxProfileFor("AU")!;
+  const NZ = taxProfileFor("NZ")!;
+
+  it("Singapore: low graduated rate, no CPF for foreigners", () => {
+    const e = estimateTax(SG, 100_000, "employed");
+    expect(e.effectiveRate).toBeLessThan(0.12);
+  });
+
+  it("Hong Kong: salaries tax effectively capped at 15%", () => {
+    const e = estimateTax(HK, 300_000, "employed");
+    expect(e.effectiveRate).toBeLessThan(0.16);
+  });
+  it("Hong Kong: foreign-sourced income is territorial 0%", () => {
+    expect(estimateTax(HK, 150_000, "freelancer", 200_000).netPercent).toBe(100);
+  });
+
+  it("Taiwan: foreign income below AMT threshold is 0%, local salary taxed", () => {
+    expect(estimateTax(TW, 100_000, "freelancer", 150_000).netPercent).toBe(100);
+    expect(estimateTax(TW, 100_000, "employed").effectiveRate).toBeGreaterThan(0.1);
+  });
+
+  it("Japan: combined national+local reaches the 40s% at high income", () => {
+    const e = estimateTax(JP, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+  });
+
+  it("Korea: combined surtax pushes high earners past 35%", () => {
+    const e = estimateTax(KR, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+  });
+
+  it("Australia: tax-free threshold then progressive to mid-30s%", () => {
+    const e = estimateTax(AU, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.35);
+  });
+
+  it("New Zealand: no payroll social tax keeps effective moderate", () => {
+    const e = estimateTax(NZ, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.33);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
