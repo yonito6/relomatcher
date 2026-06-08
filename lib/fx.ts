@@ -54,6 +54,10 @@ export const USD_PER_UNIT: Record<string, number> = {
   MUR: 0.022,
   CRC: 0.00193,
   PAB: 1,
+  VND: 0.0000393,
+  CLP: 0.00105,
+  COP: 0.00024,
+  PHP: 0.0179,
 };
 
 /**

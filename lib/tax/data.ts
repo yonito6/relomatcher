@@ -16,25 +16,74 @@ const REMOTE_AND_SELF: EarnerType[] = ["remote_foreign", "self_employed"];
 export const TAX_PROFILES: Record<string, TaxProfile> = {
   /* --------------------------- North America --------------------------- */
   US: {
+    // Verified 2025: FEDERAL brackets 10/12/22/24/32/35/37% (single), std deduction
+    // $15,750 folded as the first 0% band. FICA 7.65% employee (SS 6.2% to ~$176k +
+    // Medicare 1.45%); self-employed SE tax 15.3%. STATE income tax varies hugely
+    // (TX/FL/WA = 0%, CA/NY ~9–13%) and is NOT included — model is federal-only.
     employed: { low: 0.18, mid: 0.26, high: 0.33 },
     selfEmployed: { low: 0.22, mid: 0.3, high: 0.37 },
+    brackets: [
+      { upTo: 15_750, rate: 0 },
+      { upTo: 27_675, rate: 0.1 },
+      { upTo: 64_225, rate: 0.12 },
+      { upTo: 119_100, rate: 0.22 },
+      { upTo: 213_050, rate: 0.24 },
+      { upTo: 266_275, rate: 0.32 },
+      { upTo: 642_100, rate: 0.35 },
+      { upTo: Infinity, rate: 0.37 },
+    ],
+    standardSocial: { rate: 0.0765, capIncome: 176_100 },
+    selfEmployedSocial: { rate: 0.153, capIncome: 176_100 },
+    regimes: [],
     vat: 7, // avg combined sales tax; varies by state
-    notes: "Federal + state + payroll/self-employment tax; varies widely by state (TX/FL have no state income tax).",
+    notes: "Federal income tax 10–37% + FICA/SE payroll tax. STATE income tax (0% in TX/FL/WA, up to ~13% in CA) is extra and not included here.",
     confidence: "medium",
   },
   CA: {
+    // Verified 2025: federal 14.5/20.5/26/29/33% (BPA $16,129). Brackets here model
+    // federal + a TYPICAL province (Ontario) combined (~20% to ~53.5% top); other
+    // provinces differ (Alberta lower, Quebec higher). CPP+EI ~ capped at ~CAD 68.5k
+    // base. CAD≈$0.73 USD-equiv.
     employed: { low: 0.19, mid: 0.28, high: 0.36 },
     selfEmployed: { low: 0.21, mid: 0.31, high: 0.4 },
+    brackets: [
+      { upTo: 11_774, rate: 0 },
+      { upTo: 37_960, rate: 0.2 },
+      { upTo: 69_350, rate: 0.3 },
+      { upTo: 129_940, rate: 0.43 },
+      { upTo: 184_690, rate: 0.48 },
+      { upTo: Infinity, rate: 0.535 },
+    ],
+    standardSocial: { rate: 0.076, capIncome: 50_000 },
+    selfEmployedSocial: { rate: 0.119, capIncome: 50_000 },
+    regimes: [],
     vat: 13,
-    notes: "Federal + provincial income tax + CPP/EI. Province matters a lot.",
+    notes: "Federal + provincial income tax (modeled on Ontario; province matters a lot — Alberta lower, Quebec higher) + CPP/EI.",
     confidence: "medium",
   },
   MX: {
+    // Verified 2026: progressive ISR ~1.9–35%. RESICO small-business regime taxes
+    // 1–2.5% of REVENUE (turnover ≤ MXN 3.5M ≈ $192k) — very low for self-employed.
+    // IMSS social modest. MXN≈$0.055 USD-equiv.
     employed: { low: 0.12, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.18, high: 0.3 },
-    remoteRegime: { rate: 0.1, label: "RESICO small-business ~1–2.5% + low brackets", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
+    brackets: [
+      { upTo: 600, rate: 0.02 },
+      { upTo: 6_000, rate: 0.1 },
+      { upTo: 17_000, rate: 0.21 },
+      { upTo: 33_000, rate: 0.23 },
+      { upTo: 44_000, rate: 0.3 },
+      { upTo: 130_000, rate: 0.32 },
+      { upTo: 170_000, rate: 0.34 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.03, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0.05, capIncome: 60_000 },
+    regimes: [
+      { label: "RESICO: ~2% of revenue (small business)", activities: ["freelancer", "ecommerce"], basis: "revenue", rate: 0.02, social: { rate: 0 }, maxAnnualRevenue: 192_000 },
+    ],
     vat: 16,
-    notes: "Progressive ISR up to 35%; RESICO regime is very low for small self-employed.",
+    notes: "Progressive ISR up to 35%; the RESICO regime taxes just 1–2.5% of revenue (≤ MXN 3.5M) — very low for small self-employed.",
     confidence: "medium",
   },
 
@@ -922,10 +971,27 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   VN: {
+    // Verified 2026: employment PIT progressive 5–35%. Business individuals are
+    // taxed on REVENUE at a small rate (services ~7% = 5% PIT + 2% VAT; lower for
+    // goods). Compulsory social insurance ~10.5% employee, capped. VND≈$0.0000393.
     employed: { low: 0.1, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.07, mid: 0.1, high: 0.15 },
+    brackets: [
+      { upTo: 2_358, rate: 0.05 },
+      { upTo: 4_716, rate: 0.1 },
+      { upTo: 8_489, rate: 0.15 },
+      { upTo: 15_091, rate: 0.2 },
+      { upTo: 24_523, rate: 0.25 },
+      { upTo: 37_728, rate: 0.3 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.105, capIncome: 25_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      { label: "Business individual: ~5% of revenue (services)", activities: ["freelancer", "ecommerce"], basis: "revenue", rate: 0.05, social: { rate: 0 } },
+    ],
     vat: 10,
-    notes: "Progressive to 35% for employment; business individuals taxed ~ a few % of revenue.",
+    notes: "Employment PIT progressive to 35%; business individuals are taxed at ~5% of revenue (services) — very low for freelancers.",
     confidence: "low",
   },
 
@@ -1274,40 +1340,114 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ----------------------------- Latin America ------------------------- */
   BR: {
+    // Verified 2026: IRPF progressive, exempt to ~BRL 2,260/mo, then 7.5/15/22.5/
+    // 27.5% (top above ~BRL 4,664/mo). INSS social ~11% capped (~BRL 951/mo ≈
+    // $2,040/yr ceiling contribution). BRL≈$0.18 USD-equiv.
     employed: { low: 0.12, mid: 0.22, high: 0.28 },
     selfEmployed: { low: 0.14, mid: 0.24, high: 0.3 },
+    brackets: [
+      { upTo: 5_000, rate: 0 },
+      { upTo: 6_500, rate: 0.075 },
+      { upTo: 8_700, rate: 0.15 },
+      { upTo: 10_800, rate: 0.225 },
+      { upTo: Infinity, rate: 0.275 },
+    ],
+    standardSocial: { rate: 0.11, maxAnnual: 2_040 },
+    selfEmployedSocial: { rate: 0.11, maxAnnual: 2_040 },
+    regimes: [],
     vat: 17, // ICMS/ISS combined varies by state/municipality
-    notes: "Progressive IRPF to 27.5% + INSS social security; lots of indirect tax.",
+    notes: "Progressive IRPF to 27.5% + INSS social security (capped ~$2k/yr). Lots of indirect tax (ICMS/ISS).",
     confidence: "medium",
   },
   AR: {
+    // Verified 2026: high progressive PIT (Ganancias) to 35%. Monotributo is a flat
+    // fixed monthly all-in for small earners (turnover-capped). Figures are USD-equiv
+    // and VOLATILE due to high inflation — enter income in USD for stability.
     employed: { low: 0.17, mid: 0.27, high: 0.35 },
     selfEmployed: { low: 0.12, mid: 0.22, high: 0.32 },
-    remoteRegime: { rate: 0.1, label: "Monotributo flat small-business regime", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 70_000 },
+    brackets: [
+      { upTo: 10_000, rate: 0.05 },
+      { upTo: 30_000, rate: 0.15 },
+      { upTo: 70_000, rate: 0.25 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.17, capIncome: 50_000 },
+    selfEmployedSocial: { rate: 0, minAnnual: 1_500 },
+    regimes: [
+      { label: "Monotributo flat small-business regime", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0, social: { rate: 0, minAnnual: 1_500 }, maxAnnualRevenue: 70_000 },
+    ],
     vat: 21,
-    notes: "High progressive tax, but Monotributo is a low flat regime for small earners. Figures volatile with inflation.",
+    notes: "High progressive tax, but Monotributo is a low flat fixed regime for small earners. Figures volatile with inflation.",
     confidence: "low",
   },
   CL: {
+    // Verified 2026: Global Complementary tax progressive 0–40% (UTA-indexed).
+    // AFP pension 10% + health 7% are deducted (AFP is your own retirement savings).
+    // CLP≈$0.00105 USD-equiv. Brackets are USD-equiv approximations.
     employed: { low: 0.08, mid: 0.16, high: 0.27 },
     selfEmployed: { low: 0.09, mid: 0.18, high: 0.28 },
+    brackets: [
+      { upTo: 12_000, rate: 0 },
+      { upTo: 27_000, rate: 0.04 },
+      { upTo: 45_000, rate: 0.08 },
+      { upTo: 63_000, rate: 0.135 },
+      { upTo: 81_000, rate: 0.23 },
+      { upTo: 105_000, rate: 0.304 },
+      { upTo: 135_000, rate: 0.35 },
+      { upTo: Infinity, rate: 0.4 },
+    ],
+    standardSocial: { rate: 0.17, capIncome: 55_000 },
+    selfEmployedSocial: { rate: 0.17, capIncome: 55_000 },
+    regimes: [],
     vat: 19,
-    notes: "Global Complementary tax up to 40% but effective rates are moderate at mid incomes.",
+    notes: "Global Complementary tax up to 40% but effective rates are moderate at mid incomes. AFP pension (10%) is your own savings.",
     confidence: "medium",
   },
   CO: {
+    // Verified 2026: progressive PIT to 39% (UVT-indexed). Health 4% + pension 4%
+    // employee contributions (capped). COP≈$0.00024 USD-equiv. Brackets are
+    // USD-equiv approximations.
     employed: { low: 0.1, mid: 0.19, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.2, high: 0.31 },
+    brackets: [
+      { upTo: 14_000, rate: 0 },
+      { upTo: 22_000, rate: 0.19 },
+      { upTo: 38_000, rate: 0.28 },
+      { upTo: 90_000, rate: 0.33 },
+      { upTo: 150_000, rate: 0.35 },
+      { upTo: 200_000, rate: 0.37 },
+      { upTo: Infinity, rate: 0.39 },
+    ],
+    standardSocial: { rate: 0.08, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0.08, capIncome: 60_000 },
+    regimes: [],
     vat: 19,
-    notes: "Progressive up to 39% + health/pension contributions.",
+    notes: "Progressive up to 39% + health/pension contributions (~8% employee).",
     confidence: "medium",
   },
   EC: {
+    // Verified 2026: progressive PIT 0–37% (uses the US dollar, so no currency risk).
+    // IESS social security ~9.45% employee. USD figures.
     employed: { low: 0.06, mid: 0.14, high: 0.25 },
     selfEmployed: { low: 0.07, mid: 0.15, high: 0.26 },
+    brackets: [
+      { upTo: 11_902, rate: 0 },
+      { upTo: 15_159, rate: 0.05 },
+      { upTo: 19_682, rate: 0.1 },
+      { upTo: 26_031, rate: 0.12 },
+      { upTo: 34_255, rate: 0.15 },
+      { upTo: 45_407, rate: 0.2 },
+      { upTo: 60_450, rate: 0.25 },
+      { upTo: 80_605, rate: 0.3 },
+      { upTo: 107_199, rate: 0.35 },
+      { upTo: Infinity, rate: 0.37 },
+    ],
+    standardSocial: { rate: 0.0945 },
+    selfEmployedSocial: { rate: 0.0945 },
+    regimes: [],
     vat: 15,
-    notes: "Progressive up to 37%; uses US dollar so no currency risk. Estimates approximate.",
-    confidence: "low",
+    notes: "Progressive up to 37%; uses the US dollar so no currency risk. IESS social ~9.45%.",
+    confidence: "medium",
   },
 
   /* -------------------------------- Asia ------------------------------- */
@@ -1332,18 +1472,66 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   PH: {
+    // Verified 2026 TRAIN-law brackets (annual, PHP→USD at ≈$0.0179): 0 up to
+    // ₱250k, then 15/20/25/30/35%. Small self-employed/professionals with gross
+    // ≤₱3M can elect a simple 8% flat tax on gross in lieu of PIT + percentage tax.
+    // SSS/PhilHealth contributions are modest and capped. PHP≈$0.0179.
     employed: { low: 0.1, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.08, mid: 0.15, high: 0.25 },
-    remoteRegime: { rate: 0.08, label: "8% flat tax for small self-employed", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 55_000 },
+    brackets: [
+      { upTo: 4_475, rate: 0 },
+      { upTo: 7_160, rate: 0.15 },
+      { upTo: 14_320, rate: 0.2 },
+      { upTo: 35_800, rate: 0.25 },
+      { upTo: 143_200, rate: 0.3 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.05, capIncome: 25_000 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      {
+        label: "8% flat tax on gross (small self-employed)",
+        activities: ["freelancer", "ecommerce"],
+        basis: "revenue",
+        rate: 0.08,
+        social: { rate: 0 },
+        maxAnnualRevenue: 54_000, // ≈ ₱3M
+      },
+    ],
     vat: 12,
-    notes: "Progressive to 35%; small self-employed can elect a simple 8% flat tax.",
+    notes: "Progressive to 35%; small self-employed/professionals (gross ≤₱3M) can elect a simple 8% flat tax on gross.",
     confidence: "medium",
   },
   IN: {
+    // Verified 2026 new-regime (FY2025-26) slabs, INR→USD at ≈$0.012: 0 up to
+    // ₹4L, then 5/10/15/20/25/30% (rebate makes income up to ₹12L effectively
+    // tax-free, but we model the raw slabs for higher incomes). Professionals can
+    // use presumptive 44ADA: only 50% of receipts is taxable. INR≈$0.012.
     employed: { low: 0.08, mid: 0.18, high: 0.28 },
     selfEmployed: { low: 0.09, mid: 0.19, high: 0.29 },
+    brackets: [
+      { upTo: 4_800, rate: 0 },
+      { upTo: 9_600, rate: 0.05 },
+      { upTo: 14_400, rate: 0.1 },
+      { upTo: 19_200, rate: 0.15 },
+      { upTo: 24_000, rate: 0.2 },
+      { upTo: 28_800, rate: 0.25 },
+      { upTo: Infinity, rate: 0.3 },
+    ],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [
+      {
+        label: "Presumptive 44ADA (50% of receipts taxable)",
+        activities: ["freelancer"],
+        basis: "revenue",
+        rate: 0.15, // ~30% slab applied to 50% taxable base
+        social: { rate: 0 },
+        maxAnnualRevenue: 90_000, // ≈ ₹75L 44ADA ceiling
+      },
+    ],
     vat: 18, // GST standard rate
-    notes: "New regime to 30% + 4% cess; presumptive schemes exist for small professionals.",
+    notes: "New regime to 30% (+4% cess); professionals can use presumptive 44ADA (only 50% of receipts taxable).",
     confidence: "medium",
   },
 

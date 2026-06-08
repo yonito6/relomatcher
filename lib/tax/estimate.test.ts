@@ -601,6 +601,86 @@ describe("Asia-Pacific developed (rich model)", () => {
   });
 });
 
+describe("Americas & rest-Asia (rich model)", () => {
+  const US = taxProfileFor("US")!;
+  const CA = taxProfileFor("CA")!;
+  const MX = taxProfileFor("MX")!;
+  const BR = taxProfileFor("BR")!;
+  const AR = taxProfileFor("AR")!;
+  const CL = taxProfileFor("CL")!;
+  const CO = taxProfileFor("CO")!;
+  const EC = taxProfileFor("EC")!;
+  const VN = taxProfileFor("VN")!;
+  const PH = taxProfileFor("PH")!;
+  const IN = taxProfileFor("IN")!;
+
+  it("US: federal brackets + FICA land a high earner in the mid-20s%", () => {
+    const e = estimateTax(US, 200_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.3);
+  });
+
+  it("Canada (federal+Ontario): six figures hits low-30s%", () => {
+    const e = estimateTax(CA, 100_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.25);
+    expect(e.effectiveRate).toBeLessThan(0.4);
+  });
+
+  it("Mexico: RESICO charges ~2% of revenue for small e-commerce", () => {
+    const e = estimateTax(MX, 50_000, "ecommerce", 50_000);
+    expect(e.regimeApplied).toMatch(/RESICO/i);
+    expect(e.effectiveRate).toBeLessThan(0.03);
+  });
+
+  it("Brazil: progressive PIT + capped INSS reaches high-20s%", () => {
+    const e = estimateTax(BR, 60_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.32);
+  });
+
+  it("Argentina: Monotributo keeps a small freelancer near zero income tax", () => {
+    const e = estimateTax(AR, 40_000, "freelancer", 40_000);
+    expect(e.regimeApplied).toMatch(/Monotributo/i);
+    expect(e.netPercent).toBeGreaterThan(90);
+  });
+
+  it("Chile: progressive PIT + capped pension lands low-20s%", () => {
+    const e = estimateTax(CL, 60_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.15);
+    expect(e.effectiveRate).toBeLessThan(0.3);
+  });
+
+  it("Colombia: progressive PIT reaches ~30% for six figures", () => {
+    const e = estimateTax(CO, 60_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+    expect(e.effectiveRate).toBeLessThan(0.4);
+  });
+
+  it("Ecuador: USD economy, progressive PIT + IESS in the high-teens%", () => {
+    const e = estimateTax(EC, 40_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+    expect(e.effectiveRate).toBeLessThan(0.28);
+  });
+
+  it("Vietnam: business-individual 5% beats steep general brackets", () => {
+    const e = estimateTax(VN, 30_000, "freelancer", 30_000);
+    expect(e.regimeApplied).toMatch(/5%|Business/i);
+    expect(e.effectiveRate).toBeCloseTo(0.05, 2);
+  });
+
+  it("Philippines: 8% flat on gross beats progressive for small self-employed", () => {
+    const e = estimateTax(PH, 40_000, "ecommerce", 40_000);
+    expect(e.regimeApplied).toMatch(/8%/);
+    expect(e.effectiveRate).toBeCloseTo(0.08, 2);
+  });
+
+  it("India: presumptive 44ADA (15% of receipts) beats slabs for a freelancer", () => {
+    const e = estimateTax(IN, 50_000, "freelancer", 50_000);
+    expect(e.regimeApplied).toMatch(/44ADA/i);
+    expect(e.effectiveRate).toBeCloseTo(0.15, 2);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
