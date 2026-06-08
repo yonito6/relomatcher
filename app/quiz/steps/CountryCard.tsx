@@ -6,7 +6,7 @@ import type { MatchResult } from "@/lib/scoring/types";
 import type { Tier } from "@/lib/scoring/types";
 import type { QuizData } from "@/lib/types";
 import { FACTORS } from "@/lib/factors";
-import { estimateForCountry, formatMoney, parseMonthlyIncome } from "@/lib/money";
+import { estimateForCountry, estimatedAnnualDeltaVsHome, formatMoney, parseMonthlyIncome } from "@/lib/money";
 
 export interface CountryCardProps {
   match: MatchResult;
@@ -140,6 +140,8 @@ export default function CountryCard({
   const taxEst = profile && hasIncome ? estimateForCountry(profile, match.country) : null;
   const cur = profile?.incomeCurrency;
   const effectivePct = taxEst ? Math.round(taxEst.effectiveRate * 100) : null;
+  // How much more/less they'd keep per year vs their home country (null if unknown).
+  const homeDelta = profile && hasIncome ? estimatedAnnualDeltaVsHome(profile, match.country) : null;
 
   // Sort breakdown by score descending; map to FACTORS for label/emoji
   const factorMap = Object.fromEntries(FACTORS.map((f) => [f.id, f]));
@@ -212,6 +214,15 @@ export default function CountryCard({
             ≈ {formatMoney(taxEst.netAmount, cur)} take-home / year
             {taxEst.regimeApplied ? ` · via ${taxEst.regimeApplied}` : ""}
           </div>
+          {homeDelta != null && Math.abs(homeDelta) >= 1 && (
+            <div
+              className="relo-card__tax-delta"
+              style={{ color: homeDelta >= 0 ? "#4ade80" : "#f87171" }}
+            >
+              {homeDelta >= 0 ? "▲" : "▼"} {homeDelta >= 0 ? "Keep" : "Keep"}{" "}
+              {formatMoney(homeDelta, cur)} {homeDelta >= 0 ? "more" : "less"} / year vs home
+            </div>
+          )}
           <div className="relo-card__tax-disc">Estimate only — not tax advice.</div>
         </div>
       )}
@@ -432,6 +443,12 @@ export default function CountryCard({
           margin-top: 0.3rem;
           font-size: 0.8rem;
           color: rgba(255,255,255,0.78);
+          line-height: 1.35;
+        }
+        .relo-card__tax-delta {
+          margin-top: 0.3rem;
+          font-size: 0.8rem;
+          font-weight: 700;
           line-height: 1.35;
         }
         .relo-card__tax-disc {

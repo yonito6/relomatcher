@@ -32,7 +32,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   MX: {
     employed: { low: 0.12, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.18, high: 0.3 },
-    remoteRegime: { rate: 0.1, label: "RESICO small-business ~1–2.5% + low brackets", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.1, label: "RESICO small-business ~1–2.5% + low brackets", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
     vat: 16,
     notes: "Progressive ISR up to 35%; RESICO regime is very low for small self-employed.",
     confidence: "medium",
@@ -56,7 +56,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   FR: {
     employed: { low: 0.2, mid: 0.3, high: 0.41 },
     selfEmployed: { low: 0.22, mid: 0.34, high: 0.45 },
-    remoteRegime: { rate: 0.22, label: "Micro-BNC/auto-entrepreneur flat ~22%", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.22, label: "Micro-entrepreneur flat (~13–22% of turnover)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 220_000 },
     vat: 20,
     notes: "High social charges; auto-entrepreneur scheme caps social+tax low for small turnover.",
     confidence: "high",
@@ -163,7 +163,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   IT: {
     employed: { low: 0.23, mid: 0.35, high: 0.45 },
     selfEmployed: { low: 0.15, mid: 0.27, high: 0.43 },
-    remoteRegime: { rate: 0.15, label: "Regime forfettario 5–15% flat (turnover < €85k)", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.15, label: "Regime forfettario 5–15% flat (turnover < €85k)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 90_000 },
     vat: 22,
     notes: "High normal IRPEF, but flat-tax 'forfettario' is excellent for small self-employed/freelancers.",
     confidence: "medium",
@@ -197,7 +197,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   CZ: {
     employed: { low: 0.2, mid: 0.25, high: 0.3 },
     selfEmployed: { low: 0.12, mid: 0.16, high: 0.23 },
-    remoteRegime: { rate: 0.12, label: "60/40 lump-sum expense + flat-tax scheme for freelancers", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.12, label: "60/40 lump-sum expense + flat-tax scheme for freelancers", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 90_000 },
     vat: 21,
     notes: "15%/23% income tax; freelancers use 60% flat expense deduction → very low effective rate.",
     confidence: "high",
@@ -205,7 +205,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   PL: {
     employed: { low: 0.17, mid: 0.24, high: 0.3 },
     selfEmployed: { low: 0.12, mid: 0.17, high: 0.23 },
-    remoteRegime: { rate: 0.12, label: "Lump-sum (ryczałt) 8.5–12% for many IT/online services", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.12, label: "Lump-sum (ryczałt) 8.5–12% for many IT/online services", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 2_000_000 },
     vat: 23,
     notes: "12%/32% PIT or 19% flat; lump-sum ryczałt is very low for IT/ecommerce services.",
     confidence: "high",
@@ -213,7 +213,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   HU: {
     employed: { low: 0.28, mid: 0.3, high: 0.33 },
     selfEmployed: { low: 0.15, mid: 0.2, high: 0.25 },
-    remoteRegime: { rate: 0.15, label: "KATA-style / flat-rate small business schemes", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.15, label: "KATA-style / flat-rate small business schemes", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 80_000 },
     vat: 27,
     notes: "Flat 15% PIT (low!) but high social contributions; highest VAT in the world at 27%.",
     confidence: "medium",
@@ -221,7 +221,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   RO: {
     employed: { low: 0.2, mid: 0.22, high: 0.25 },
     selfEmployed: { low: 0.1, mid: 0.16, high: 0.2 },
-    remoteRegime: { rate: 0.1, label: "Micro-enterprise 1–3% turnover + 8% dividend", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.1, label: "Micro-enterprise 1–3% turnover + 8% dividend", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 520_000 },
     vat: 19,
     notes: "Flat 10% income tax; micro-company route is one of the lowest in the EU.",
     confidence: "medium",
@@ -258,7 +258,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   LT: {
     employed: { low: 0.2, mid: 0.25, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.15, high: 0.2 },
-    remoteRegime: { rate: 0.1, label: "Individual-activity certificate ~5–15% effective", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.1, label: "Individual-activity certificate ~5–15% effective", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 120_000 },
     vat: 21,
     notes: "20%/32% PIT; self-employed 'individual activity' regime is very low for small income.",
     confidence: "medium",
@@ -266,7 +266,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   GE: {
     employed: { low: 0.2, mid: 0.2, high: 0.2 },
     selfEmployed: { low: 0.01, mid: 0.01, high: 0.03 },
-    remoteRegime: { rate: 0.01, label: "Small Business Status 1% on turnover (< ₾500k)", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.01, label: "Small Business Status 1% on turnover (< ₾500k)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 185_000 },
     vat: 18,
     notes: "Territorial taxation + 1% small-business regime → one of the best for online/self-employed.",
     confidence: "high",
@@ -402,7 +402,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   SI: {
     employed: { low: 0.22, mid: 0.34, high: 0.45 },
     selfEmployed: { low: 0.15, mid: 0.25, high: 0.4 },
-    remoteRegime: { rate: 0.2, label: "Normalised-expense lump-sum scheme for sole traders", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.2, label: "Normalised-expense lump-sum scheme for sole traders", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 65_000 },
     vat: 22,
     notes: "Steeply progressive to 50%, but the 'normirani' lump-sum regime is low for small turnover.",
     confidence: "medium",
@@ -410,7 +410,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   RS: {
     employed: { low: 0.18, mid: 0.2, high: 0.22 },
     selfEmployed: { low: 0.1, mid: 0.13, high: 0.18 },
-    remoteRegime: { rate: 0.1, label: "Flat-rate entrepreneur (paušalac) low fixed tax", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.1, label: "Flat-rate entrepreneur (paušalac) low fixed tax", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 55_000 },
     vat: 20,
     notes: "10% flat income tax; the lump-sum entrepreneur scheme is very low for IT/online work.",
     confidence: "medium",
@@ -425,7 +425,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   AL: {
     employed: { low: 0.13, mid: 0.2, high: 0.23 },
     selfEmployed: { low: 0.05, mid: 0.1, high: 0.15 },
-    remoteRegime: { rate: 0.0, label: "Small self-employed turnover often 0% income tax", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.0, label: "Small self-employed turnover often 0% income tax", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 60_000 },
     vat: 20,
     notes: "Up to 23% on salary; small freelancers/businesses can be effectively untaxed on income tax.",
     confidence: "low",
@@ -455,7 +455,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   UA: {
     employed: { low: 0.195, mid: 0.195, high: 0.195 },
     selfEmployed: { low: 0.05, mid: 0.06, high: 0.08 },
-    remoteRegime: { rate: 0.05, label: "Simplified Group 3: 5% of turnover (+ Diia City for IT)", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.05, label: "Simplified Group 3: 5% of turnover (+ Diia City for IT)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
     vat: 20,
     notes: "18% PIT + 1.5% military levy on salary; the 5% simplified single tax is famous for freelancers.",
     confidence: "low",
@@ -502,7 +502,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   AR: {
     employed: { low: 0.17, mid: 0.27, high: 0.35 },
     selfEmployed: { low: 0.12, mid: 0.22, high: 0.32 },
-    remoteRegime: { rate: 0.1, label: "Monotributo flat small-business regime", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.1, label: "Monotributo flat small-business regime", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 70_000 },
     vat: 21,
     notes: "High progressive tax, but Monotributo is a low flat regime for small earners. Figures volatile with inflation.",
     confidence: "low",
@@ -541,7 +541,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   PH: {
     employed: { low: 0.1, mid: 0.2, high: 0.3 },
     selfEmployed: { low: 0.08, mid: 0.15, high: 0.25 },
-    remoteRegime: { rate: 0.08, label: "8% flat tax for small self-employed", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.08, label: "8% flat tax for small self-employed", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 55_000 },
     vat: 12,
     notes: "Progressive to 35%; small self-employed can elect a simple 8% flat tax.",
     confidence: "medium",
@@ -579,7 +579,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   MA: {
     employed: { low: 0.1, mid: 0.22, high: 0.32 },
     selfEmployed: { low: 0.1, mid: 0.2, high: 0.3 },
-    remoteRegime: { rate: 0.05, label: "Auto-entrepreneur ~1–3% turnover tax (small)", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.05, label: "Auto-entrepreneur ~1–3% turnover tax (small)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 50_000 },
     vat: 20,
     notes: "Progressive IR up to 38%; the auto-entrepreneur regime taxes only a tiny % of turnover.",
     confidence: "low",
@@ -589,7 +589,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   AM: {
     employed: { low: 0.2, mid: 0.2, high: 0.2 },
     selfEmployed: { low: 0.1, mid: 0.15, high: 0.2 },
-    remoteRegime: { rate: 0.05, label: "Micro-business / turnover tax ~5%", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.05, label: "Micro-business / turnover tax ~5%", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 290_000 },
     vat: 20,
     notes: "Flat 20% income tax; micro-business and IT regimes cut this sharply for small/self earners.",
     confidence: "medium",
@@ -597,7 +597,7 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
   KZ: {
     employed: { low: 0.1, mid: 0.1, high: 0.1 },
     selfEmployed: { low: 0.05, mid: 0.05, high: 0.05 },
-    remoteRegime: { rate: 0.03, label: "Simplified declaration ~3% of turnover", appliesTo: REMOTE_AND_SELF },
+    remoteRegime: { rate: 0.03, label: "Simplified declaration ~3% of turnover", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
     vat: 12,
     notes: "Flat 10% personal income tax; simplified 3% regime for small business.",
     confidence: "medium",

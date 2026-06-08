@@ -35,14 +35,41 @@ function curveFor(profile: TaxProfile, earner: EarnerType): RateCurve {
 }
 
 /**
+ * Is the user within a regime's eligibility ceilings? A flat/simplified regime
+ * (e.g. France micro, Italy forfettario, Georgia small business) only applies
+ * below a revenue and/or income ceiling. We check the user's stated annual
+ * revenue against `maxAnnualRevenue` (falling back to income when revenue is
+ * unknown), and their income against `maxAnnualIncome`. Missing ceilings mean
+ * "no limit" for that dimension.
+ */
+function regimeEligible(
+  regime: NonNullable<TaxProfile["remoteRegime"]>,
+  annualIncome: number,
+  annualRevenue?: number
+): boolean {
+  if (regime.maxAnnualRevenue != null) {
+    // Use revenue if the user gave it; otherwise income is the best proxy we have.
+    const turnover = annualRevenue ?? annualIncome;
+    if (turnover > regime.maxAnnualRevenue) return false;
+  }
+  if (regime.maxAnnualIncome != null && annualIncome > regime.maxAnnualIncome) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Estimate tax + take-home for a given country tax profile.
- * @param annualIncome gross annual income in the user's currency
+ * @param annualIncome gross annual income (profit / taxable income) in the user's currency
  * @param earner how the user earns
+ * @param annualRevenue optional annual business turnover, used ONLY to test
+ *   eligibility for revenue-capped flat regimes. Income still drives the tax math.
  */
 export function estimateTax(
   profile: TaxProfile,
   annualIncome: number,
-  earner: EarnerType
+  earner: EarnerType,
+  annualRevenue?: number
 ): TaxEstimate {
   const income = Math.max(0, annualIncome);
 
@@ -50,9 +77,15 @@ export function estimateTax(
   let effectiveRate = rateAtIncome(curveFor(profile, earner), income);
   let regimeApplied: string | null = null;
 
-  // If a special regime applies to this earner and beats the normal curve, use it.
+  // If a special regime applies to this earner, beats the normal curve, AND the
+  // user is within its revenue/income eligibility ceilings, use it.
   const regime = profile.remoteRegime;
-  if (regime && regime.appliesTo.includes(earner) && regime.rate < effectiveRate) {
+  if (
+    regime &&
+    regime.appliesTo.includes(earner) &&
+    regime.rate < effectiveRate &&
+    regimeEligible(regime, income, annualRevenue)
+  ) {
     effectiveRate = regime.rate;
     regimeApplied = regime.label;
   }

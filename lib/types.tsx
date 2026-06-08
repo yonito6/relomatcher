@@ -23,6 +23,10 @@ export interface QuizData {
   secondPassportCountry?: string;
   monthlyIncome?: string | number;
   incomeCurrency?: string;
+  /** Optional annual business turnover/revenue (self-employed / nomad only).
+   *  Used ONLY to test eligibility for revenue-capped flat tax regimes — the
+   *  income field still drives the tax math. */
+  annualRevenue?: string | number;
   languagesSpoken?: string[];
   factorRatings?: FactorRatings;
   climatePref?: ClimatePref;

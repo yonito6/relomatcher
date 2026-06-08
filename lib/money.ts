@@ -21,6 +21,17 @@ export function parseMonthlyIncome(profile: QuizData): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Parse the optional self-reported annual business revenue into a positive number, or null. */
+export function parseAnnualRevenue(profile: QuizData): number | null {
+  const raw = profile.annualRevenue;
+  if (raw == null || raw === "") return null;
+  const n =
+    typeof raw === "number"
+      ? raw
+      : parseFloat(String(raw).replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** The user's home-country record (for relative comparisons), if it's in the DB. */
 export function homeRecord(profile: QuizData): CountryRecord | undefined {
   if (!profile.currentCountry) return undefined;
@@ -60,7 +71,9 @@ export function estimateForCountry(
   const taxProfile = taxProfileFor(country.code);
   if (!taxProfile) return null;
   const earner: EarnerType = profile.earnerType ?? "employed";
-  return estimateTax(taxProfile, monthly * 12, earner);
+  // Revenue gates flat-regime eligibility; income drives the tax math.
+  const annualRevenue = parseAnnualRevenue(profile) ?? undefined;
+  return estimateTax(taxProfile, monthly * 12, earner, annualRevenue);
 }
 
 /**

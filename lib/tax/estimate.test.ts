@@ -58,6 +58,47 @@ describe("estimateTax", () => {
   });
 });
 
+describe("regime eligibility ceilings", () => {
+  const FR = taxProfileFor("FR")!;
+  const PL = taxProfileFor("PL")!;
+
+  it("applies the France micro regime for a small self-employed earner under the cap", () => {
+    const e = estimateTax(FR, 60_000, "self_employed");
+    expect(e.regimeApplied).toMatch(/Micro-entrepreneur/);
+  });
+
+  it("does NOT apply France micro when revenue exceeds the cap (the $960k bug)", () => {
+    // Ecommerce store ~$80k/mo = ~$960k/yr revenue → French micro (turnover cap
+    // ~€203k) is unavailable; must fall back to the normal self-employed curve.
+    const e = estimateTax(FR, 200_000, "self_employed", 960_000);
+    expect(e.regimeApplied).toBeNull();
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+  });
+
+  it("does NOT apply France micro when income alone exceeds the cap (no revenue given)", () => {
+    const e = estimateTax(FR, 300_000, "self_employed");
+    expect(e.regimeApplied).toBeNull();
+  });
+
+  it("keeps Poland's lump-sum regime available at high revenue (cap ~€2M)", () => {
+    const e = estimateTax(PL, 200_000, "self_employed", 960_000);
+    expect(e.regimeApplied).toMatch(/ryczałt/);
+  });
+
+  it("falls back to income as the turnover proxy when no revenue is supplied", () => {
+    const profile: TaxProfile = {
+      employed: { low: 0.3, mid: 0.35, high: 0.4 },
+      selfEmployed: { low: 0.3, mid: 0.35, high: 0.4 },
+      remoteRegime: { rate: 0.05, label: "Flat 5%", appliesTo: ["self_employed"], maxAnnualRevenue: 100_000 },
+      vat: 20,
+      notes: "test",
+      confidence: "low",
+    };
+    expect(estimateTax(profile, 50_000, "self_employed").regimeApplied).toBe("Flat 5%");
+    expect(estimateTax(profile, 150_000, "self_employed").regimeApplied).toBeNull();
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every confidence-tagged country and valid rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {

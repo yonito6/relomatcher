@@ -47,6 +47,19 @@ export type SpecialRegime = {
   label: string;
   /** Which earner types can realistically use it. */
   appliesTo: EarnerType[];
+  /**
+   * Max annual TURNOVER/revenue (USD-equiv) to qualify, if the regime has a
+   * revenue ceiling (e.g. France micro ~€203k, Italy forfettario ~€85k). Above
+   * this the regime does NOT apply and the normal curve is used instead. The
+   * estimator checks this against the user's stated revenue (falling back to
+   * income when no revenue is given).
+   */
+  maxAnnualRevenue?: number;
+  /**
+   * Max annual taxable INCOME/profit (USD-equiv) to qualify, if the regime is
+   * gated on profit rather than turnover. Above this the regime does not apply.
+   */
+  maxAnnualIncome?: number;
 };
 
 export type TaxProfile = {

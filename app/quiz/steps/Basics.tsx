@@ -345,15 +345,23 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         {/* ── Monthly income ── */}
         <div className="relo-basics__section">
-          <label className="relo-basics__label">Monthly income (optional)</label>
-          <p className="relo-basics__hint">Helps us assess tax efficiency and cost of living fit.</p>
+          <label className="relo-basics__label">Monthly income before tax (optional)</label>
+          <p className="relo-basics__hint">Your profit / take-home before tax — we estimate the tax for you and show what you&apos;d keep in each country.</p>
           <div className="relo-basics__income-row">
             <input
-              type="number"
-              placeholder="e.g. 5000"
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 5,000"
               className="relo-basics__income-input"
-              value={data.monthlyIncome ?? ""}
-              onChange={(e) => update({ monthlyIncome: e.target.value ? Number(e.target.value) : "" })}
+              value={
+                data.monthlyIncome === "" || data.monthlyIncome == null
+                  ? ""
+                  : Number(String(data.monthlyIncome).replace(/[^0-9]/g, "")).toLocaleString("en-US")
+              }
+              onChange={(e) => {
+                const digits = e.target.value.replace(/[^0-9]/g, "");
+                update({ monthlyIncome: digits ? Number(digits) : "" });
+              }}
             />
             <select
               className="relo-basics__currency-select"
@@ -395,6 +403,39 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
               );
             })}
           </div>
+
+          {/* Annual business revenue — only for self-employed / nomad, gates flat-regime eligibility */}
+          <AnimatePresence>
+            {(data.earnerType === "self_employed" || data.earnerType === "remote_foreign") && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{ overflow: "hidden" }}
+              >
+                <p className="relo-basics__hint" style={{ marginTop: "0.85rem" }}>
+                  Annual business revenue / turnover (optional) — many low-tax regimes only apply below a revenue cap, so this tells us which ones you actually qualify for.
+                </p>
+                <div className="relo-basics__income-row">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="e.g. 960,000"
+                    className="relo-basics__income-input"
+                    value={
+                      data.annualRevenue === "" || data.annualRevenue == null
+                        ? ""
+                        : Number(String(data.annualRevenue).replace(/[^0-9]/g, "")).toLocaleString("en-US")
+                    }
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^0-9]/g, "");
+                      update({ annualRevenue: digits ? Number(digits) : "" });
+                    }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Languages ── */}
