@@ -304,6 +304,41 @@ describe("Western Europe rest (rich model)", () => {
   });
 });
 
+describe("Nordics (rich model)", () => {
+  it("Denmark lands in the mid-40s%+ for a high earner with top tax", () => {
+    const DK = taxProfileFor("DK")!;
+    const e = estimateTax(DK, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.42);
+  });
+
+  it("Sweden crosses the 20% state-tax threshold for a high earner", () => {
+    const SE = taxProfileFor("SE")!;
+    const e = estimateTax(SE, 120_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.38);
+  });
+
+  it("Sweden self-employed carries heavier egenavgifter than an employee", () => {
+    const SE = taxProfileFor("SE")!;
+    const emp = estimateTax(SE, 50_000, "employed").effectiveRate;
+    const self = estimateTax(SE, 50_000, "freelancer").effectiveRate;
+    expect(self).toBeGreaterThan(emp);
+  });
+
+  it("Norway trends toward its ~47% top marginal for a high earner", () => {
+    const NO = taxProfileFor("NO")!;
+    const e = estimateTax(NO, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.35);
+    expect(e.effectiveRate).toBeLessThan(0.48);
+  });
+
+  it("Finland self-employed YEL pushes the rate above an employee's", () => {
+    const FI = taxProfileFor("FI")!;
+    const self = estimateTax(FI, 80_000, "freelancer").effectiveRate;
+    const emp = estimateTax(FI, 80_000, "employed").effectiveRate;
+    expect(self).toBeGreaterThan(emp);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {

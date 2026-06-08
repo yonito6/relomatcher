@@ -221,33 +221,84 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ----------------------------- Nordics ------------------------------- */
   DK: {
+    // Verified 2026: AM-bidrag 8% (off gross) + bottom 12.01% + municipal ~25%
+    // + top tax (intermediate 7.5% from DKK 641,200, top 7.5% from 777,900,
+    // top-top 5% from 2,592,700). Effective marginals folded in. DKK≈$0.145.
     employed: { low: 0.3, mid: 0.4, high: 0.48 },
     selfEmployed: { low: 0.3, mid: 0.42, high: 0.52 },
-    remoteRegime: { rate: 0.32, label: "Researcher/expat 27% flat scheme (7 yrs)", appliesTo: ["employed"] },
+    brackets: [
+      { upTo: 7_482, rate: 0 },
+      { upTo: 92_974, rate: 0.42 },
+      { upTo: 112_796, rate: 0.49 },
+      { upTo: 375_942, rate: 0.56 },
+      { upTo: Infinity, rate: 0.6 },
+    ],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0 },
+    regimes: [],
     vat: 25,
     notes: "High income tax + 8% labour-market contribution; 25% VAT. Expat 27% scheme exists.",
     confidence: "high",
   },
   SE: {
+    // Verified 2026: municipal ~32% (flat) + state 20% above SEK 660,400
+    // (~$63,398). Employees pay little social directly (employer 31.42%);
+    // self-employed egenavgifter ~29%. SEK≈$0.096 USD-equiv.
     employed: { low: 0.27, mid: 0.34, high: 0.45 },
     selfEmployed: { low: 0.28, mid: 0.38, high: 0.5 },
+    brackets: [
+      { upTo: 2_500, rate: 0 },
+      { upTo: 63_398, rate: 0.32 },
+      { upTo: Infinity, rate: 0.52 },
+    ],
+    standardSocial: { rate: 0.07, capIncome: 57_600 },
+    selfEmployedSocial: { rate: 0.2897, capIncome: 57_600 },
+    regimes: [],
     vat: 25,
     notes: "Municipal ~32% + state 20% over threshold; high employer/self social fees.",
     confidence: "high",
   },
   NO: {
+    // Verified 2026: 22% flat ordinary + trinnskatt steps (1.7/4/13.7/16.8/
+    // 17.8%) + trygdeavgift 7.6% employee / 10.8% self. Marginals folded in.
+    // NOK≈$0.092 USD-equiv. (Wealth tax also applies, not modeled.)
     employed: { low: 0.25, mid: 0.32, high: 0.4 },
     selfEmployed: { low: 0.26, mid: 0.36, high: 0.45 },
+    brackets: [
+      { upTo: 10_000, rate: 0 },
+      { upTo: 20_801, rate: 0.296 },
+      { upTo: 29_284, rate: 0.313 },
+      { upTo: 66_705, rate: 0.336 },
+      { upTo: 90_169, rate: 0.433 },
+      { upTo: 134_982, rate: 0.464 },
+      { upTo: Infinity, rate: 0.474 },
+    ],
+    standardSocial: { rate: 0 },
+    selfEmployedSocial: { rate: 0.032 },
+    regimes: [],
     vat: 25,
     notes: "Flat-ish bracket tax + national insurance; wealth tax also applies.",
     confidence: "high",
   },
   FI: {
+    // Verified 2026: state progressive (~12.6→44.25%) + municipal ~6–11%
+    // (Helsinki 5.84%); combined top ~52%. Employee TyEL+unemployment ~8.2%;
+    // self-employed YEL 24.4%. EUR≈$1.08 USD-equiv.
     employed: { low: 0.25, mid: 0.36, high: 0.46 },
     selfEmployed: { low: 0.26, mid: 0.38, high: 0.48 },
+    brackets: [
+      { upTo: 21_000, rate: 0.2 },
+      { upTo: 56_000, rate: 0.37 },
+      { upTo: 95_000, rate: 0.45 },
+      { upTo: 162_000, rate: 0.49 },
+      { upTo: Infinity, rate: 0.52 },
+    ],
+    standardSocial: { rate: 0.082 },
+    selfEmployedSocial: { rate: 0.244, capIncome: 200_000 },
+    regimes: [],
     vat: 25.5,
     notes: "Municipal + state progressive; among highest VAT in EU.",
-    confidence: "high",
+    confidence: "medium",
   },
   IS: {
     employed: { low: 0.26, mid: 0.36, high: 0.44 },
