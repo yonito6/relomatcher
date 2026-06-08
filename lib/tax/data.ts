@@ -492,12 +492,24 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* --------------------- Central & Eastern Europe ---------------------- */
   CZ: {
+    // Verified 2026: 15% to CZK 1,582,812 (~$71k), 23% above. Employee social
+    // +health 11%. OSVČ 60/40 (only 40% taxable → ~6% income tax) + optional
+    // paušální flat tax (turnover < CZK 2M). CZK≈$0.045 USD-equiv.
     employed: { low: 0.2, mid: 0.25, high: 0.3 },
     selfEmployed: { low: 0.12, mid: 0.16, high: 0.23 },
-    remoteRegime: { rate: 0.12, label: "60/40 lump-sum expense + flat-tax scheme for freelancers", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 90_000 },
+    brackets: [
+      { upTo: 71_226, rate: 0.15 },
+      { upTo: Infinity, rate: 0.23 },
+    ],
+    standardSocial: { rate: 0.11 },
+    selfEmployedSocial: { rate: 0.145, capIncome: 120_000 },
+    regimes: [
+      { label: "OSVČ 60/40 expense lump-sum (40% taxable)", activities: ["freelancer", "ecommerce", "investor"], basis: "profit", rate: 0.06, social: { rate: 0.145, capIncome: 120_000 } },
+      { label: "Paušální daň (OSVČ flat tax)", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0, social: { rate: 0, minAnnual: 9_042 }, maxAnnualRevenue: 67_500 },
+    ],
     vat: 21,
     notes: "15%/23% income tax; freelancers use 60% flat expense deduction → very low effective rate.",
-    confidence: "high",
+    confidence: "medium",
   },
   PL: {
     // Employed stays on the blended legacy curve; non-employed uses the verified
@@ -547,9 +559,17 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   HU: {
+    // Verified 2026: flat 15% SZJA. Employee social 18.5%. KATA flat (HUF 50k/mo
+    // ≈ $1,680/yr, turnover < HUF 24M ≈ $67k) — but restricted to serving private
+    // individuals only since the 2022 reform. HUF≈$0.0028 USD-equiv.
     employed: { low: 0.28, mid: 0.3, high: 0.33 },
     selfEmployed: { low: 0.15, mid: 0.2, high: 0.25 },
-    remoteRegime: { rate: 0.15, label: "KATA-style / flat-rate small business schemes", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 80_000 },
+    brackets: [{ upTo: Infinity, rate: 0.15 }],
+    standardSocial: { rate: 0.185 },
+    selfEmployedSocial: { rate: 0.185 },
+    regimes: [
+      { label: "KATA flat small-business (HUF 50k/mo)", activities: ["freelancer"], basis: "profit", rate: 0, social: { rate: 0, minAnnual: 1_680 }, maxAnnualRevenue: 67_200 },
+    ],
     vat: 27,
     notes: "Flat 15% PIT (low!) but high social contributions; highest VAT in the world at 27%.",
     confidence: "medium",
@@ -624,18 +644,42 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   LV: {
+    // Verified 2026: two-rate PIT 25.5% to ~€105k, 33% above. Employee social
+    // contribution ~10.5%; self-employed pay a higher mandatory contribution (~31%
+    // VSAOI on a base). The old micro-enterprise regime is unattractive (~25% of
+    // turnover + restrictions) so it's omitted. EUR≈$1.08 USD-equiv.
     employed: { low: 0.21, mid: 0.27, high: 0.31 },
     selfEmployed: { low: 0.15, mid: 0.2, high: 0.28 },
+    brackets: [
+      { upTo: 113_724, rate: 0.255 },
+      { upTo: Infinity, rate: 0.33 },
+    ],
+    standardSocial: { rate: 0.105, capIncome: 100_000 },
+    selfEmployedSocial: { rate: 0.31, capIncome: 100_000 },
+    regimes: [],
     vat: 21,
-    notes: "Progressive 20/23/31% + mandatory social; micro-business regime available.",
+    notes: "Two-rate PIT 25.5%/33% + mandatory social. The micro-enterprise turnover regime exists but is unattractive (~25% of turnover with restrictions), so general rules usually win.",
     confidence: "medium",
   },
   LT: {
+    // Verified 2026: PIT 20% to ~60 avg-wages (~€90k), 25% to ~€149k, 32% above.
+    // Employee social+health ~19.5% (capped). The 'individual activity' regime
+    // applies a 5–15% sliding income-tax credit (effective ~5% small, up to 15%)
+    // plus ~12.76% VSD/PSD social. EUR≈$1.08 USD-equiv.
     employed: { low: 0.2, mid: 0.25, high: 0.3 },
     selfEmployed: { low: 0.1, mid: 0.15, high: 0.2 },
-    remoteRegime: { rate: 0.1, label: "Individual-activity certificate ~5–15% effective", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 120_000 },
+    brackets: [
+      { upTo: 89_599, rate: 0.2 },
+      { upTo: 149_332, rate: 0.25 },
+      { upTo: Infinity, rate: 0.32 },
+    ],
+    standardSocial: { rate: 0.195, capIncome: 163_000 },
+    selfEmployedSocial: { rate: 0.195, capIncome: 163_000 },
+    regimes: [
+      { label: "Individual activity (5–15% sliding income tax)", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0.1, social: { rate: 0.1276, capIncome: 60_000 }, maxAnnualRevenue: 216_000 },
+    ],
     vat: 21,
-    notes: "20%/32% PIT; self-employed 'individual activity' regime is very low for small income.",
+    notes: "20/25/32% PIT; the self-employed 'individual activity' regime gives a 5–15% sliding tax credit → low effective rate for small income, plus ~12.8% social.",
     confidence: "medium",
   },
   GE: {
@@ -881,18 +925,46 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
 
   /* ------------------ Europe (completing the map) ---------------------- */
   SK: {
+    // Verified 2026: 19% PIT to ~€48k taxable, 25% above (high earners). Employee
+    // social+health ~13.4%. Self-employed (živnosť) can deduct a 60% flat expense
+    // (paušálne výdavky, cap €20k) → only 40% taxable, then ~33% social/health on
+    // a half-profit base. EUR≈$1.08 USD-equiv.
     employed: { low: 0.2, mid: 0.25, high: 0.3 },
     selfEmployed: { low: 0.15, mid: 0.2, high: 0.28 },
+    brackets: [
+      { upTo: 52_000, rate: 0.19 },
+      { upTo: Infinity, rate: 0.25 },
+    ],
+    standardSocial: { rate: 0.134, capIncome: 100_000 },
+    selfEmployedSocial: { rate: 0.215, capIncome: 90_000 },
+    regimes: [
+      { label: "60% flat-expense lump-sum (paušálne výdavky)", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0.076, social: { rate: 0.16, capIncome: 90_000 }, maxAnnualRevenue: 108_000 },
+    ],
     vat: 20,
-    notes: "19/25% income tax + social/health; 60% flat-expense lump sum helps freelancers.",
+    notes: "19/25% income tax + social/health; the 60% flat-expense lump sum (cap €20k) means freelancers are taxed on only 40% of revenue → low effective rate.",
     confidence: "medium",
   },
   SI: {
+    // Verified 2026: steeply progressive PIT 16/26/33/39/50%. Heavy social ~22%
+    // employee. The 'normiranci' lump-sum regime taxes 20% of revenue (80% flat
+    // expenses) at the flat 20% → ~4% of revenue, but social still applies.
+    // EUR≈$1.08 USD-equiv.
     employed: { low: 0.22, mid: 0.34, high: 0.45 },
     selfEmployed: { low: 0.15, mid: 0.25, high: 0.4 },
-    remoteRegime: { rate: 0.2, label: "Normalised-expense lump-sum scheme for sole traders", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 65_000 },
+    brackets: [
+      { upTo: 9_947, rate: 0.16 },
+      { upTo: 29_256, rate: 0.26 },
+      { upTo: 58_512, rate: 0.33 },
+      { upTo: 87_290, rate: 0.39 },
+      { upTo: Infinity, rate: 0.5 },
+    ],
+    standardSocial: { rate: 0.221 },
+    selfEmployedSocial: { rate: 0.38, capIncome: 60_000 },
+    regimes: [
+      { label: "Normiranci 80% lump-sum (20% taxable, flat 20%)", activities: ["freelancer", "ecommerce"], basis: "revenue", rate: 0.04, social: { rate: 0.38, capIncome: 60_000 }, maxAnnualRevenue: 108_000 },
+    ],
     vat: 22,
-    notes: "Steeply progressive to 50%, but the 'normirani' lump-sum regime is low for small turnover.",
+    notes: "Steeply progressive to 50%, but the 'normiranci' lump-sum regime taxes only 20% of revenue → ~4% effective income tax for small turnover.",
     confidence: "medium",
   },
   RS: {

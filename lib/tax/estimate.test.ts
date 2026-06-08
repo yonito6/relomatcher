@@ -392,6 +392,71 @@ describe("territorial / foreign-exempt (rich model)", () => {
   });
 });
 
+describe("CEE (rich model)", () => {
+  const CZ = taxProfileFor("CZ")!;
+  const HU = taxProfileFor("HU")!;
+  const SK = taxProfileFor("SK")!;
+  const SI = taxProfileFor("SI")!;
+  const LT = taxProfileFor("LT")!;
+  const LV = taxProfileFor("LV")!;
+
+  it("CZ: small freelancer uses paušální flat tax", () => {
+    const e = estimateTax(CZ, 50_000, "freelancer", 60_000);
+    expect(e.regimeApplied).toMatch(/Paušální/);
+    expect(e.effectiveRate).toBeLessThan(0.2);
+  });
+  it("CZ: high-revenue freelancer falls back to OSVČ 60/40 (beats general rules)", () => {
+    const e = estimateTax(CZ, 150_000, "freelancer", 200_000);
+    expect(e.regimeApplied).toMatch(/OSVČ/);
+    expect(e.effectiveRate).toBeLessThan(0.2);
+  });
+  it("CZ: employee pays 15% + 11% social", () => {
+    const e = estimateTax(CZ, 50_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.24);
+    expect(e.effectiveRate).toBeLessThan(0.28);
+  });
+
+  it("HU: freelancer uses KATA flat (very low)", () => {
+    const e = estimateTax(HU, 50_000, "freelancer", 60_000);
+    expect(e.regimeApplied).toMatch(/KATA/);
+    expect(e.effectiveRate).toBeLessThan(0.1);
+  });
+  it("HU: ecommerce is NOT KATA-eligible → general rules", () => {
+    const e = estimateTax(HU, 50_000, "ecommerce");
+    expect(e.regimeApplied).toMatch(/General rules/);
+    expect(e.effectiveRate).toBeGreaterThan(0.3);
+  });
+
+  it("SK: freelancer uses 60% flat-expense lump-sum", () => {
+    const e = estimateTax(SK, 50_000, "freelancer", 60_000);
+    expect(e.regimeApplied).toMatch(/flat-expense/);
+    expect(e.effectiveRate).toBeLessThan(estimateTax(SK, 50_000, "employed").effectiveRate + 0.05);
+  });
+
+  it("SI: freelancer uses normiranci lump-sum (beats general rules)", () => {
+    const general = progressiveTax(SI.brackets!, 50_000) + 50_000 * 0.38;
+    const e = estimateTax(SI, 50_000, "freelancer", 60_000);
+    expect(e.regimeApplied).toMatch(/Normiranci/);
+    expect(e.taxAmount).toBeLessThan(general);
+  });
+
+  it("LT: freelancer uses individual-activity regime", () => {
+    const e = estimateTax(LT, 50_000, "freelancer", 60_000);
+    expect(e.regimeApplied).toMatch(/Individual activity/);
+    expect(e.effectiveRate).toBeLessThan(0.25);
+  });
+
+  it("LV: no attractive regime → general rules for freelancer", () => {
+    const e = estimateTax(LV, 50_000, "freelancer");
+    expect(e.regimeApplied).toMatch(/General rules/);
+  });
+  it("LV: employee pays 25.5% + ~10.5% social", () => {
+    const e = estimateTax(LV, 50_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.33);
+    expect(e.effectiveRate).toBeLessThan(0.4);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
