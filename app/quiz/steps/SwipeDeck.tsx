@@ -364,7 +364,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
 
         .relo-swipe {
           min-height: 100dvh;
-          background: #fafaf8;
+          background: linear-gradient(145deg, #0f0c29 0%, #1a1040 40%, #24243e 100%);
           font-family: 'DM Sans', system-ui, sans-serif;
           display: flex;
           flex-direction: column;
@@ -385,7 +385,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
           font-family: 'Playfair Display', Georgia, serif;
           font-size: clamp(1.7rem, 5vw, 2.1rem);
           font-weight: 700;
-          color: #1a1040;
+          color: #ffffff;
           margin: 0 0 0.35rem;
           letter-spacing: -0.02em;
           line-height: 1.2;
@@ -393,7 +393,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
 
         .relo-swipe__subtitle {
           font-size: 0.875rem;
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.6);
           margin: 0;
           line-height: 1.5;
         }
@@ -422,7 +422,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         }
 
         .relo-swipe__dot--future {
-          background: #e5e7eb;
+          background: rgba(255, 255, 255, 0.2);
         }
 
         .relo-swipe__dot--active {
@@ -437,13 +437,13 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         }
 
         .relo-swipe__dot--skipped {
-          background: #d1d5db;
+          background: rgba(255, 255, 255, 0.35);
         }
 
         .relo-swipe__progress-label {
           font-size: 0.72rem;
           font-weight: 600;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.5);
           letter-spacing: 0.04em;
           text-transform: uppercase;
         }
@@ -643,7 +643,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
           border: none;
           font-size: 0.75rem;
           font-family: inherit;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.45);
           font-weight: 500;
           cursor: pointer;
           padding: 0.5rem 0.75rem;
@@ -653,7 +653,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         }
 
         .relo-swipe__undo-btn:hover:not(:disabled) {
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.8);
         }
 
         .relo-swipe__undo-btn:disabled {
@@ -670,7 +670,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         /* Remaining label */
         .relo-swipe__remaining {
           font-size: 0.78rem;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.45);
           font-weight: 500;
           text-align: center;
           margin: 0 0 1rem;
@@ -682,7 +682,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
           border: none;
           font-size: 0.85rem;
           font-family: inherit;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.45);
           cursor: pointer;
           padding: 0.5rem 0.75rem;
           border-radius: 100px;
@@ -692,7 +692,7 @@ export default function SwipeDeck({ data, update, onNext, onBack }: SwipeDeckPro
         }
 
         .relo-swipe__back-btn:hover {
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.8);
         }
 
         /* Responsive tweak for small viewports */

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { QuizData } from "@/lib/types";
 import type { MobilityRights } from "@/lib/scoring/types";
 import { COUNTRIES } from "@/lib/countriesDb";
+import { currencyForCountry } from "@/lib/countryCurrency";
 
 // All country names from the DB + common origins not in DB
 const DB_NAMES = COUNTRIES.map((c) => c.name);
@@ -67,12 +68,16 @@ interface BasicsProps {
 export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
   const [passportSearch, setPassportSearch] = useState(data.passportCountry ?? "");
   const [passportOpen, setPassportOpen] = useState(false);
+  const [homeSearch, setHomeSearch] = useState(data.currentCountry ?? "");
+  const [homeOpen, setHomeOpen] = useState(false);
   const [secondSearch, setSecondSearch] = useState(data.secondPassportCountry ?? "");
   const [secondOpen, setSecondOpen] = useState(false);
   const [showSecond, setShowSecond] = useState(!!data.secondPassportCountry);
   const [langInput, setLangInput] = useState("");
   const [langOpen, setLangOpen] = useState(false);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
   const passportRef = useRef<HTMLDivElement>(null);
+  const homeRef = useRef<HTMLDivElement>(null);
   const secondRef = useRef<HTMLDivElement>(null);
 
   const languages: string[] = data.languagesSpoken ?? [];
@@ -83,6 +88,9 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
     function handler(e: MouseEvent) {
       if (passportRef.current && !passportRef.current.contains(e.target as Node)) {
         setPassportOpen(false);
+      }
+      if (homeRef.current && !homeRef.current.contains(e.target as Node)) {
+        setHomeOpen(false);
       }
       if (secondRef.current && !secondRef.current.contains(e.target as Node)) {
         setSecondOpen(false);
@@ -104,6 +112,16 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
     update({ passportCountry: country });
     setPassportSearch(country);
     setPassportOpen(false);
+  }
+
+  function selectHome(country: string) {
+    // Auto-fill salary currency from the user's home country unless they've
+    // manually overridden it.
+    const patch: Partial<QuizData> = { currentCountry: country };
+    if (!currencyTouched) patch.incomeCurrency = currencyForCountry(country);
+    update(patch);
+    setHomeSearch(country);
+    setHomeOpen(false);
   }
 
   function selectSecond(country: string) {
@@ -206,6 +224,52 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           </div>
         </div>
 
+        {/* ── Where you live now ── */}
+        <div className="relo-basics__section">
+          <label className="relo-basics__label">Where do you live now?</label>
+          <p className="relo-basics__hint">
+            Sets your salary currency automatically and lets us compare taxes &amp; cost vs home.
+          </p>
+          <div className="relo-basics__dropdown-wrap" ref={homeRef}>
+            <div
+              className={`relo-basics__dropdown-input ${homeOpen ? "is-open" : ""}`}
+              onClick={() => setHomeOpen(true)}
+            >
+              <input
+                type="text"
+                placeholder="Search your country…"
+                value={homeSearch}
+                onChange={(e) => {
+                  setHomeSearch(e.target.value);
+                  update({ currentCountry: "" });
+                  setHomeOpen(true);
+                }}
+                onFocus={() => setHomeOpen(true)}
+                className="relo-basics__text-input"
+              />
+              <span className="relo-basics__dropdown-chevron">{homeOpen ? "▲" : "▼"}</span>
+            </div>
+            <AnimatePresence>
+              {homeOpen && (
+                <motion.ul
+                  className="relo-basics__dropdown-list"
+                  initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -8, scaleY: 0.95 }}
+                  transition={{ duration: 0.18 }}
+                  style={{ transformOrigin: "top" }}
+                >
+                  {filteredCountries(homeSearch).map((c) => (
+                    <li key={c} className="relo-basics__dropdown-item" onMouseDown={() => selectHome(c)}>
+                      {c}
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
         {/* ── Second passport ── */}
         <div className="relo-basics__section">
           <div className="relo-basics__row-header">
@@ -293,11 +357,19 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
             <select
               className="relo-basics__currency-select"
               value={data.incomeCurrency ?? "USD"}
-              onChange={(e) => update({ incomeCurrency: e.target.value })}
+              onChange={(e) => {
+                setCurrencyTouched(true);
+                update({ incomeCurrency: e.target.value });
+              }}
             >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.code}</option>
-              ))}
+              {(() => {
+                const cur = data.incomeCurrency ?? "USD";
+                const known = CURRENCIES.some((c) => c.code === cur);
+                const list = known ? CURRENCIES : [{ code: cur, label: cur }, ...CURRENCIES];
+                return list.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code}</option>
+                ));
+              })()}
             </select>
           </div>
         </div>
@@ -412,7 +484,7 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
       <style>{`
         .relo-basics {
           min-height: 100dvh;
-          background: #fafaf8;
+          background: linear-gradient(145deg, #0f0c29 0%, #1a1040 40%, #24243e 100%);
           font-family: 'DM Sans', system-ui, sans-serif;
           padding: 1.5rem 1.25rem 3rem;
           display: flex;
@@ -442,14 +514,14 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           font-family: 'Playfair Display', Georgia, serif;
           font-size: 1.85rem;
           font-weight: 700;
-          color: #1a1040;
+          color: #ffffff;
           margin: 0 0 0.4rem;
           letter-spacing: -0.02em;
         }
 
         .relo-basics__subtitle {
           font-size: 0.9rem;
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.6);
           margin: 0;
           line-height: 1.5;
         }
@@ -462,7 +534,7 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           display: block;
           font-size: 0.875rem;
           font-weight: 600;
-          color: #1a1040;
+          color: rgba(255, 255, 255, 0.9);
           margin-bottom: 0.3rem;
         }
 
@@ -479,7 +551,7 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__hint {
           font-size: 0.75rem;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.45);
           margin: 0 0 0.6rem;
           line-height: 1.4;
         }
@@ -514,18 +586,19 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
         .relo-basics__dropdown-input {
           display: flex;
           align-items: center;
-          background: #ffffff;
-          border: 1.5px solid #e5e7eb;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 10px;
           padding: 0 0.75rem;
-          transition: border-color 0.18s;
+          transition: border-color 0.18s, box-shadow 0.18s;
           cursor: text;
+          backdrop-filter: blur(8px);
         }
 
         .relo-basics__dropdown-input.is-open,
         .relo-basics__dropdown-input:focus-within {
           border-color: #ff6b35;
-          box-shadow: 0 0 0 3px rgba(255,107,53,0.12);
+          box-shadow: 0 0 0 3px rgba(255,107,53,0.18);
         }
 
         .relo-basics__text-input {
@@ -535,13 +608,17 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           outline: none;
           background: transparent;
           font-size: 0.9rem;
-          color: #1a1040;
+          color: #ffffff;
           font-family: inherit;
+        }
+
+        .relo-basics__text-input::placeholder {
+          color: rgba(255, 255, 255, 0.4);
         }
 
         .relo-basics__dropdown-chevron {
           font-size: 0.6rem;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.5);
           pointer-events: none;
         }
 
@@ -550,10 +627,10 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           top: calc(100% + 4px);
           left: 0;
           right: 0;
-          background: #ffffff;
-          border: 1.5px solid #e5e7eb;
+          background: #1a1040;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 10px;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+          box-shadow: 0 8px 30px rgba(0,0,0,0.5);
           z-index: 100;
           list-style: none;
           padding: 0.25rem 0;
@@ -565,14 +642,14 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
         .relo-basics__dropdown-item {
           padding: 0.55rem 0.85rem;
           font-size: 0.875rem;
-          color: #1a1040;
+          color: rgba(255, 255, 255, 0.85);
           cursor: pointer;
-          transition: background 0.12s;
+          transition: background 0.12s, color 0.12s;
         }
 
         .relo-basics__dropdown-item:hover {
-          background: #fff7f4;
-          color: #ff6b35;
+          background: rgba(255, 107, 53, 0.15);
+          color: #ffb088;
         }
 
         /* Income */
@@ -584,29 +661,33 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
         .relo-basics__income-input {
           flex: 1;
           padding: 0.7rem 0.75rem;
-          border: 1.5px solid #e5e7eb;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 10px;
           font-size: 0.9rem;
           font-family: inherit;
-          color: #1a1040;
-          background: #ffffff;
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.06);
           outline: none;
-          transition: border-color 0.18s;
+          transition: border-color 0.18s, box-shadow 0.18s;
+        }
+
+        .relo-basics__income-input::placeholder {
+          color: rgba(255, 255, 255, 0.4);
         }
 
         .relo-basics__income-input:focus {
           border-color: #ff6b35;
-          box-shadow: 0 0 0 3px rgba(255,107,53,0.12);
+          box-shadow: 0 0 0 3px rgba(255,107,53,0.18);
         }
 
         .relo-basics__currency-select {
           padding: 0.7rem 0.6rem;
-          border: 1.5px solid #e5e7eb;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 10px;
           font-size: 0.85rem;
           font-family: inherit;
-          color: #1a1040;
-          background: #ffffff;
+          color: #ffffff;
+          background: rgba(40, 30, 70, 0.95);
           outline: none;
           cursor: pointer;
           min-width: 72px;
@@ -627,11 +708,11 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
         .relo-basics__chip {
           padding: 0.4rem 0.8rem;
           border-radius: 100px;
-          border: 1.5px solid #e5e7eb;
-          background: #ffffff;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
+          background: rgba(255, 255, 255, 0.06);
           font-size: 0.8rem;
           font-family: inherit;
-          color: #374151;
+          color: rgba(255, 255, 255, 0.8);
           cursor: pointer;
           transition: all 0.15s;
           white-space: nowrap;
@@ -647,7 +728,7 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__chip:hover:not(.is-selected) {
           border-color: #ff6b35;
-          color: #ff6b35;
+          color: #ffb088;
         }
 
         .relo-basics__chip-check {
@@ -656,12 +737,12 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__chip--add {
           border-style: dashed;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.5);
         }
 
         .relo-basics__chip--add:hover {
           border-color: #ff6b35;
-          color: #ff6b35;
+          color: #ffb088;
         }
 
         .relo-basics__chip-add-wrap {
@@ -680,9 +761,14 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           border-radius: 100px;
           font-size: 0.8rem;
           font-family: inherit;
-          color: #1a1040;
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.06);
           outline: none;
           width: 120px;
+        }
+
+        .relo-basics__chip-add-input::placeholder {
+          color: rgba(255, 255, 255, 0.4);
         }
 
         .relo-basics__chip-add-btn {
@@ -708,18 +794,18 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           align-items: center;
           gap: 0.3rem;
           padding: 0.3rem 0.7rem;
-          background: rgba(255,107,53,0.1);
-          border: 1px solid rgba(255,107,53,0.25);
+          background: rgba(255,107,53,0.18);
+          border: 1px solid rgba(255,107,53,0.4);
           border-radius: 100px;
           font-size: 0.78rem;
-          color: #c44b1c;
+          color: #ffb088;
           font-weight: 600;
         }
 
         .relo-basics__custom-tag-remove {
           background: none;
           border: none;
-          color: #c44b1c;
+          color: #ffb088;
           cursor: pointer;
           font-size: 1rem;
           padding: 0;
@@ -739,9 +825,9 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           align-items: center;
           gap: 0.75rem;
           padding: 0.75rem 0.9rem;
-          border: 1.5px solid #e5e7eb;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 12px;
-          background: #ffffff;
+          background: rgba(255, 255, 255, 0.06);
           cursor: pointer;
           text-align: left;
           font-family: inherit;
@@ -751,13 +837,13 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__mobility-btn:hover:not(.is-selected) {
           border-color: #ff6b35;
-          background: #fff7f4;
+          background: rgba(255, 107, 53, 0.1);
         }
 
         .relo-basics__mobility-btn.is-selected {
           border-color: #ff6b35;
-          background: linear-gradient(135deg, rgba(255,107,53,0.06), rgba(247,147,30,0.06));
-          box-shadow: 0 2px 12px rgba(255,107,53,0.15);
+          background: linear-gradient(135deg, rgba(255,107,53,0.22), rgba(247,147,30,0.18));
+          box-shadow: 0 2px 12px rgba(255,107,53,0.25);
         }
 
         .relo-basics__mobility-emoji {
@@ -773,13 +859,13 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__mobility-content strong {
           font-size: 0.875rem;
-          color: #1a1040;
+          color: #ffffff;
           font-weight: 600;
         }
 
         .relo-basics__mobility-content span {
           font-size: 0.75rem;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.5);
         }
 
         .relo-basics__mobility-check {
@@ -803,19 +889,19 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
         .relo-basics__back-btn {
           flex-shrink: 0;
           padding: 0.85rem 1.2rem;
-          border: 1.5px solid #e5e7eb;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 100px;
-          background: white;
+          background: rgba(255, 255, 255, 0.06);
           font-size: 0.875rem;
           font-family: inherit;
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.7);
           cursor: pointer;
           transition: all 0.15s;
         }
 
         .relo-basics__back-btn:hover {
-          border-color: #9ca3af;
-          color: #374151;
+          border-color: rgba(255, 255, 255, 0.35);
+          color: #ffffff;
         }
 
         .relo-basics__next-btn {
@@ -823,11 +909,11 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
           padding: 0.85rem 1.2rem;
           border-radius: 100px;
           border: none;
-          background: #e5e7eb;
+          background: rgba(255, 255, 255, 0.1);
           font-size: 0.875rem;
           font-weight: 600;
           font-family: inherit;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.4);
           cursor: not-allowed;
           transition: all 0.25s;
         }

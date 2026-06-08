@@ -307,7 +307,7 @@ function ResultsStyles() {
     <style>{`
       .relo-results {
         min-height: 100dvh;
-        background: #fafaf8;
+        background: linear-gradient(145deg, #0f0c29 0%, #1a1040 40%, #24243e 100%);
         display: flex;
         align-items: flex-start;
         justify-content: center;
@@ -337,13 +337,13 @@ function ResultsStyles() {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 2rem;
         font-weight: 700;
-        color: #1a1040;
+        color: #fff;
         margin: 0 0 0.5rem;
         line-height: 1.15;
       }
       .relo-results__subtitle {
         font-size: 0.85rem;
-        color: #9ca3af;
+        color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.5;
       }
@@ -353,12 +353,12 @@ function ResultsStyles() {
         display: flex;
         align-items: flex-start;
         gap: 0.6rem;
-        background: #fff8f0;
-        border: 1.5px solid #fde4c5;
+        background: rgba(255, 107, 53, 0.1);
+        border: 1.5px solid rgba(255, 107, 53, 0.35);
         border-radius: 12px;
         padding: 0.75rem 1rem;
         font-size: 0.82rem;
-        color: #7c4a00;
+        color: #ffd9b8;
         line-height: 1.5;
         margin-bottom: 1.1rem;
       }
@@ -375,7 +375,7 @@ function ResultsStyles() {
       .relo-results__toggle-label {
         font-size: 0.8rem;
         font-weight: 600;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
         user-select: none;
       }
@@ -383,7 +383,7 @@ function ResultsStyles() {
         position: relative;
         width: 44px;
         height: 26px;
-        background: #e5e7eb;
+        background: rgba(255, 255, 255, 0.15);
         border: none;
         border-radius: 100px;
         cursor: pointer;
@@ -429,15 +429,15 @@ function ResultsStyles() {
         align-items: center;
         gap: 0.75rem;
         padding: 2.5rem 1.5rem;
-        background: white;
-        border: 1.5px dashed #e5e7eb;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1.5px dashed rgba(255, 255, 255, 0.18);
         border-radius: 16px;
         text-align: center;
       }
       .relo-results__realistic-empty-icon { font-size: 2rem; }
       .relo-results__realistic-empty p {
         font-size: 0.88rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.6);
         line-height: 1.55;
         margin: 0;
       }
@@ -459,12 +459,12 @@ function ResultsStyles() {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 1.1rem;
         font-weight: 700;
-        color: #1a1040;
+        color: #fff;
         margin-bottom: 0.2rem;
       }
       .relo-results__moonshot-desc {
         font-size: 0.78rem;
-        color: #9ca3af;
+        color: rgba(255, 255, 255, 0.55);
         line-height: 1.45;
       }
 
@@ -475,14 +475,14 @@ function ResultsStyles() {
         justify-content: center;
       }
       .relo-results__share-btn {
-        background: transparent;
-        border: 1.5px solid #e8e4f0;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1.5px solid rgba(255, 255, 255, 0.18);
         border-radius: 100px;
         padding: 0.7rem 1.5rem;
         font-family: 'DM Sans', system-ui, sans-serif;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #1a1040;
+        color: #fff;
         cursor: pointer;
         min-height: 44px;
         transition: border-color 0.15s, color 0.15s;
@@ -586,12 +586,12 @@ function ResultsStyles() {
       }
       .relo-results__restart {
         background: transparent;
-        border: 1.5px solid #e5e7eb;
+        border: 1.5px solid rgba(255, 255, 255, 0.18);
         border-radius: 100px;
         padding: 0.7rem 1.75rem;
         font-family: 'DM Sans', system-ui, sans-serif;
         font-size: 0.85rem;
-        color: #9ca3af;
+        color: rgba(255, 255, 255, 0.6);
         cursor: pointer;
         min-height: 44px;
         transition: border-color 0.15s, color 0.15s;
@@ -612,12 +612,12 @@ function ResultsStyles() {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 1.5rem;
         font-weight: 700;
-        color: #1a1040;
+        color: #fff;
         margin: 0;
       }
       .relo-results__empty-body {
         font-size: 0.88rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.6);
         line-height: 1.55;
         max-width: 300px;
         margin: 0;

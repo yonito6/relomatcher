@@ -27,4 +27,10 @@ export interface QuizData {
   climatePref?: ClimatePref;
   culturePref?: CulturePref;
   mobilityRights?: MobilityRights;
+  /** When taxes is a kept factor: "lower" = wants lower taxes than their home
+   *  country (relative scoring vs currentCountry); "any" = absolute low-tax. */
+  taxPreference?: "lower" | "any";
+  /** When costOfLiving is a kept factor: "cheaper" = wants cheaper than home;
+   *  "any" = absolute affordability. */
+  costPreference?: "cheaper" | "any";
 }

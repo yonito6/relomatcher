@@ -65,7 +65,7 @@ function FitRing({ pct, isMoonshot, label, gradId }: RingProps) {
           cy={RING_CY}
           r={RING_R}
           fill="none"
-          stroke={isMoonshot ? "rgba(255,107,53,0.15)" : "rgba(26,16,64,0.08)"}
+          stroke={isMoonshot ? "rgba(255,107,53,0.18)" : "rgba(255,255,255,0.12)"}
           strokeWidth={RING_STROKE}
         />
         {/* Fill */}
@@ -96,7 +96,7 @@ function FitRing({ pct, isMoonshot, label, gradId }: RingProps) {
           y="47"
           textAnchor="middle"
           className="relo-card__ring-pct"
-          fill="#1a1040"
+          fill="#ffffff"
           fontSize="20"
           fontWeight="700"
           fontFamily="'Playfair Display', Georgia, serif"
@@ -107,7 +107,7 @@ function FitRing({ pct, isMoonshot, label, gradId }: RingProps) {
           x="50"
           y="62"
           textAnchor="middle"
-          fill="#9ca3af"
+          fill="rgba(255,255,255,0.5)"
           fontSize="9"
           fontWeight="500"
           fontFamily="'DM Sans', system-ui, sans-serif"
@@ -257,23 +257,24 @@ export default function CountryCard({
 
       <style>{`
         .relo-card {
-          background: #ffffff;
-          border: 1.5px solid #e8e4f0;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
           border-radius: 20px;
           padding: 1.25rem 1.25rem 0.75rem;
           font-family: 'DM Sans', system-ui, sans-serif;
-          box-shadow: 0 2px 16px rgba(26,16,64,0.06), 0 1px 4px rgba(26,16,64,0.04);
+          backdrop-filter: blur(12px);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.25);
           transition: box-shadow 0.2s;
           overflow: hidden;
         }
         .relo-card--hero {
-          border-color: #f7c5a8;
-          box-shadow: 0 4px 32px rgba(255,107,53,0.12), 0 1px 4px rgba(26,16,64,0.04);
+          border-color: rgba(255,107,53,0.4);
+          box-shadow: 0 4px 32px rgba(255,107,53,0.18), 0 1px 4px rgba(0,0,0,0.25);
         }
         .relo-card--moonshot {
-          background: linear-gradient(135deg, #fff8f5 0%, #fff3ec 100%);
-          border-color: rgba(255,107,53,0.28);
-          box-shadow: 0 4px 24px rgba(255,107,53,0.10), 0 1px 4px rgba(26,16,64,0.04);
+          background: rgba(255, 107, 53, 0.08);
+          border-color: rgba(255,107,53,0.32);
+          box-shadow: 0 4px 24px rgba(255,107,53,0.14), 0 1px 4px rgba(0,0,0,0.25);
         }
 
         /* Header layout */
@@ -317,8 +318,8 @@ export default function CountryCard({
         }
         .relo-card__moon-badge {
           display: inline-block;
-          background: rgba(255,107,53,0.12);
-          color: #c2410c;
+          background: rgba(255,107,53,0.18);
+          color: #ffb38a;
           font-size: 0.72rem;
           font-weight: 700;
           padding: 0.15rem 0.6rem;
@@ -331,7 +332,7 @@ export default function CountryCard({
           font-family: 'Playfair Display', Georgia, serif;
           font-size: 1.25rem;
           font-weight: 700;
-          color: #1a1040;
+          color: #fff;
           margin: 0 0 0.2rem;
           line-height: 1.2;
           white-space: nowrap;
@@ -342,7 +343,7 @@ export default function CountryCard({
         /* Short note */
         .relo-card__shortnote {
           font-size: 0.78rem;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.55);
           margin: 0 0 0.4rem;
           line-height: 1.35;
         }
@@ -361,7 +362,7 @@ export default function CountryCard({
         }
         .relo-card__reason {
           font-size: 0.76rem;
-          color: #6b7280;
+          color: rgba(255, 255, 255, 0.6);
           line-height: 1.4;
         }
 
@@ -369,11 +370,11 @@ export default function CountryCard({
         .relo-card__tradeoff {
           margin: 0.9rem 0 0;
           padding: 0.6rem 0.85rem;
-          background: rgba(234,88,12,0.06);
+          background: rgba(247,147,30,0.12);
           border-left: 3px solid #f7931e;
           border-radius: 0 8px 8px 0;
           font-size: 0.8rem;
-          color: #7c3a0c;
+          color: #ffd9b8;
           line-height: 1.45;
         }
         .relo-card__tradeoff-icon { margin-right: 0.3rem; }
@@ -383,7 +384,7 @@ export default function CountryCard({
         .relo-card__note {
           margin: 0.75rem 0 0;
           font-size: 0.82rem;
-          color: #4b5563;
+          color: rgba(255, 255, 255, 0.65);
           line-height: 1.55;
           font-style: italic;
           padding: 0 0.1rem;
@@ -392,7 +393,7 @@ export default function CountryCard({
         /* Breakdown */
         .relo-card__breakdown-section {
           margin-top: 0.9rem;
-          border-top: 1px solid #f0edf8;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
           padding-top: 0.5rem;
         }
         .relo-card__expand-btn {
@@ -436,7 +437,7 @@ export default function CountryCard({
         }
         .relo-card__factor-label {
           font-size: 0.76rem;
-          color: #4b5563;
+          color: rgba(255, 255, 255, 0.7);
           min-width: 130px;
           flex-shrink: 0;
           white-space: nowrap;
@@ -446,7 +447,7 @@ export default function CountryCard({
         .relo-card__factor-bar-wrap {
           flex: 1;
           height: 5px;
-          background: rgba(26,16,64,0.07);
+          background: rgba(255, 255, 255, 0.12);
           border-radius: 100px;
           overflow: hidden;
         }
@@ -458,7 +459,7 @@ export default function CountryCard({
         .relo-card__factor-score {
           font-size: 0.72rem;
           font-weight: 700;
-          color: #9ca3af;
+          color: rgba(255, 255, 255, 0.6);
           min-width: 2rem;
           text-align: right;
         }

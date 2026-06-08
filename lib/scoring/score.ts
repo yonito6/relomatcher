@@ -1,4 +1,5 @@
 import { FACTORS, ratingWeight } from "@/lib/factors";
+import { COUNTRIES } from "@/lib/countriesDb";
 import type { CountryRecord, CultureCluster } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
 import type { CountryFit, Breakdown, ClimatePref, CulturePref, FactorId, Rating, Tier, MatchResult } from "@/lib/scoring/types";
@@ -52,6 +53,21 @@ function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+/** Find the user's home country record in the DB by name (for relative
+ *  "lower than my country" preferences). Returns undefined if not in the DB. */
+function homeCountry(profile: any): CountryRecord | undefined {
+  const name = profile.currentCountry as string | undefined;
+  if (!name) return undefined;
+  return COUNTRIES.find((c) => c.name === name);
+}
+
+/** Map a candidate-vs-home score delta onto a 0–10 scale, neutral at 5.
+ *  Both inputs are "higher = better for the user" scores (e.g. higher taxScore
+ *  = lower taxes). A candidate matching home → 5; clearly better → above 5. */
+function relativeScore(candidateScore: number, homeScore: number): number {
+  return Math.min(10, Math.max(0, 5 + (candidateScore - homeScore)));
+}
+
 function resolveFactorScore(
   factorId: string,
   country: CountryRecord,
@@ -71,12 +87,24 @@ function resolveFactorScore(
   // but netIncomePercentTypical is a 0–100 percentage, not a 0–10 score, so we can't use
   // the generic field-average path. Instead we normalise it by dividing by 10 here.
   if (factorId === "taxes") {
+    // Relative mode: user wants LOWER taxes than their home country. Score each
+    // candidate by how much lower its taxes are vs home (neutral at parity).
+    if (profile.taxPreference === "lower") {
+      const home = homeCountry(profile);
+      if (home) return relativeScore((country as any).taxScore ?? 0, home.taxScore);
+    }
     const a = (country as any).taxScore as number | undefined;
     const b = (country as any).netIncomePercentTypical as number | undefined;
     const vals: number[] = [];
     if (a !== undefined) vals.push(a);
     if (b !== undefined) vals.push(b / 10); // convert 0–100 percentage → 0–10 scale
     return mean(vals);
+  }
+
+  // Cost of living relative mode: user wants somewhere CHEAPER than home.
+  if (factorId === "costOfLiving" && profile.costPreference === "cheaper") {
+    const home = homeCountry(profile);
+    if (home) return relativeScore((country as any).costOfLivingScore ?? 0, home.costOfLivingScore);
   }
 
   // generic: mean of the factor's field values (undefined fields treated as 0)

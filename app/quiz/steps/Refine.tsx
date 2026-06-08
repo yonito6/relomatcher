@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { QuizData } from "@/lib/types";
 import type { FactorId, Rating, ClimatePref, CulturePref } from "@/lib/scoring/types";
 import { FACTORS } from "@/lib/factors";
+import { COUNTRIES } from "@/lib/countriesDb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ export default function Refine({ data, update, onNext, onBack }: RefineProps) {
   const [ratings, setRatings] = useState<Partial<Record<FactorId, Rating>>>(buildInitialRatings);
   const [climatePref, setClimatePref] = useState<ClimatePref | undefined>(data.climatePref);
   const [culturePref, setCulturePref] = useState<CulturePref | undefined>(data.culturePref);
+  const [taxPref, setTaxPref] = useState<"lower" | "any">(data.taxPreference ?? "lower");
+  const [costPref, setCostPref] = useState<"cheaper" | "any">(data.costPreference ?? "cheaper");
 
   // Kept factors: those that are NOT dont_care in the original swipe output
   const keptFactors = FACTORS.filter((f) => {
@@ -118,6 +121,11 @@ export default function Refine({ data, update, onNext, onBack }: RefineProps) {
 
   const keptWeather = keptFactors.some((f) => f.id === "weather");
   const keptCulture = keptFactors.some((f) => f.id === "culture");
+  const keptTaxes = keptFactors.some((f) => f.id === "taxes");
+  const keptCost = keptFactors.some((f) => f.id === "costOfLiving");
+  // Relative "vs my country" comparisons only work when home is a country we score.
+  const homeName = data.currentCountry;
+  const homeInDb = !!homeName && COUNTRIES.some((c) => c.name === homeName);
 
   function handleRatingChange(id: FactorId, val: Rating) {
     setRatings((prev) => ({ ...prev, [id]: val }));
@@ -133,6 +141,8 @@ export default function Refine({ data, update, onNext, onBack }: RefineProps) {
       factorRatings: finalRatings,
       climatePref: keptWeather ? climatePref : undefined,
       culturePref: keptCulture ? culturePref : undefined,
+      taxPreference: keptTaxes && homeInDb ? taxPref : undefined,
+      costPreference: keptCost && homeInDb ? costPref : undefined,
     });
     onNext();
   }
@@ -208,6 +218,87 @@ export default function Refine({ data, update, onNext, onBack }: RefineProps) {
             </motion.div>
           ))}
         </div>
+
+        {/* Relative money preference (vs home country) */}
+        <AnimatePresence>
+          {keptTaxes && homeInDb && (
+            <motion.div
+              className="relo-refine__sub-section"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="relo-refine__sub-header">
+                <span className="relo-refine__sub-emoji">💸</span>
+                <div>
+                  <div className="relo-refine__sub-title">How should we read “taxes”?</div>
+                  <div className="relo-refine__sub-hint">Compared with {homeName}, your home base</div>
+                </div>
+              </div>
+              <div className="relo-refine__toggle-row">
+                <motion.button
+                  className={`relo-refine__toggle-btn ${taxPref === "lower" ? "is-selected" : ""}`}
+                  onClick={() => setTaxPref("lower")}
+                  aria-pressed={taxPref === "lower"}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <strong>Lower than {homeName}</strong>
+                  <span>Favour countries that tax me less than home</span>
+                </motion.button>
+                <motion.button
+                  className={`relo-refine__toggle-btn ${taxPref === "any" ? "is-selected" : ""}`}
+                  onClick={() => setTaxPref("any")}
+                  aria-pressed={taxPref === "any"}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <strong>As low as possible</strong>
+                  <span>Just rank by lowest taxes overall</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {keptCost && homeInDb && (
+            <motion.div
+              className="relo-refine__sub-section"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="relo-refine__sub-header">
+                <span className="relo-refine__sub-emoji">🛒</span>
+                <div>
+                  <div className="relo-refine__sub-title">How should we read “cost of living”?</div>
+                  <div className="relo-refine__sub-hint">Compared with {homeName}, your home base</div>
+                </div>
+              </div>
+              <div className="relo-refine__toggle-row">
+                <motion.button
+                  className={`relo-refine__toggle-btn ${costPref === "cheaper" ? "is-selected" : ""}`}
+                  onClick={() => setCostPref("cheaper")}
+                  aria-pressed={costPref === "cheaper"}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <strong>Cheaper than {homeName}</strong>
+                  <span>Favour places that stretch my money further than home</span>
+                </motion.button>
+                <motion.button
+                  className={`relo-refine__toggle-btn ${costPref === "any" ? "is-selected" : ""}`}
+                  onClick={() => setCostPref("any")}
+                  aria-pressed={costPref === "any"}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <strong>As cheap as possible</strong>
+                  <span>Just rank by lowest cost overall</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Climate sub-question */}
         <AnimatePresence>
@@ -320,7 +411,7 @@ function RefineStyles() {
 
       .relo-refine {
         min-height: 100dvh;
-        background: #fafaf8;
+        background: linear-gradient(145deg, #0f0c29 0%, #1a1040 40%, #24243e 100%);
         font-family: 'DM Sans', system-ui, sans-serif;
         padding: 1.5rem 1.25rem 3rem;
         display: flex;
@@ -351,14 +442,14 @@ function RefineStyles() {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 1.85rem;
         font-weight: 700;
-        color: #1a1040;
+        color: #ffffff;
         margin: 0 0 0.4rem;
         letter-spacing: -0.02em;
       }
 
       .relo-refine__subtitle {
         font-size: 0.875rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.5;
       }
@@ -373,7 +464,7 @@ function RefineStyles() {
 
       .relo-refine__factor-row {
         padding: 1rem 0;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .relo-refine__factor-row:last-child {
@@ -395,7 +486,7 @@ function RefineStyles() {
       .relo-refine__factor-name {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #1a1040;
+        color: #ffffff;
       }
 
       .relo-refine__filter-badge {
@@ -425,12 +516,12 @@ function RefineStyles() {
         min-width: 0;
         padding: 0.5rem 0.5rem;
         border-radius: 10px;
-        border: 1.5px solid #e5e7eb;
-        background: #ffffff;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
         font-size: 0.78rem;
         font-weight: 500;
         font-family: inherit;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
         transition: all 0.18s;
         white-space: nowrap;
@@ -441,8 +532,8 @@ function RefineStyles() {
 
       .relo-refine__intensity-btn:hover:not(.is-active) {
         border-color: #ff6b35;
-        color: #ff6b35;
-        background: #fff7f4;
+        color: #ffb088;
+        background: rgba(255, 107, 53, 0.1);
       }
 
       .relo-refine__intensity-btn.is-active {
@@ -467,14 +558,60 @@ function RefineStyles() {
         overflow: hidden;
       }
 
-      /* Sub-sections (climate / culture) */
+      /* Sub-sections (climate / culture / money) */
       .relo-refine__sub-section {
-        background: #ffffff;
-        border: 1.5px solid #f3f4f6;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
         border-radius: 16px;
         padding: 1.1rem 1rem 1.25rem;
         margin-bottom: 1rem;
         overflow: hidden;
+        backdrop-filter: blur(8px);
+      }
+
+      /* Relative money toggle */
+      .relo-refine__toggle-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      .relo-refine__toggle-btn {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.7rem 0.9rem;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        transition: all 0.18s;
+        touch-action: manipulation;
+      }
+
+      .relo-refine__toggle-btn strong {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .relo-refine__toggle-btn span {
+        font-size: 0.74rem;
+        color: rgba(255, 255, 255, 0.5);
+        line-height: 1.35;
+      }
+
+      .relo-refine__toggle-btn:hover:not(.is-selected) {
+        border-color: #ff6b35;
+        background: rgba(255, 107, 53, 0.08);
+      }
+
+      .relo-refine__toggle-btn.is-selected {
+        border-color: #ff6b35;
+        background: linear-gradient(135deg, rgba(255,107,53,0.2), rgba(247,147,30,0.14));
+        box-shadow: 0 2px 12px rgba(255,107,53,0.22);
       }
 
       .relo-refine__sub-header {
@@ -493,13 +630,13 @@ function RefineStyles() {
       .relo-refine__sub-title {
         font-size: 0.92rem;
         font-weight: 600;
-        color: #1a1040;
+        color: #ffffff;
         margin-bottom: 0.1rem;
       }
 
       .relo-refine__sub-hint {
         font-size: 0.75rem;
-        color: #9ca3af;
+        color: rgba(255, 255, 255, 0.5);
       }
 
       /* Climate buttons */
@@ -514,9 +651,9 @@ function RefineStyles() {
         align-items: center;
         gap: 0.65rem;
         padding: 0.75rem 0.9rem;
-        border: 1.5px solid #e5e7eb;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
         border-radius: 12px;
-        background: #fafaf8;
+        background: rgba(255, 255, 255, 0.04);
         cursor: pointer;
         text-align: left;
         font-family: inherit;
@@ -528,13 +665,13 @@ function RefineStyles() {
 
       .relo-refine__climate-btn:hover:not(.is-selected) {
         border-color: #ff6b35;
-        background: #fff7f4;
+        background: rgba(255, 107, 53, 0.08);
       }
 
       .relo-refine__climate-btn.is-selected {
         border-color: #ff6b35;
-        background: linear-gradient(135deg, rgba(255,107,53,0.06), rgba(247,147,30,0.04));
-        box-shadow: 0 2px 12px rgba(255,107,53,0.12);
+        background: linear-gradient(135deg, rgba(255,107,53,0.2), rgba(247,147,30,0.14));
+        box-shadow: 0 2px 12px rgba(255,107,53,0.22);
       }
 
       .relo-refine__climate-emoji {
@@ -545,13 +682,13 @@ function RefineStyles() {
       .relo-refine__climate-label {
         font-size: 0.875rem;
         font-weight: 600;
-        color: #1a1040;
+        color: #ffffff;
         min-width: 44px;
       }
 
       .relo-refine__climate-desc {
         font-size: 0.75rem;
-        color: #9ca3af;
+        color: rgba(255, 255, 255, 0.5);
         flex: 1;
       }
 
@@ -576,14 +713,14 @@ function RefineStyles() {
         align-items: center;
         gap: 0.2rem;
         padding: 0.6rem 0.3rem;
-        border: 1.5px solid #e5e7eb;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
         border-radius: 10px;
-        background: #fafaf8;
+        background: rgba(255, 255, 255, 0.04);
         cursor: pointer;
         font-family: inherit;
         transition: all 0.18s;
         font-size: 0.7rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
         font-weight: 500;
         text-align: center;
         touch-action: manipulation;
@@ -596,16 +733,16 @@ function RefineStyles() {
 
       .relo-refine__culture-btn:hover:not(.is-selected) {
         border-color: #ff6b35;
-        color: #ff6b35;
-        background: #fff7f4;
+        color: #ffb088;
+        background: rgba(255, 107, 53, 0.08);
       }
 
       .relo-refine__culture-btn.is-selected {
         border-color: #ff6b35;
-        background: linear-gradient(135deg, rgba(255,107,53,0.1), rgba(247,147,30,0.07));
-        color: #c44b1c;
+        background: linear-gradient(135deg, rgba(255,107,53,0.22), rgba(247,147,30,0.16));
+        color: #ffffff;
         font-weight: 700;
-        box-shadow: 0 2px 10px rgba(255,107,53,0.18);
+        box-shadow: 0 2px 10px rgba(255,107,53,0.25);
       }
 
       /* Nav */
@@ -619,20 +756,20 @@ function RefineStyles() {
       .relo-refine__back-btn {
         flex-shrink: 0;
         padding: 0.85rem 1.2rem;
-        border: 1.5px solid #e5e7eb;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
         border-radius: 100px;
-        background: white;
+        background: rgba(255, 255, 255, 0.06);
         font-size: 0.875rem;
         font-family: inherit;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
         cursor: pointer;
         transition: all 0.15s;
         touch-action: manipulation;
       }
 
       .relo-refine__back-btn:hover {
-        border-color: #9ca3af;
-        color: #374151;
+        border-color: rgba(255, 255, 255, 0.35);
+        color: #ffffff;
       }
 
       .relo-refine__next-btn {
@@ -656,16 +793,17 @@ function RefineStyles() {
         max-width: 380px;
         width: 100%;
         margin: auto;
-        background: white;
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 24px;
-        border: 1.5px solid #e5e7eb;
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
         padding: 2.5rem 2rem;
         text-align: center;
-        box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.3);
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 0.75rem;
+        backdrop-filter: blur(8px);
       }
 
       .relo-refine__empty-emoji {
@@ -676,13 +814,13 @@ function RefineStyles() {
         font-family: 'Playfair Display', Georgia, serif;
         font-size: 1.6rem;
         font-weight: 700;
-        color: #1a1040;
+        color: #ffffff;
         margin: 0;
       }
 
       .relo-refine__empty-sub {
         font-size: 0.875rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.55;
       }

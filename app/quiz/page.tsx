@@ -191,6 +191,7 @@ export default function QuizPage() {
           display: flex;
           flex-direction: column;
           font-family: 'DM Sans', system-ui, sans-serif;
+          background: linear-gradient(145deg, #0f0c29 0%, #1a1040 40%, #24243e 100%);
         }
 
         /* Progress bar */
@@ -200,9 +201,9 @@ export default function QuizPage() {
           left: 0;
           right: 0;
           z-index: 50;
-          background: rgba(255, 255, 255, 0.92);
+          background: rgba(15, 12, 41, 0.85);
           backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(0,0,0,0.06);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           padding: 0.6rem 1.25rem 0;
           display: flex;
           align-items: center;
@@ -230,7 +231,7 @@ export default function QuizPage() {
         .relo-quiz-progress__step-label {
           font-size: 0.7rem;
           font-weight: 700;
-          color: #1a1040;
+          color: #fff;
           text-transform: uppercase;
           letter-spacing: 0.07em;
           line-height: 1;
@@ -246,7 +247,7 @@ export default function QuizPage() {
         .relo-quiz-progress__bar-wrap {
           width: 80px;
           height: 4px;
-          background: #f3f4f6;
+          background: rgba(255, 255, 255, 0.12);
           border-radius: 100px;
           overflow: hidden;
           flex-shrink: 0;
