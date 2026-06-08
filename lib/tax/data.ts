@@ -137,29 +137,83 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   BE: {
+    // Verified 2026: 25/40/45/50% (tax-free €11,180; bands €16,720/29,510/
+    // 51,070) + ~7% communal. ONSS employee 13.07%; self-employed 20.5%
+    // (reduced above €75k). EUR≈$1.08 USD-equiv.
     employed: { low: 0.26, mid: 0.4, high: 0.48 },
     selfEmployed: { low: 0.25, mid: 0.4, high: 0.5 },
+    brackets: [
+      { upTo: 12_074, rate: 0 },
+      { upTo: 18_058, rate: 0.25 },
+      { upTo: 31_871, rate: 0.4 },
+      { upTo: 55_156, rate: 0.45 },
+      { upTo: Infinity, rate: 0.5 },
+    ],
+    standardSocial: { rate: 0.1307 },
+    selfEmployedSocial: { rate: 0.205, capIncome: 81_026 },
+    regimes: [],
     vat: 21,
     notes: "Among the highest effective rates in the EU; communes add surcharge.",
     confidence: "high",
   },
   LU: {
+    // Verified 2026: 0% to €13,230, 8→42% (top from €234,871), 23 brackets +
+    // 7–9% employment-fund surcharge. CNS+pension employee 12.95% (cap 5× min
+    // wage); self-employed ~24% capped. EUR≈$1.08 USD-equiv.
     employed: { low: 0.18, mid: 0.3, high: 0.4 },
     selfEmployed: { low: 0.2, mid: 0.32, high: 0.42 },
+    brackets: [
+      { upTo: 14_288, rate: 0 },
+      { upTo: 27_000, rate: 0.12 },
+      { upTo: 48_600, rate: 0.3 },
+      { upTo: 118_800, rate: 0.39 },
+      { upTo: Infinity, rate: 0.42 },
+    ],
+    standardSocial: { rate: 0.1295, capIncome: 151_000 },
+    selfEmployedSocial: { rate: 0.24, capIncome: 151_000 },
+    regimes: [],
     vat: 17,
     notes: "Lowest VAT in the EU; progressive income tax to 42% + surcharges.",
     confidence: "medium",
   },
   CH: {
+    // Verified 2026: federal 0–11.5% + canton/commune varies HUGELY (Zug/
+    // Schwyz ~10–15pp lower than Geneva/Vaud). Modeled as a moderate canton;
+    // low-tax cantons keep far more. AHV uncapped: employee ~6.4%, self-
+    // employed ~10%. CHF≈$1.10 USD-equiv. confidence low (canton spread).
     employed: { low: 0.12, mid: 0.2, high: 0.28 },
     selfEmployed: { low: 0.14, mid: 0.22, high: 0.3 },
+    brackets: [
+      { upTo: 35_000, rate: 0.04 },
+      { upTo: 110_000, rate: 0.16 },
+      { upTo: 350_000, rate: 0.26 },
+      { upTo: Infinity, rate: 0.33 },
+    ],
+    standardSocial: { rate: 0.064 },
+    selfEmployedSocial: { rate: 0.1 },
+    regimes: [],
     vat: 8.1,
     notes: "Low federal tax; canton/commune varies hugely (Zug low, Geneva high). Low VAT.",
-    confidence: "medium",
+    confidence: "low",
   },
   AT: {
+    // Verified 2026: 0/20/30/40/48/50/55% (tax-free €13,541; bands €21,992/
+    // 36,458/70,365/104,859/1M). Social employee ~18% capped €83,160; SVS
+    // self-employed ~26% capped. EUR≈$1.08 USD-equiv.
     employed: { low: 0.22, mid: 0.34, high: 0.43 },
     selfEmployed: { low: 0.22, mid: 0.35, high: 0.45 },
+    brackets: [
+      { upTo: 14_624, rate: 0 },
+      { upTo: 23_751, rate: 0.2 },
+      { upTo: 39_375, rate: 0.3 },
+      { upTo: 75_994, rate: 0.4 },
+      { upTo: 113_248, rate: 0.48 },
+      { upTo: 1_080_000, rate: 0.5 },
+      { upTo: Infinity, rate: 0.55 },
+    ],
+    standardSocial: { rate: 0.18, capIncome: 89_813 },
+    selfEmployedSocial: { rate: 0.26, capIncome: 89_813 },
+    regimes: [],
     vat: 20,
     notes: "Progressive to 55% top band; significant social insurance.",
     confidence: "high",

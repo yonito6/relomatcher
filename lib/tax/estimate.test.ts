@@ -276,6 +276,34 @@ describe("Western Europe majors (rich model)", () => {
   });
 });
 
+describe("Western Europe rest (rich model)", () => {
+  it("Switzerland stays comparatively low for a mid earner (moderate canton)", () => {
+    const CH = taxProfileFor("CH")!;
+    const e = estimateTax(CH, 100_000, "employed");
+    expect(e.effectiveRate).toBeLessThan(0.3);
+  });
+
+  it("Austria climbs toward the 48% band for a high earner", () => {
+    const AT = taxProfileFor("AT")!;
+    const e = estimateTax(AT, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.35);
+    expect(e.effectiveRate).toBeLessThan(0.55);
+  });
+
+  it("Belgium is among the heaviest in the EU for a high earner", () => {
+    const BE = taxProfileFor("BE")!;
+    const e = estimateTax(BE, 150_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.4);
+  });
+
+  it("Luxembourg taxes a mid earner via real bands, not the legacy curve", () => {
+    const LU = taxProfileFor("LU")!;
+    const e = estimateTax(LU, 80_000, "freelancer");
+    expect(e.regimeApplied).toMatch(/General rules/);
+    expect(e.effectiveRate).toBeGreaterThan(0.2);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
