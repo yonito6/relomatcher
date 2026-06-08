@@ -295,7 +295,10 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25 }}
-                style={{ overflow: "hidden" }}
+                // Clip only while the panel is collapsed/animating; once the
+                // suggestion dropdown is open we must NOT clip it or the options
+                // get cut off and can't be clicked.
+                style={{ overflow: secondOpen ? "visible" : "hidden" }}
               >
                 <div className="relo-basics__dropdown-wrap" ref={secondRef}>
                   <div

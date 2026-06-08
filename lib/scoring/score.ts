@@ -175,7 +175,22 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
     totalWeightedScore += c.score * c.weight;
     totalWeight += c.weight;
   }
-  const weightedAvg = totalWeightedScore / totalWeight; // 0–10
+  let weightedAvg = totalWeightedScore / totalWeight; // 0–10
+
+  // Must-have dominance: a plain weighted average lets a country win on
+  // breadth (great on five "important" factors) while scoring badly on the one
+  // thing the user flagged as non-negotiable. That contradicts the contract a
+  // "Must-have" makes — and is exactly how a "low taxes" must-have user ends up
+  // looking at high-tax all-rounders. So when the user has Must-rated factors,
+  // blend the weighted average toward how well the country serves THOSE: a
+  // country that flunks a Must-have can no longer ride breadth to the top.
+  const mustScores = allContributions
+    .filter((c) => factorRatings[c.id] === "must")
+    .map((c) => c.score);
+  if (mustScores.length > 0) {
+    const mustMean = mustScores.reduce((a, b) => a + b, 0) / mustScores.length;
+    weightedAvg = 0.6 * weightedAvg + 0.4 * mustMean;
+  }
 
   // Floor bonus for filter factors: rewards countries that clear their floor threshold.
   // Each per-filter bonus is capped at 0.5; total bonusSum capped at 1.0 to prevent
