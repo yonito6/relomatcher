@@ -3,7 +3,8 @@ import type { QuizData } from "@/lib/types";
 
 export type FactorId =
   | "weather" | "safety" | "lgbt" | "language" | "jobs"
-  | "costOfLiving" | "taxes" | "healthcare" | "culture" | "social";
+  | "costOfLiving" | "taxes" | "healthcare" | "culture" | "social"
+  | "publicTransport";
 export type Rating = "dont_care" | "nice" | "important" | "must";
 export type FactorRole = "filter" | "differentiator";
 export type FactorRatings = Partial<Record<FactorId, Rating>>;

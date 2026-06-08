@@ -4,13 +4,17 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MatchResult } from "@/lib/scoring/types";
 import type { Tier } from "@/lib/scoring/types";
+import type { QuizData } from "@/lib/types";
 import { FACTORS } from "@/lib/factors";
+import { estimateForCountry, formatMoney, parseMonthlyIncome } from "@/lib/money";
 
 export interface CountryCardProps {
   match: MatchResult;
   rank?: number;
   moonshot?: boolean;
   defaultExpanded?: boolean;
+  /** When provided (with a stated income), shows a real tax/take-home estimate. */
+  profile?: QuizData;
 }
 
 const TIER_BADGE: Record<Tier, { emoji: string; label: string; color: string }> = {
@@ -124,11 +128,18 @@ export default function CountryCard({
   rank,
   moonshot = false,
   defaultExpanded = false,
+  profile,
 }: CountryCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const displayPct = Math.round(moonshot ? match.rawFit : match.fit);
   const badge = TIER_BADGE[match.tier];
+
+  // Honest tax/take-home estimate (only when we know the user's income).
+  const hasIncome = profile ? parseMonthlyIncome(profile) != null : false;
+  const taxEst = profile && hasIncome ? estimateForCountry(profile, match.country) : null;
+  const cur = profile?.incomeCurrency;
+  const effectivePct = taxEst ? Math.round(taxEst.effectiveRate * 100) : null;
 
   // Sort breakdown by score descending; map to FACTORS for label/emoji
   const factorMap = Object.fromEntries(FACTORS.map((f) => [f.id, f]));
@@ -184,6 +195,26 @@ export default function CountryCard({
           </div>
         </div>
       </div>
+
+      {/* Honest tax / take-home estimate */}
+      {taxEst && effectivePct != null && (
+        <div className="relo-card__tax">
+          <div className="relo-card__tax-row">
+            <span className="relo-card__tax-emoji" aria-hidden="true">🧾</span>
+            <span className="relo-card__tax-main">
+              Est. tax ~{effectivePct}% · you keep ~{taxEst.netPercent}%
+            </span>
+            <span className="relo-card__tax-conf" title={`Confidence: ${taxEst.confidence}`}>
+              {taxEst.confidence}
+            </span>
+          </div>
+          <div className="relo-card__tax-net">
+            ≈ {formatMoney(taxEst.netAmount, cur)} take-home / year
+            {taxEst.regimeApplied ? ` · via ${taxEst.regimeApplied}` : ""}
+          </div>
+          <div className="relo-card__tax-disc">Estimate only — not tax advice.</div>
+        </div>
+      )}
 
       {/* Tradeoff */}
       {match.tradeoff && (
@@ -364,6 +395,50 @@ export default function CountryCard({
           font-size: 0.76rem;
           color: rgba(255, 255, 255, 0.6);
           line-height: 1.4;
+        }
+
+        /* Tax estimate */
+        .relo-card__tax {
+          margin: 0.85rem 0 0;
+          padding: 0.6rem 0.8rem;
+          background: rgba(34,197,94,0.1);
+          border: 1px solid rgba(34,197,94,0.25);
+          border-radius: 10px;
+        }
+        .relo-card__tax-row {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+        }
+        .relo-card__tax-emoji { font-size: 0.95rem; }
+        .relo-card__tax-main {
+          flex: 1;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #b6f3c8;
+          line-height: 1.3;
+        }
+        .relo-card__tax-conf {
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: rgba(182,243,200,0.7);
+          background: rgba(34,197,94,0.16);
+          padding: 0.1rem 0.4rem;
+          border-radius: 100px;
+        }
+        .relo-card__tax-net {
+          margin-top: 0.3rem;
+          font-size: 0.8rem;
+          color: rgba(255,255,255,0.78);
+          line-height: 1.35;
+        }
+        .relo-card__tax-disc {
+          margin-top: 0.25rem;
+          font-size: 0.66rem;
+          color: rgba(255,255,255,0.45);
+          font-style: italic;
         }
 
         /* Tradeoff */

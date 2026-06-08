@@ -4,6 +4,15 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import OpenAI from "openai";
 import type { MatchResult, Breakdown, FactorId, ReportPayload } from "@/lib/scoring/types";
 import { FACTORS } from "@/lib/factors";
+import {
+  annualTakeHomeDelta,
+  estimatedAnnualDeltaVsHome,
+  estimateForCountry,
+  parseMonthlyIncome,
+  homeRecord,
+  formatMoney,
+  costOfLivingVsHome,
+} from "@/lib/money";
 
 export const runtime = "nodejs";
 
@@ -272,6 +281,183 @@ function tierLabel(tier: MatchResult["tier"]): string {
   }
 }
 
+/**
+ * The first page a buyer sees: a personalized, honest ROI cover that makes the
+ * report's value obvious. Uses only grounded numbers (tax-delta from
+ * netIncomePercentTypical, cost-of-living phrase) — no invented precision.
+ */
+function drawValueCover(
+  pdfDoc: PDFDocument,
+  fontRegular: any,
+  fontBold: any,
+  profile: ReportPayload["profile"],
+  matches: MatchResult[]
+): void {
+  const page = pdfDoc.addPage();
+  const { width, height } = page.getSize();
+
+  // Dark hero band at the top
+  page.drawRectangle({
+    x: 0,
+    y: height - 150,
+    width,
+    height: 150,
+    color: rgb(0.06, 0.05, 0.16), // #0f0c29-ish
+  });
+
+  page.drawText("YOUR RELOCATION BLUEPRINT", {
+    x: 50,
+    y: height - 55,
+    size: 12,
+    font: fontBold,
+    color: rgb(1, 0.42, 0.21), // accent #ff6b35
+  });
+
+  const top = matches[0];
+  const taxDelta = top
+    ? estimatedAnnualDeltaVsHome(profile, top.country) ?? annualTakeHomeDelta(profile, top.country)
+    : null;
+  const showSavings = taxDelta != null && taxDelta > 0;
+  const income = parseMonthlyIncome(profile);
+  const home = homeRecord(profile);
+
+  // Big personalized headline
+  let headline: string;
+  if (showSavings && top) {
+    const amount = formatMoney(taxDelta as number, profile.incomeCurrency);
+    headline = `Keep about ${amount} more every year`;
+  } else if (top) {
+    headline = `${top.country.name} is your strongest match`;
+  } else {
+    headline = "Your personalized relocation plan";
+  }
+  for (const line of wrapText(headline, 36)) {
+    // draw inside hero band; large
+    page.drawText(line, {
+      x: 50,
+      y: height - 90,
+      size: 22,
+      font: fontBold,
+      color: rgb(1, 1, 1),
+    });
+    break; // single big line; wrapText keeps it short
+  }
+
+  const subHeadline =
+    showSavings && top
+      ? `in ${top.country.name} vs ${home?.name ?? "home"}, based on your income and typical net-income rates.`
+      : "Three countries that fit your life, with the real paths to get there.";
+  let hy = height - 118;
+  for (const line of wrapText(subHeadline, 70)) {
+    page.drawText(line, {
+      x: 50,
+      y: hy,
+      size: 11,
+      font: fontRegular,
+      color: rgb(0.85, 0.85, 0.9),
+    });
+    hy -= 15;
+  }
+
+  // What's inside (value stack)
+  let y = height - 185;
+  page.drawText("What's inside this report", {
+    x: 50,
+    y,
+    size: 14,
+    font: fontBold,
+    color: rgb(0.12, 0.12, 0.12),
+  });
+  y -= 22;
+
+  const valueItems: string[] = [
+    "Your take-home income compared across all 3 countries — see exactly where your money goes furthest.",
+    "The real visa routes for each country, matched to your passport and situation (not generic checklists).",
+    "A concrete first-90-days action plan per country — what to do, in what order.",
+    "Cost-of-living and lifestyle reality vs your home, so there are no surprises after you move.",
+    "The honest tradeoffs and caveats for each match — what to watch for before you commit money.",
+  ];
+  for (const item of valueItems) {
+    const lines = wrapText(item, 82);
+    for (let i = 0; i < lines.length; i++) {
+      const prefix = i === 0 ? "+  " : "    ";
+      page.drawText(prefix + lines[i], {
+        x: 50,
+        y,
+        size: 11,
+        font: fontRegular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+      y -= 16;
+    }
+    y -= 3;
+  }
+
+  y -= 6;
+
+  // Value anchor
+  const anchorLines = wrapText(
+    "An immigration lawyer charges $200-300/hour just to map options like these. This report does the groundwork first, so every hour you do pay for is spent moving forward, not figuring out where to start.",
+    82
+  );
+  for (const line of anchorLines) {
+    page.drawText(line, {
+      x: 50,
+      y,
+      size: 10.5,
+      font: fontRegular,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    y -= 15;
+  }
+  y -= 10;
+
+  // Guarantee box
+  page.drawRectangle({
+    x: 50,
+    y: y - 38,
+    width: width - 100,
+    height: 44,
+    color: rgb(0.93, 0.98, 0.94),
+    borderColor: rgb(0.43, 0.9, 0.66),
+    borderWidth: 1,
+  });
+  page.drawText("Our guarantee", {
+    x: 62,
+    y: y - 12,
+    size: 11,
+    font: fontBold,
+    color: rgb(0.1, 0.45, 0.3),
+  });
+  page.drawText(
+    "Not worth 10x what you paid? Email us for a full refund and keep the report.",
+    {
+      x: 62,
+      y: y - 28,
+      size: 10,
+      font: fontRegular,
+      color: rgb(0.2, 0.35, 0.28),
+    }
+  );
+  y -= 58;
+
+  // Honest caveat footer
+  const caveat =
+    income == null || !home
+      ? "Figures inside are clearly-labelled estimates, not tax or legal advice. We map the routes; you confirm the official details before committing money."
+      : "The income figures are estimates based on each country's typical net-income-kept rate — clearly labelled, never invented. Always confirm official rules before committing money.";
+  for (const line of wrapText(caveat, 92)) {
+    page.drawText(line, {
+      x: 50,
+      y,
+      size: 8.5,
+      font: fontRegular,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+    y -= 12;
+  }
+}
+
 async function buildPdf(
   profile: ReportPayload["profile"],
   matches: MatchResult[],
@@ -299,6 +485,10 @@ async function buildPdf(
       // No flag – ignore
     }
   }
+
+  /* --------------------- Cover: personalized ROI value -------------------- */
+
+  drawValueCover(pdfDoc, fontRegular, fontBold, profile, matches);
 
   /* ----------------------------- Title / Intro ---------------------------- */
 
@@ -489,17 +679,84 @@ async function buildPdf(
       leftY -= 4;
     }
 
-    if (typeof match.country.netIncomePercentTypical === "number") {
-      leftY -= 8;
-      const text = `Approx. net income kept: ${match.country.netIncomePercentTypical.toFixed(1)}%`;
-      const lines = wrapText(text, 38);
-      leftY = drawParagraph(page, lines, {
+    // Money reality box
+    leftY -= 12;
+    page.drawText("Your money here", {
+      x: leftX,
+      y: leftY,
+      size: 12,
+      font: fontBold,
+      color: rgb(0.2, 0.2, 0.2),
+    });
+    leftY -= 16;
+
+    const moneyLines: string[] = [];
+    const est = estimateForCountry(profile, match.country);
+    if (est) {
+      const incomeAnnual = (parseMonthlyIncome(profile) ?? 0) * 12;
+      moneyLines.push(
+        `Est. tax + contributions: ~${Math.round(est.effectiveRate * 100)}% (you keep ~${est.netPercent}%)`
+      );
+      moneyLines.push(
+        `Est. annual take-home: ~${formatMoney(est.netAmount, profile.incomeCurrency)} of ${formatMoney(incomeAnnual, profile.incomeCurrency)}`
+      );
+      if (est.regimeApplied) {
+        moneyLines.push(`Regime used: ${est.regimeApplied}`);
+      }
+    } else if (typeof match.country.netIncomePercentTypical === "number") {
+      moneyLines.push(
+        `Net income typically kept: ~${match.country.netIncomePercentTypical.toFixed(0)}%`
+      );
+    }
+    // Delta vs home — prefer the per-earner estimate, fall back to static.
+    const delta =
+      estimatedAnnualDeltaVsHome(profile, match.country) ??
+      annualTakeHomeDelta(profile, match.country);
+    if (delta != null) {
+      const homeName = homeRecord(profile)?.name ?? "home";
+      const amount = formatMoney(delta, profile.incomeCurrency);
+      moneyLines.push(
+        delta >= 0
+          ? `Vs ${homeName}: about +${amount}/yr more in your pocket`
+          : `Vs ${homeName}: about -${amount}/yr less in your pocket`
+      );
+    }
+    const col = costOfLivingVsHome(profile, match.country);
+    if (col) {
+      moneyLines.push(col.phrase + ".");
+    }
+    if (moneyLines.length === 0) {
+      moneyLines.push(
+        "Add your income on the quiz to see your estimated take-home here."
+      );
+    }
+    for (const ml of moneyLines) {
+      const lines = wrapText(ml, 40);
+      for (let i = 0; i < lines.length; i++) {
+        const prefix = i === 0 ? "• " : "  ";
+        page.drawText(prefix + lines[i], {
+          x: leftX,
+          y: leftY,
+          size: 10,
+          font: fontRegular,
+          color: rgb(0.15, 0.15, 0.15),
+        });
+        leftY -= 14;
+      }
+    }
+    leftY -= 4;
+    for (const line of wrapText(
+      "Estimate from typical net-income rates, not tax advice.",
+      44
+    )) {
+      page.drawText(line, {
         x: leftX,
         y: leftY,
+        size: 8,
         font: fontRegular,
-        size: 10,
-        lineGap: 3,
+        color: rgb(0.5, 0.5, 0.5),
       });
+      leftY -= 11;
     }
 
     /* ---- Right: why it fits + visa & steps ---- */

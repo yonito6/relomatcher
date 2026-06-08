@@ -48,6 +48,23 @@ export const OPENNESS: Record<string, 0 | 1 | 2> = {
   EE: 2,  // e-Residency + Digital Nomad Visa
   LV: 1,
   LT: 1,
+  SK: 1,  // EU normal
+  SI: 1,  // EU normal
+
+  // Western Europe micro-states (wealth/quota gated)
+  AD: 0,  // Andorra: passive-residency requires large deposit/investment
+  MC: 0,  // Monaco: requires proof of substantial wealth
+  LI: 0,  // Liechtenstein: strict residency quota/lottery
+
+  // Balkans / Eastern Europe (non-EU)
+  RS: 1,  // Serbia: residence permits accessible
+  ME: 1,  // Montenegro: relatively straightforward residency
+  AL: 2,  // Albania: 1-year visa-free for many + digital nomad permit
+  MK: 1,  // North Macedonia
+  BA: 1,  // Bosnia and Herzegovina
+  MD: 1,  // Moldova
+  UA: 0,  // Ukraine: active conflict, not a practical long-stay route
+  TR: 1,  // Turkey: residence permits accessible
 
   // Post-Soviet / Caucasus
   GE: 2,  // 365-day visa-free for most + easy residency
@@ -74,6 +91,30 @@ export const OPENNESS: Record<string, 0 | 1 | 2> = {
   CR: 2,  // Rentista + digital nomad visa
   PA: 2,  // Friendly Nations Visa + pensionado
   UY: 2,  // relatively straightforward residency
+  BR: 1,  // residency available but bureaucratic
+  AR: 2,  // rentista + digital nomad visa
+  CL: 1,
+  CO: 2,  // migrant (M) visa + digital nomad visa
+  EC: 2,  // straightforward rentista / professional residency
+
+  // Asia (nomad-friendly)
+  ID: 2,  // remote-worker / nomad KITAS + B211 long stays
+  PH: 1,  // SRRV + long tourist extensions
+  IN: 0,  // no nomad route; strict residence permits
+
+  // Middle East / North Africa
+  SA: 0,  // employer-tied
+  QA: 0,  // employer-tied
+  BH: 1,  // self-sponsor / golden residency available
+  MA: 1,  // long-stay residency accessible
+
+  // Caucasus / Central Asia
+  AM: 2,  // 180 days visa-free + easy residency
+  KZ: 1,
+
+  // Africa / Indian Ocean
+  ZA: 1,  // remote-work visa (2024)
+  MU: 2,  // Premium Travel Visa for nomads
 };
 
 // EU/EEA country codes — used by feasibilityTier for freedom-of-movement check.

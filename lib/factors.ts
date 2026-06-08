@@ -24,6 +24,7 @@ export const FACTORS: FactorDef[] = [
   { id: "healthcare", label: "Healthcare", emoji: "🏥", role: "filter", fields: ["healthcareScore"], floor: { nice: 0, important: 5, must: 6.5 } },
   { id: "culture", label: "Culture & vibe", emoji: "🌍", role: "differentiator", fields: [], derived: "culture" },
   { id: "social", label: "Social life", emoji: "🎉", role: "differentiator", fields: ["socialSceneScore","expatSceneScore"] },
+  { id: "publicTransport", label: "Public transport", emoji: "🚆", role: "differentiator", fields: ["publicTransportScore"] },
 ];
 
 export function ratingWeight(r: Rating): number {

@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { FACTORS, ratingWeight } from "@/lib/factors";
 
 describe("factors", () => {
-  it("has 10 factors with the agreed headline 5 present", () => {
+  it("has 11 factors with the agreed headline 5 present", () => {
     const ids = FACTORS.map((f) => f.id);
-    expect(FACTORS).toHaveLength(10);
-    for (const id of ["weather","safety","lgbt","language","jobs"]) {
+    expect(FACTORS).toHaveLength(11);
+    for (const id of ["weather","safety","lgbt","language","jobs","publicTransport"]) {
       expect(ids).toContain(id);
     }
   });

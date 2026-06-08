@@ -21,11 +21,13 @@ describe("scoreCountry", () => {
     expect(r.breakdown.find((b) => b.id === "taxes")).toBeUndefined();
   });
 
-  it("money bundle (cost+taxes) contributes one combined voice", () => {
+  it("taxes and cost of living are independent voices (un-bundled)", () => {
     const r = scoreCountry({ factorRatings: { costOfLiving: "important", taxes: "important" } } as QuizData, makeCountry({}));
     const money = r.breakdown.filter((b) => b.id === "costOfLiving" || b.id === "taxes");
-    expect(money).toHaveLength(1); // collapsed
-    expect(money[0].combined).toBe(true);
+    expect(money).toHaveLength(2); // each kept as its own factor
+    expect(money.some((b) => b.id === "taxes")).toBe(true);
+    expect(money.some((b) => b.id === "costOfLiving")).toBe(true);
+    expect(money.every((b) => b.combined === undefined)).toBe(true);
   });
 
   it("empty profile (no factorRatings) returns fit 50 and empty breakdown", () => {
@@ -51,12 +53,12 @@ describe("scoreCountry", () => {
     expect(rHigh.fit).toBeGreaterThan(rAt.fit);
   });
 
-  it("taxes-only money bundle: single entry with id 'taxes' and combined true", () => {
+  it("taxes-only: single 'taxes' entry, not combined", () => {
     const r = scoreCountry({ factorRatings: { taxes: "important" } } as QuizData, makeCountry({}));
     const money = r.breakdown.filter((b) => b.id === "costOfLiving" || b.id === "taxes");
     expect(money).toHaveLength(1);
     expect(money[0].id).toBe("taxes");
-    expect(money[0].combined).toBe(true);
+    expect(money[0].combined).toBeUndefined();
   });
 });
 

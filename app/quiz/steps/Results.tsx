@@ -6,6 +6,7 @@ import type { QuizData } from "@/lib/types";
 import type { ReportPayload } from "@/lib/scoring/types";
 import type { QuizApiResponse } from "./Reveal";
 import CountryCard from "./CountryCard";
+import { annualTakeHomeDelta, estimatedAnnualDeltaVsHome, formatMoney } from "@/lib/money";
 
 interface ResultsProps {
   results: QuizApiResponse;
@@ -27,6 +28,15 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
     : top;
   const showMoonshot = !realisticOnly && moonshot != null;
   const realisticEmpty = realisticOnly && filteredTop.length === 0;
+
+  // Personalised, honest ROI headline for the offer: estimated extra take-home
+  // per year in the #1 match vs the user's home country (same currency as income).
+  const topMatch = top[0];
+  const taxDelta = topMatch
+    ? estimatedAnnualDeltaVsHome(profile, topMatch.country) ?? annualTakeHomeDelta(profile, topMatch.country)
+    : null;
+  const showSavings = taxDelta != null && taxDelta > 0;
+  const savingsStr = showSavings ? formatMoney(taxDelta as number, profile.incomeCurrency) : null;
 
   // Build share URL
   function buildShareUrl(): string {
@@ -204,6 +214,7 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
                     rank={top.indexOf(m) + 1}
                     moonshot={false}
                     defaultExpanded={i === 0}
+                    profile={profile}
                   />
                 </motion.div>
               ))
@@ -228,7 +239,7 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
                 </div>
               </div>
             </div>
-            <CountryCard match={moonshot!} moonshot={true} defaultExpanded={false} />
+            <CountryCard match={moonshot!} moonshot={true} defaultExpanded={false} profile={profile} />
           </motion.div>
         )}
 
@@ -260,14 +271,55 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
           transition={{ duration: 0.5, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="relo-results__cta-card">
-            <div className="relo-results__cta-badge">Deep report</div>
+            <div className="relo-results__cta-badge">Your move, mapped</div>
             <h3 className="relo-results__cta-title">
-              Unlock your full relocation blueprint
+              {showSavings ? (
+                <>
+                  Keep about <span className="relo-results__cta-hl">{savingsStr}</span> more
+                  every year in {topMatch.country.name}
+                </>
+              ) : (
+                <>Your move to {topMatch?.country.name ?? "your top match"}, mapped step by step</>
+              )}
             </h3>
             <p className="relo-results__cta-body">
-              Real visa pathways, step-by-step tax strategy, banking setup, and a
-              personalised action timeline — everything you need to actually move.
+              You found <em>where</em>. The hard part is <em>how</em> — the visa, the
+              taxes, the timing. Guess wrong and one bad move costs you months and
+              thousands. Your report hands you the exact plan so you don&rsquo;t.
             </p>
+
+            <ul className="relo-results__stack">
+              <li>
+                <span>Your personal tax &amp; take-home breakdown vs home</span>
+                <span className="relo-results__stack-val">$49</span>
+              </li>
+              <li>
+                <span>Real visa routes for your passport — with cost &amp; timeline</span>
+                <span className="relo-results__stack-val">$39</span>
+              </li>
+              <li>
+                <span>A 90-day move plan, week by week</span>
+                <span className="relo-results__stack-val">$39</span>
+              </li>
+              <li>
+                <span>Cost-of-living reality check across all 3 countries</span>
+                <span className="relo-results__stack-val">$19</span>
+              </li>
+              <li>
+                <span>Document checklist so nothing trips you up at the border</span>
+                <span className="relo-results__stack-val">$19</span>
+              </li>
+            </ul>
+
+            <div className="relo-results__price-row">
+              <span className="relo-results__price-was">Total value $165</span>
+              <span className="relo-results__price-now">Today $29</span>
+            </div>
+
+            <p className="relo-results__guarantee">
+              Not worth 10x the price? Email us — full refund, no questions, keep the report.
+            </p>
+
             {checkoutError && (
               <p className="relo-results__cta-error">{checkoutError}</p>
             )}
@@ -280,8 +332,12 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
               {checkoutLoading ? (
                 <span className="relo-results__cta-spinner" aria-hidden="true" />
               ) : null}
-              {checkoutLoading ? "Preparing your report…" : "Get my deep report →"}
+              {checkoutLoading ? "Preparing your report…" : "Get my $29 blueprint →"}
             </button>
+            <p className="relo-results__cta-fineprint">
+              Instant PDF · launch price while we&rsquo;re in beta · it tells you exactly which
+              forms and in what order — it won&rsquo;t fill them out for you.
+            </p>
           </div>
         </motion.div>
 
@@ -531,6 +587,76 @@ function ResultsStyles() {
         color: rgba(255,255,255,0.65);
         line-height: 1.6;
         margin: 0 0 1.1rem;
+      }
+      .relo-results__cta-hl {
+        color: #ffd700;
+        white-space: nowrap;
+      }
+      .relo-results__stack {
+        list-style: none;
+        margin: 0 0 1.1rem;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .relo-results__stack li {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.82rem;
+        color: rgba(255,255,255,0.85);
+        line-height: 1.35;
+      }
+      .relo-results__stack li::before {
+        content: "✓";
+        color: #ff6b35;
+        font-weight: 700;
+        margin-right: 0.4rem;
+      }
+      .relo-results__stack li span:first-of-type {
+        flex: 1;
+      }
+      .relo-results__stack-val {
+        color: rgba(255,255,255,0.45);
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .relo-results__price-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin: 0 0 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid rgba(255,255,255,0.12);
+      }
+      .relo-results__price-was {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.5);
+        text-decoration: line-through;
+      }
+      .relo-results__price-now {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #fff;
+      }
+      .relo-results__guarantee {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        font-size: 0.78rem;
+        color: #6ee7a8;
+        line-height: 1.45;
+        margin: 0 0 1rem;
+      }
+      .relo-results__cta-fineprint {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.45);
+        line-height: 1.5;
+        margin: 0.7rem 0 0;
+        text-align: center;
       }
       .relo-results__cta-error {
         font-size: 0.78rem;

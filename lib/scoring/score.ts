@@ -4,6 +4,7 @@ import type { CountryRecord, CultureCluster } from "@/lib/countriesDb";
 import type { QuizData } from "@/lib/types";
 import type { CountryFit, Breakdown, ClimatePref, CulturePref, FactorId, Rating, Tier, MatchResult } from "@/lib/scoring/types";
 import { feasibilityTier } from "@/lib/feasibility/tier";
+import { estimateForCountry } from "@/lib/money";
 
 // ---------------------------------------------------------------------------
 // Culture adjacency map
@@ -87,8 +88,23 @@ function resolveFactorScore(
   // but netIncomePercentTypical is a 0–100 percentage, not a 0–10 score, so we can't use
   // the generic field-average path. Instead we normalise it by dividing by 10 here.
   if (factorId === "taxes") {
-    // Relative mode: user wants LOWER taxes than their home country. Score each
-    // candidate by how much lower its taxes are vs home (neutral at parity).
+    // Best signal: a real per-earner tax estimate based on the user's income.
+    // Higher take-home % = better. Score on a 0–10 scale from the net-kept %.
+    const estCand = estimateForCountry(profile, country);
+    if (estCand) {
+      // Relative mode: reward keeping MORE than they would at home.
+      if (profile.taxPreference === "lower") {
+        const home = homeCountry(profile);
+        const estHome = home ? estimateForCountry(profile, home) : null;
+        if (estHome) {
+          // +1 score point per ~3pp more income kept vs home, neutral at parity.
+          return Math.min(10, Math.max(0, 5 + (estCand.netPercent - estHome.netPercent) / 3));
+        }
+      }
+      return Math.min(10, Math.max(0, estCand.netPercent / 10));
+    }
+
+    // Fallback (no income / no profile): use static scores as before.
     if (profile.taxPreference === "lower") {
       const home = homeCountry(profile);
       if (home) return relativeScore((country as any).taxScore ?? 0, home.taxScore);
@@ -137,47 +153,16 @@ export function scoreCountry(profile: QuizData, country: CountryRecord): Country
   for (const factor of FACTORS) {
     const rating = factorRatings[factor.id];
     if (!rating || rating === "dont_care") continue;
-    // skip costOfLiving and taxes here — handled separately as money bundle
-    if (factor.id === "costOfLiving" || factor.id === "taxes") continue;
 
     const score = resolveFactorScore(factor.id, country, p);
     const weight = ratingWeight(rating as Rating);
     kept.push({ id: factor.id as FactorId, score, weight, role: factor.role, floor: factor.floor });
   }
 
-  // Money bundle: collapse costOfLiving + taxes into one combined entry.
-  // Money is always treated as a differentiator bundle regardless of original roles.
-  const colRating = factorRatings["costOfLiving"];
-  const taxRating = factorRatings["taxes"];
-  const colKept = colRating && colRating !== "dont_care";
-  const taxKept = taxRating && taxRating !== "dont_care";
-
-  let moneyEntry: KeptEntry | null = null;
-  if (colKept || taxKept) {
-    const scores: number[] = [];
-    const weights: number[] = [];
-    if (colKept) {
-      scores.push(resolveFactorScore("costOfLiving", country, p));
-      weights.push(ratingWeight(colRating as Rating));
-    }
-    if (taxKept) {
-      scores.push(resolveFactorScore("taxes", country, p));
-      weights.push(ratingWeight(taxRating as Rating));
-    }
-    const bundleScore = mean(scores);
-    const bundleWeight = Math.max(...weights);
-    // Deterministic id: use "costOfLiving" if it's kept, else "taxes"
-    const bundleId: FactorId = colKept ? "costOfLiving" : "taxes";
-    moneyEntry = {
-      id: bundleId,
-      score: bundleScore,
-      weight: bundleWeight,
-      role: "differentiator", // money is always a differentiator bundle
-      combined: true,
-    };
-  }
-
-  const allContributions = moneyEntry ? [...kept, moneyEntry] : kept;
+  // Taxes and cost of living are now independent factors, each carrying its own
+  // full weight and its own visible breakdown row (no more averaging into one
+  // "money" voice — a strong "low taxes" priority counts at full strength).
+  const allContributions = kept;
 
   if (allContributions.length === 0) {
     return { fit: 50, breakdown: [] };

@@ -6,6 +6,7 @@ import type { QuizData } from "@/lib/types";
 import type { MobilityRights } from "@/lib/scoring/types";
 import { COUNTRIES } from "@/lib/countriesDb";
 import { currencyForCountry } from "@/lib/countryCurrency";
+import { EARNER_TYPES } from "@/lib/tax/types";
 
 // All country names from the DB + common origins not in DB
 const DB_NAMES = COUNTRIES.map((c) => c.name);
@@ -372,6 +373,28 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
               })()}
             </select>
           </div>
+
+          {/* Earner type — drives the personalised tax estimate */}
+          <p className="relo-basics__hint" style={{ marginTop: "0.85rem" }}>
+            How do you earn? We estimate your real take-home tax differently for each.
+          </p>
+          <div className="relo-basics__earner-row">
+            {EARNER_TYPES.map((opt) => {
+              const selected = (data.earnerType ?? "employed") === opt.id;
+              return (
+                <motion.button
+                  key={opt.id}
+                  type="button"
+                  className={`relo-basics__earner-btn ${selected ? "is-selected" : ""}`}
+                  onClick={() => update({ earnerType: opt.id })}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <strong>{opt.label}</strong>
+                  <span>{opt.hint}</span>
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Languages ── */}
@@ -696,6 +719,49 @@ export default function Basics({ data, update, onNext, onBack }: BasicsProps) {
 
         .relo-basics__currency-select:focus {
           border-color: #ff6b35;
+        }
+
+        /* Earner type */
+        .relo-basics__earner-row {
+          display: flex;
+          gap: 0.4rem;
+        }
+
+        .relo-basics__earner-btn {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          padding: 0.55rem 0.5rem;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+          cursor: pointer;
+          text-align: left;
+          font-family: inherit;
+          transition: all 0.16s;
+        }
+
+        .relo-basics__earner-btn:hover:not(.is-selected) {
+          border-color: #ff6b35;
+        }
+
+        .relo-basics__earner-btn.is-selected {
+          border-color: #ff6b35;
+          background: linear-gradient(135deg, rgba(255,107,53,0.22), rgba(247,147,30,0.18));
+          box-shadow: 0 2px 12px rgba(255,107,53,0.22);
+        }
+
+        .relo-basics__earner-btn strong {
+          font-size: 0.78rem;
+          color: #ffffff;
+          font-weight: 600;
+        }
+
+        .relo-basics__earner-btn span {
+          font-size: 0.66rem;
+          color: rgba(255, 255, 255, 0.5);
+          line-height: 1.25;
         }
 
         /* Language chips */

@@ -18,6 +18,7 @@ const FACTOR_DESCRIPTIONS: Record<FactorId, string> = {
   healthcare:    "Quality hospitals, fast access, affordable without insurance nightmares",
   culture:       "Art, food, nightlife, architecture — the vibe that feeds your soul",
   social:        "Easy to make friends, expat scene, social life that clicks",
+  publicTransport: "Great metros, trains and buses — live well without owning a car",
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
