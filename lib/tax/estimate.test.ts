@@ -494,6 +494,63 @@ describe("Gulf & microstates (rich model)", () => {
   });
 });
 
+describe("Balkans & CEE rest (rich model)", () => {
+  const RS = taxProfileFor("RS")!;
+  const ME = taxProfileFor("ME")!;
+  const AL = taxProfileFor("AL")!;
+  const MK = taxProfileFor("MK")!;
+  const MD = taxProfileFor("MD")!;
+  const UA = taxProfileFor("UA")!;
+  const TR = taxProfileFor("TR")!;
+
+  it("Serbia: small freelancer uses fixed paušalac (very low)", () => {
+    const e = estimateTax(RS, 50_000, "freelancer", 50_000);
+    expect(e.regimeApplied).toMatch(/paušalac/);
+    expect(e.effectiveRate).toBeLessThan(0.15);
+  });
+
+  it("Montenegro: 9%/15% income tax stays low for employees", () => {
+    const e = estimateTax(ME, 50_000, "employed");
+    expect(e.effectiveRate).toBeLessThan(0.3);
+  });
+
+  it("Albania: small-business freelancer pays 0% income tax (to 2029)", () => {
+    const e = estimateTax(AL, 80_000, "freelancer", 100_000);
+    expect(e.regimeApplied).toMatch(/Small-business/);
+    const e2 = estimateTax(AL, 80_000, "employed");
+    expect(e2.taxAmount).toBeGreaterThan(e.taxAmount);
+  });
+
+  it("Moldova: IT Park 7%-of-turnover beats general 12%", () => {
+    const e = estimateTax(MD, 80_000, "freelancer", 100_000);
+    expect(e.regimeApplied).toMatch(/IT Park/);
+    expect(e.effectiveRate).toBeLessThan(0.12);
+  });
+
+  it("Ukraine: Group 3 5%-of-turnover is the freelancer optimum", () => {
+    const e = estimateTax(UA, 80_000, "freelancer", 100_000);
+    expect(e.regimeApplied).toMatch(/Group 3/);
+    expect(e.effectiveRate).toBeLessThan(0.1);
+  });
+  it("Ukraine: salaried pays 18% PIT + 5% military levy", () => {
+    const e = estimateTax(UA, 50_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.22);
+    expect(e.effectiveRate).toBeLessThan(0.24);
+  });
+
+  it("Turkey: service-export exemption beats the 40% scale for freelancers", () => {
+    const e = estimateTax(TR, 200_000, "freelancer", 250_000);
+    const general = estimateTax(TR, 200_000, "employed");
+    expect(e.regimeApplied).toMatch(/Service-export/);
+    expect(e.taxAmount).toBeLessThan(general.taxAmount);
+  });
+
+  it("North Macedonia: flat 10% income tax but notable social", () => {
+    const e = estimateTax(MK, 50_000, "employed");
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {

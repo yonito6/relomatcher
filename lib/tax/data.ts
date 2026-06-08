@@ -968,64 +968,141 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   RS: {
+    // Verified 2026: 10% flat income tax on entrepreneurs/profit. The paušalac
+    // flat-rate entrepreneur (turnover ≤ RSD 6M ≈ $55,800) pays a FIXED monthly
+    // liability (income tax 10% + PIO pension + health on a low notional base) —
+    // commonly ~$5k–6k/yr all-in for IT/online work. RSD≈$0.0093 USD-equiv.
     employed: { low: 0.18, mid: 0.2, high: 0.22 },
     selfEmployed: { low: 0.1, mid: 0.13, high: 0.18 },
-    remoteRegime: { rate: 0.1, label: "Flat-rate entrepreneur (paušalac) low fixed tax", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 55_000 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    standardSocial: { rate: 0.199 },
+    selfEmployedSocial: { rate: 0.36, capIncome: 50_000 },
+    regimes: [
+      { label: "Flat-rate entrepreneur (paušalac) fixed low tax", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0, social: { rate: 0, minAnnual: 5_500 }, maxAnnualRevenue: 55_000 },
+    ],
     vat: 20,
-    notes: "10% flat income tax; the lump-sum entrepreneur scheme is very low for IT/online work.",
+    notes: "10% flat income tax; the paušalac lump-sum entrepreneur scheme (turnover ≤ RSD 6M) is a fixed ~$5.5k/yr all-in — very low for IT/online work.",
     confidence: "medium",
   },
   ME: {
+    // Verified 2026: two-rate PIT 9% then 15% (above ~€8,400 profit / €1,000/mo
+    // salary). Pension/social ~20.5% (health contributions abolished 2022).
+    // EUR≈$1.08 USD-equiv.
     employed: { low: 0.11, mid: 0.13, high: 0.15 },
     selfEmployed: { low: 0.1, mid: 0.13, high: 0.16 },
+    brackets: [
+      { upTo: 9_000, rate: 0.09 },
+      { upTo: Infinity, rate: 0.15 },
+    ],
+    standardSocial: { rate: 0.15 },
+    selfEmployedSocial: { rate: 0.205, capIncome: 60_000 },
+    regimes: [],
     vat: 21,
-    notes: "Flat-ish 9–15% personal income tax — one of the lowest in Europe.",
+    notes: "Two-rate 9%/15% personal income tax — one of the lowest in Europe; pension/social ~20.5% (health contributions abolished).",
     confidence: "medium",
   },
   AL: {
+    // Verified 2026: small-business/self-employed pay 0% income tax on gross up to
+    // ALL 14M (~€120,700 ≈ $130k) until end-2029, 23% above — UNLESS >80% of income
+    // is from one client (anti-abuse → taxed as PIT 13/23%). Employment PIT 0/13/23%.
+    // EUR≈$1.08, ALL≈$0.0108 USD-equiv.
     employed: { low: 0.13, mid: 0.2, high: 0.23 },
     selfEmployed: { low: 0.05, mid: 0.1, high: 0.15 },
-    remoteRegime: { rate: 0.0, label: "Small self-employed turnover often 0% income tax", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 60_000 },
+    brackets: [
+      { upTo: 7_500, rate: 0.13 },
+      { upTo: Infinity, rate: 0.23 },
+    ],
+    standardSocial: { rate: 0.112 },
+    selfEmployedSocial: { rate: 0.15, capIncome: 20_000 },
+    regimes: [
+      { label: "Small-business 0% income tax (to 2029)", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0, social: { rate: 0.15, capIncome: 20_000 }, maxAnnualRevenue: 130_000 },
+    ],
     vat: 20,
-    notes: "Up to 23% on salary; small freelancers/businesses can be effectively untaxed on income tax.",
-    confidence: "low",
+    notes: "Self-employed/small business pay 0% income tax on gross up to ~€120k until end-2029 (anti-abuse: >80% from one client reverts to 13/23% PIT). Salary PIT up to 23%.",
+    confidence: "medium",
   },
   MK: {
+    // Verified 2026: flat 10% PIT. Social contributions are notable (~27–28% of
+    // gross: pension 18.8% + health 7.5% + unemployment), borne from gross salary.
+    // MKD≈$0.0176 USD-equiv.
     employed: { low: 0.1, mid: 0.1, high: 0.1 },
     selfEmployed: { low: 0.08, mid: 0.1, high: 0.1 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    standardSocial: { rate: 0.27 },
+    selfEmployedSocial: { rate: 0.27, capIncome: 40_000 },
+    regimes: [],
     vat: 18,
-    notes: "Flat 10% income tax; low social contributions. Very budget-friendly.",
+    notes: "Flat 10% income tax (low headline), but social contributions are ~27% of gross. Net take-home is moderate.",
     confidence: "medium",
   },
   BA: {
+    // Verified 2026: flat 10% PIT. Social contributions are HIGH and borne from
+    // gross (FBiH ~31%: pension 17% + health 12.5% + unemployment); RS entity differs.
+    // BAM≈$0.55 USD-equiv.
     employed: { low: 0.1, mid: 0.1, high: 0.1 },
     selfEmployed: { low: 0.1, mid: 0.1, high: 0.12 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    standardSocial: { rate: 0.31 },
+    selfEmployedSocial: { rate: 0.31, capIncome: 30_000 },
+    regimes: [],
     vat: 17,
-    notes: "Flat 10% income tax; modest VAT. Bureaucracy varies by entity (FBiH vs RS).",
+    notes: "Flat 10% income tax, but social contributions are high (~31% of gross in FBiH). Bureaucracy and rates vary by entity (FBiH vs RS).",
     confidence: "low",
   },
   MD: {
+    // Verified 2026: flat 12% PIT. Employee health (CNAM) 9%; pension (CNAS 24%)
+    // is employer-side. IT Park residents pay a single 7% tax on TURNOVER that
+    // replaces income tax + social + most others. MDL≈$0.057 USD-equiv.
     employed: { low: 0.12, mid: 0.12, high: 0.12 },
     selfEmployed: { low: 0.07, mid: 0.07, high: 0.12 },
-    remoteRegime: { rate: 0.07, label: "IT Park residents ~7% single tax on turnover", appliesTo: REMOTE_AND_SELF },
+    brackets: [{ upTo: Infinity, rate: 0.12 }],
+    standardSocial: { rate: 0.09 },
+    selfEmployedSocial: { rate: 0.09 },
+    regimes: [
+      { label: "IT Park: 7% single tax on turnover (all-in)", activities: ["freelancer", "ecommerce"], basis: "revenue", rate: 0.07, social: { rate: 0 } },
+    ],
     vat: 20,
-    notes: "Flat 12% income tax; the Moldova IT Park offers a ~7% all-in turnover tax for tech.",
-    confidence: "low",
+    notes: "Flat 12% income tax; the Moldova IT Park offers a ~7% all-in single tax on turnover for tech work (replaces income tax + social).",
+    confidence: "medium",
   },
   UA: {
+    // Verified 2026: salary = 18% PIT + 5% military levy (raised from 1.5%) = 23%.
+    // Simplified Group 3 sole-proprietor pays 5% of turnover (no VAT) + a fixed
+    // unified social contribution (ЄСВ ~$650/yr); turnover ≤ UAH 9.336M ≈ $222k.
+    // UAH≈$0.0238 USD-equiv.
     employed: { low: 0.195, mid: 0.195, high: 0.195 },
     selfEmployed: { low: 0.05, mid: 0.06, high: 0.08 },
-    remoteRegime: { rate: 0.05, label: "Simplified Group 3: 5% of turnover (+ Diia City for IT)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 200_000 },
+    brackets: [{ upTo: Infinity, rate: 0.23 }],
+    standardSocial: { rate: 0 }, // ЄСВ 22% is employer-side; employee bears 18%+5% levy
+    selfEmployedSocial: { rate: 0, minAnnual: 650 },
+    regimes: [
+      { label: "Simplified Group 3: 5% of turnover", activities: ["freelancer", "ecommerce"], basis: "revenue", rate: 0.05, social: { rate: 0, minAnnual: 650 }, maxAnnualRevenue: 222_000 },
+    ],
     vat: 20,
-    notes: "18% PIT + 1.5% military levy on salary; the 5% simplified single tax is famous for freelancers.",
-    confidence: "low",
+    notes: "18% PIT + 5% military levy on salary (23%); the 5%-of-turnover simplified single tax (Group 3, ≤ ~$222k) is famous for freelancers.",
+    confidence: "medium",
   },
   TR: {
+    // Verified 2026: progressive PIT 15/20/27/35/40%. Heavy SGK social (~15%
+    // employee, capped). Qualifying SERVICE-EXPORT earnings get an 80% income-tax
+    // exemption → low effective income tax. High inflation makes TRY brackets
+    // volatile; figures are USD-equiv approximations. TRY≈$0.025 USD-equiv.
     employed: { low: 0.2, mid: 0.28, high: 0.36 },
     selfEmployed: { low: 0.18, mid: 0.27, high: 0.38 },
-    remoteRegime: { rate: 0.0, label: "Service-export earnings can get major income-tax exemptions", appliesTo: REMOTE_AND_SELF },
+    brackets: [
+      { upTo: 12_000, rate: 0.15 },
+      { upTo: 30_000, rate: 0.2 },
+      { upTo: 90_000, rate: 0.27 },
+      { upTo: 300_000, rate: 0.35 },
+      { upTo: Infinity, rate: 0.4 },
+    ],
+    standardSocial: { rate: 0.15, capIncome: 60_000 },
+    selfEmployedSocial: { rate: 0.2, capIncome: 60_000 },
+    regimes: [
+      { label: "Service-export 80% income-tax exemption", activities: ["freelancer", "ecommerce"], basis: "profit", rate: 0.05, social: { rate: 0.2, capIncome: 60_000 } },
+    ],
     vat: 20,
-    notes: "Progressive to 40% + high social premiums; exporters of services get partial exemptions. High inflation.",
+    notes: "Progressive to 40% + high social premiums; exporters of services get an 80% income-tax exemption → low effective rate. High inflation makes figures approximate.",
     confidence: "low",
   },
   AD: {
