@@ -177,12 +177,33 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   CY: {
+    // Progressive PIT 0/20/25/30/35% (tax-free up to €22k from 2026). Non-dom
+    // status = 0% tax on dividends, so the classic structure is a Cyprus company
+    // (12.5% corporate) + 0%-tax dividends, with only ~2.65% GHS (capped at the
+    // first €180k of income ⇒ max ~€4,770/yr). EUR≈$1.08.
     employed: { low: 0.1, mid: 0.18, high: 0.27 },
     selfEmployed: { low: 0.12, mid: 0.2, high: 0.3 },
-    remoteRegime: { rate: 0.0, label: "Non-dom: 0% on dividends/interest (17 yrs); 50% exemption over €55k salary", appliesTo: REMOTE_AND_SELF },
+    brackets: [
+      { upTo: 23_760, rate: 0 },
+      { upTo: 34_560, rate: 0.2 },
+      { upTo: 45_360, rate: 0.25 },
+      { upTo: 77_760, rate: 0.3 },
+      { upTo: Infinity, rate: 0.35 },
+    ],
+    standardSocial: { rate: 0.114, capIncome: 70_000 }, // employee SI 8.8% + GHS 2.65%
+    selfEmployedSocial: { rate: 0.206, capIncome: 70_000 }, // self SI ~16.6% + GHS 4%
+    regimes: [
+      {
+        label: "Non-dom: Cyprus company 12.5% + 0% dividend tax (GHS only)",
+        activities: ["ecommerce", "freelancer", "investor"],
+        basis: "profit",
+        rate: 0.125,
+        social: { rate: 0.0265, capIncome: 194_400, maxAnnual: 5_150 }, // 2.65% GHS capped at €180k
+      },
+    ],
     vat: 19,
-    notes: "First €19,500 tax-free; non-dom status makes dividend/investment income effectively 0%.",
-    confidence: "high",
+    notes: "First €22k tax-free, then 20–35% PIT. Non-dom status = 0% tax on dividends, so the common setup is a Cyprus company (12.5% corporate) paying dividends taxed only by ~2.65% GHS (capped ~€4,770/yr). Strong for company owners.",
+    confidence: "medium",
   },
   MT: {
     employed: { low: 0.15, mid: 0.25, high: 0.32 },
@@ -255,18 +276,40 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   RO: {
-    employed: { low: 0.2, mid: 0.22, high: 0.25 },
-    selfEmployed: { low: 0.1, mid: 0.16, high: 0.2 },
-    remoteRegime: { rate: 0.1, label: "Micro-enterprise 1–3% turnover + 8% dividend", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 520_000 },
+    // PFA self-employed: flat 10% PIT on net profit + capped health (CASS 10% up
+    // to ~72 min wages ≈ $64k base). Micro-company (SRL) route: 1% of revenue
+    // while turnover ≤ €100k (cap cut from €250k in 2026) + 10% on dividends.
+    // RON≈$0.22, EUR≈$1.08.
+    employed: { low: 0.2, mid: 0.25, high: 0.3 },
+    selfEmployed: { low: 0.1, mid: 0.12, high: 0.14 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    selfEmployedSocial: { rate: 0.1, capIncome: 64_000, minAnnual: 3_500 },
+    regimes: [
+      {
+        label: "Micro-company 1% of revenue (≤ €100k) + 10% dividend",
+        activities: ["ecommerce", "freelancer"],
+        basis: "revenue",
+        rate: 0.01,
+        social: { rate: 0.1, capIncome: 64_000 }, // ~10% dividend on profit; capIncome proxies the CASS cap
+        maxAnnualRevenue: 108_000,
+      },
+    ],
     vat: 19,
-    notes: "Flat 10% income tax; micro-company route is one of the lowest in the EU.",
+    notes: "Flat 10% income tax. PFA self-employed: 10% on net profit + capped health (CASS). Micro-company (SRL) route: 1% of revenue while turnover ≤ €100k (cap cut from €250k in 2026) plus 10% on dividends — one of the lowest in the EU for small businesses.",
     confidence: "medium",
   },
   BG: {
+    // Flat 10% PIT. Social security is charged only up to a low maximum insurable
+    // income (~€2,112/mo ⇒ ~$27.4k/yr), so a high earner pays very little social
+    // and the all-in rate trends toward ~10%. EUR≈$1.08.
     employed: { low: 0.15, mid: 0.18, high: 0.2 },
     selfEmployed: { low: 0.1, mid: 0.13, high: 0.16 },
+    brackets: [{ upTo: Infinity, rate: 0.1 }],
+    standardSocial: { rate: 0.1378, capIncome: 27_400 },
+    selfEmployedSocial: { rate: 0.278, capIncome: 27_400 },
+    regimes: [], // verified flat-tax country; flat 10% + capped social IS the model
     vat: 20,
-    notes: "Flat 10% income tax — lowest headline rate in the EU; modest social contributions.",
+    notes: "Flat 10% income tax — lowest headline rate in the EU. Social contributions are capped at a low maximum insurable income (~€2,112/mo), so a high earner's all-in rate trends toward ~10%.",
     confidence: "high",
   },
   HR: {
@@ -300,11 +343,31 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "medium",
   },
   GE: {
+    // 20% flat PIT for individuals; territorial. Small Business Status taxes 1%
+    // of turnover up to ₾500k (~$185k) then 3% just above; status is LOST above
+    // the cap, reverting to 20% on profit. GEL≈$0.37.
     employed: { low: 0.2, mid: 0.2, high: 0.2 },
-    selfEmployed: { low: 0.01, mid: 0.01, high: 0.03 },
-    remoteRegime: { rate: 0.01, label: "Small Business Status 1% on turnover (< ₾500k)", appliesTo: REMOTE_AND_SELF, maxAnnualRevenue: 185_000 },
+    selfEmployed: { low: 0.01, mid: 0.01, high: 0.2 },
+    brackets: [{ upTo: Infinity, rate: 0.2 }],
+    selfEmployedSocial: { rate: 0 }, // 2% pension; foreigners typically exempt
+    regimes: [
+      {
+        label: "Small Business Status: 1% of turnover (≤ ₾500k)",
+        activities: ["ecommerce", "freelancer"],
+        basis: "revenue",
+        rate: 0.01,
+        maxAnnualRevenue: 185_000,
+      },
+      {
+        label: "3% of turnover (small-business slice over ₾500k)",
+        activities: ["ecommerce", "freelancer"],
+        basis: "revenue",
+        rate: 0.03,
+        maxAnnualRevenue: 700_000,
+      },
+    ],
     vat: 18,
-    notes: "Territorial taxation + 1% small-business regime → one of the best for online/self-employed.",
+    notes: "Territorial system + 20% flat PIT. Individual-entrepreneur Small Business Status taxes 1% of turnover up to ₾500k (~$185k), 3% just above; status is lost above the cap, reverting to 20% on profit. One of the best for small online/self-employed.",
     confidence: "high",
   },
 
@@ -317,11 +380,29 @@ export const TAX_PROFILES: Record<string, TaxProfile> = {
     confidence: "high",
   },
   AE: {
+    // No personal income tax. A natural person's BUSINESS profit faces 9%
+    // corporate tax only on the slice above AED 375k (~$101k USD-equiv), and
+    // only once turnover tops AED 1M. Small Business Relief = 0% while turnover
+    // ≤ AED 3M (through end-2026). AED≈$0.27.
     employed: { low: 0.0, mid: 0.0, high: 0.0 },
     selfEmployed: { low: 0.0, mid: 0.0, high: 0.09 },
-    remoteRegime: { rate: 0.0, label: "0% personal income tax", appliesTo: ["employed", "self_employed", "remote_foreign"] },
+    brackets: [
+      { upTo: 101_000, rate: 0 },
+      { upTo: Infinity, rate: 0.09 },
+    ],
+    selfEmployedSocial: { rate: 0 }, // no social security for expats
+    regimes: [
+      { label: "0% personal income tax", activities: ["investor"], basis: "profit", rate: 0 },
+      {
+        label: "Small Business Relief: 0% (turnover ≤ AED 3M, until end-2026)",
+        activities: ["ecommerce", "freelancer"],
+        basis: "profit",
+        rate: 0,
+        maxAnnualRevenue: 810_000, // AED 3M
+      },
+    ],
     vat: 5,
-    notes: "No personal income tax. 9% corporate tax over AED 375k for business profits; 5% VAT.",
+    notes: "No personal income tax. A natural person's business profit faces 9% corporate tax only above AED 375k (~$101k) and only once turnover tops AED 1M; Small Business Relief gives 0% while turnover ≤ AED 3M (through 2026). 5% VAT.",
     confidence: "high",
   },
 

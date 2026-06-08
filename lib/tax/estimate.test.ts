@@ -132,6 +132,56 @@ describe("Poland verified rich model", () => {
   });
 });
 
+describe("verified-core countries (rich model)", () => {
+  it("UAE keeps ~100% for a small ecommerce seller under the AED 3M relief cap", () => {
+    const AE = taxProfileFor("AE")!;
+    const e = estimateTax(AE, 50_000, "ecommerce", 200_000);
+    expect(e.netPercent).toBe(100); // 0% — under both the AED 375k threshold and the relief cap
+  });
+
+  it("UAE applies 9% corporate on the slice above ~$101k once relief is lost", () => {
+    const AE = taxProfileFor("AE")!;
+    // $960k revenue exceeds AED 3M → relief lost → 9% on ($300k-$101k).
+    const e = estimateTax(AE, 300_000, "ecommerce", 960_000);
+    expect(e.regimeApplied).toMatch(/General rules/); // 9% corporate, not the relief
+    expect(e.effectiveRate).toBeGreaterThan(0.04);
+    expect(e.effectiveRate).toBeLessThan(0.08);
+  });
+
+  it("Georgia gives 1% turnover to a small entrepreneur under ₾500k", () => {
+    const GE = taxProfileFor("GE")!;
+    const e = estimateTax(GE, 50_000, "freelancer", 120_000);
+    expect(e.regimeApplied).toMatch(/1% of turnover/);
+  });
+
+  it("Georgia loses small-business status above the cap → 20% flat on profit", () => {
+    const GE = taxProfileFor("GE")!;
+    const e = estimateTax(GE, 300_000, "ecommerce", 960_000);
+    expect(e.regimeApplied).toMatch(/General rules/);
+    expect(e.effectiveRate).toBeCloseTo(0.2, 1);
+  });
+
+  it("Bulgaria trends toward ~10% for a high earner thanks to the social cap", () => {
+    const BG = taxProfileFor("BG")!;
+    const e = estimateTax(BG, 300_000, "ecommerce", 400_000);
+    expect(e.effectiveRate).toBeGreaterThan(0.1);
+    expect(e.effectiveRate).toBeLessThan(0.15);
+  });
+
+  it("Romania micro-company applies under €100k turnover but not above", () => {
+    const RO = taxProfileFor("RO")!;
+    expect(estimateTax(RO, 50_000, "ecommerce", 80_000).regimeApplied).toMatch(/Micro-company/);
+    expect(estimateTax(RO, 300_000, "ecommerce", 960_000).regimeApplied).toMatch(/General rules/);
+  });
+
+  it("Cyprus non-dom company structure beats the progressive scale for an owner", () => {
+    const CY = taxProfileFor("CY")!;
+    const e = estimateTax(CY, 300_000, "ecommerce", 600_000);
+    expect(e.regimeApplied).toMatch(/Non-dom/);
+    expect(e.effectiveRate).toBeLessThan(0.2);
+  });
+});
+
 describe("TAX_PROFILES coverage", () => {
   it("has a profile for every country with valid legacy rates", () => {
     for (const [code, p] of Object.entries(TAX_PROFILES)) {
