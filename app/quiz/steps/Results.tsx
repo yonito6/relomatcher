@@ -6,7 +6,15 @@ import type { QuizData } from "@/lib/types";
 import type { ReportPayload } from "@/lib/scoring/types";
 import type { QuizApiResponse } from "./Reveal";
 import CountryCard from "./CountryCard";
+import { FACTORS, ratingWeight } from "@/lib/factors";
+import type { Rating } from "@/lib/scoring/types";
 import { annualTakeHomeDelta, estimatedAnnualDeltaVsHome, formatMoney } from "@/lib/money";
+
+const RATING_META: Record<Exclude<Rating, "dont_care">, { label: string; cls: string }> = {
+  must:      { label: "Must-have", cls: "must" },
+  important: { label: "Important", cls: "important" },
+  nice:      { label: "Nice",      cls: "nice" },
+};
 
 interface ResultsProps {
   results: QuizApiResponse;
@@ -28,6 +36,16 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
     : top;
   const showMoonshot = !realisticOnly && moonshot != null;
   const realisticEmpty = realisticOnly && filteredTop.length === 0;
+
+  // What the user told us mattered — surfaced back so the ranking feels earned.
+  // Strongest priorities first; "don't care" factors are dropped.
+  const priorities = FACTORS
+    .map((f) => ({ factor: f, rating: profile.factorRatings?.[f.id] }))
+    .filter(
+      (p): p is { factor: typeof p.factor; rating: Exclude<Rating, "dont_care"> } =>
+        p.rating != null && p.rating !== "dont_care"
+    )
+    .sort((a, b) => ratingWeight(b.rating) - ratingWeight(a.rating));
 
   // Personalised, honest ROI headline for the offer: estimated extra take-home
   // per year in the #1 match vs the user's home country (same currency as income).
@@ -143,6 +161,30 @@ export default function Results({ results, profile, onRestart }: ResultsProps) {
             Ranked by feasibility-adjusted fit — honest scores, real visa context.
           </p>
         </motion.div>
+
+        {/* Your priorities recap */}
+        {priorities.length > 0 && (
+          <motion.div
+            className="relo-results__priorities"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.08 }}
+          >
+            <p className="relo-results__priorities-label">What we matched on</p>
+            <div className="relo-results__priorities-chips">
+              {priorities.map(({ factor, rating }) => (
+                <span
+                  key={factor.id}
+                  className={`relo-results__chip relo-results__chip--${RATING_META[rating].cls}`}
+                >
+                  <span className="relo-results__chip-emoji">{factor.emoji}</span>
+                  <span className="relo-results__chip-name">{factor.label}</span>
+                  <span className="relo-results__chip-badge">{RATING_META[rating].label}</span>
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Relaxed filters banner */}
         {results.relaxedFilters && (
@@ -402,6 +444,65 @@ function ResultsStyles() {
         color: rgba(255, 255, 255, 0.6);
         margin: 0;
         line-height: 1.5;
+      }
+
+      /* Your priorities recap */
+      .relo-results__priorities {
+        margin-bottom: 1.25rem;
+      }
+      .relo-results__priorities-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+        margin: 0 0 0.55rem;
+        text-align: center;
+      }
+      .relo-results__priorities-chips {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.45rem;
+      }
+      .relo-results__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.32rem 0.6rem;
+        border-radius: 100px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.82);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
+      }
+      .relo-results__chip-emoji { font-size: 0.85rem; line-height: 1; }
+      .relo-results__chip-badge {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 0.1rem 0.35rem;
+        border-radius: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .relo-results__chip--must {
+        color: #fff;
+        background: rgba(255, 107, 53, 0.16);
+        border-color: rgba(255, 107, 53, 0.55);
+      }
+      .relo-results__chip--must .relo-results__chip-badge {
+        background: linear-gradient(135deg, #ff6b35, #f7931e);
+        color: #fff;
+      }
+      .relo-results__chip--important {
+        border-color: rgba(255, 107, 53, 0.28);
+      }
+      .relo-results__chip--important .relo-results__chip-badge {
+        background: rgba(255, 107, 53, 0.22);
+        color: #ffd9b8;
       }
 
       /* Relaxed filters banner */
